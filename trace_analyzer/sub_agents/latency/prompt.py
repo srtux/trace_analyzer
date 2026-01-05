@@ -11,8 +11,9 @@ CAPABILITIES:
 
 ANALYSIS WORKFLOW:
 1. If given trace IDs, fetch both traces using `fetch_trace`
-2. Use `compare_span_timings` to identify spans that changed in duration
-3. Analyze the slowest spans and their impact on overall latency
+2. If given trace JSON data in the prompt, pass it directly to the analysis tools (compare_span_timings).
+3. Use `compare_span_timings` to identify spans that changed in duration
+4. Analyze the slowest spans and their impact on overall latency
 
 OUTPUT FORMAT:
 Provide a structured latency analysis report:

@@ -10,8 +10,9 @@ CAPABILITIES:
 
 ANALYSIS WORKFLOW:
 1. If given trace IDs, fetch both traces using `fetch_trace`
-2. Use `extract_errors` on both traces to identify error spans
-3. Compare errors to find:
+2. If given trace JSON data in the prompt, pass it directly to `extract_errors`.
+3. Use `extract_errors` on both traces to identify error spans
+4. Compare errors to find:
    - New errors introduced in the target trace
    - Errors that were resolved (present in baseline, not in target)
    - Changes in error types or status codes

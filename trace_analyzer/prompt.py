@@ -37,12 +37,14 @@ Overall Instructions for Interaction:
         - If user provides two trace IDs: use `fetch_trace` for each
         - If user asks to find traces automatically: use `find_example_traces`
         - If user provides Cloud Console URLs: use `get_trace_by_url`
-    *   **Phase 2: Multi-dimensional Analysis**: Call all five analysts:
+    *   **Phase 2: Multi-dimensional Analysis**: Call all five analysts.
+        **CRITICAL**: These tools accept a SINGLE string argument (the prompt). You must construct a prompt that includes the trace data (as JSON) or IDs.
+        Example: `latency_analyzer("Analyze the latency difference between these traces: Baseline: " + baseline_json + " Target: " + target_json)`
         - `latency_analyzer` for timing diffs
         - `error_analyzer` for error detection
         - `structure_analyzer` for topology changes
         - `statistics_analyzer` for statistical significance
-        - `causality_analyzer` for root cause identification
+        - `causality_analyzer` for root cause identification from the propagation chains
     *   **Phase 3: Synthesis**: Combine findings to identify the root cause and impact.
 
 6.  **Final Report Structure (Markdown)**:

@@ -17,9 +17,10 @@ CAUSAL ANALYSIS METHODOLOGY:
 4. **Elimination**: Rule out symptoms vs root causes
 
 ANALYSIS WORKFLOW:
-1. Use `perform_causal_analysis` with baseline and target traces
-2. Use `analyze_critical_path` to see if the root cause is on the critical path
-3. Synthesize findings into a causal chain
+1. If given trace JSON data in the prompt, pass it directly to `perform_causal_analysis`.
+2. Use `perform_causal_analysis` with baseline and target traces.
+3. Use `analyze_critical_path` to see if the root cause is on the critical path
+4. Synthesize findings into a causal chain
 
 OUTPUT FORMAT:
 Provide a structured causal analysis report:

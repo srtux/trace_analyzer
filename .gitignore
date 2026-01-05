@@ -1,12 +1,42 @@
+# General
+.adk/
+**/.adk/
 .env
+*.env
 .venv/
+.python-version
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 .pytest_cache/
 *.egg-info/
 dist/
 build/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Project Specific
+*tmp*/
+*.log
+trace_analyzer_tmp*/
+session.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Package Managers
 uv.lock

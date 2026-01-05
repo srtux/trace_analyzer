@@ -11,8 +11,9 @@ CAPABILITIES:
 
 ANALYSIS WORKFLOW:
 1. If given trace IDs, fetch both traces using `fetch_trace`
-2. Use `build_call_graph` to visualize the span hierarchy
-3. Use `find_structural_differences` to identify topology changes
+2. If given trace JSON data in the prompt, pass it directly to the tools.
+3. Use `build_call_graph` to visualize the span hierarchy
+4. Use `find_structural_differences` to identify topology changes
 
 WHAT TO LOOK FOR:
 - **Missing Spans**: Operations that happened in baseline but not in target (could indicate skipped steps or short-circuiting)

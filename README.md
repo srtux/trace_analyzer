@@ -8,7 +8,8 @@ A Google ADK-based agent that performs diff analysis on distributed traces from 
 - **Latency Analysis**: Identifies which spans got slower and by how much
 - **Error Detection**: Finds new errors and changed error patterns
 - **Structure Comparison**: Detects missing or new operations in the call graph
-- **Root Cause Synthesis**: Combines findings to explain what changed
+- **Statistical Analysis**: Calculates P50/P99 latencies, z-scores, and identifies anomalies
+- **Root Cause Synthesis**: combines findings to explain what changed and why (causal analysis)
 
 ## Architecture
 
@@ -17,6 +18,8 @@ trace_analyzer_agent (Root Orchestrator)
 ├── latency_analyzer (Sub-Agent)
 ├── error_analyzer (Sub-Agent)
 ├── structure_analyzer (Sub-Agent)
+├── statistics_analyzer (Sub-Agent)
+├── causality_analyzer (Sub-Agent)
 └── Tools:
     ├── find_example_traces
     ├── fetch_trace
@@ -97,6 +100,7 @@ Find traces from the payment-service in the last 2 hours and compare the fastest
 
 ```
 trace_analyzer/
+├── deploy/              # Deployment scripts
 ├── trace_analyzer/
 │   ├── __init__.py
 │   ├── agent.py         # Root agent definition
@@ -105,7 +109,9 @@ trace_analyzer/
 │   ├── sub_agents/
 │   │   ├── latency/     # Latency comparison
 │   │   ├── error/       # Error detection
-│   │   └── structure/   # Call graph analysis
+│   │   ├── structure/   # Call graph analysis
+│   │   ├── statistics/  # Statistical analysis & anomalies
+│   │   └── causality/   # Root cause identification
 │   └── tools/
 │       ├── trace_client.py   # Cloud Trace API
 │       └── trace_analysis.py # Analysis utilities
