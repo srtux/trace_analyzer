@@ -4,16 +4,12 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import AgentTool
 
 from . import prompt
-from .telemetry import setup_telemetry
 from .tools.trace_client import find_example_traces, fetch_trace, list_traces, get_trace_by_url
 from .sub_agents.latency.agent import latency_analyzer
 from .sub_agents.error.agent import error_analyzer
 from .sub_agents.structure.agent import structure_analyzer
 from .sub_agents.statistics.agent import statistics_analyzer
 from .sub_agents.causality.agent import causality_analyzer
-
-# Initialize OpenTelemetry
-setup_telemetry()
 
 trace_analyzer_agent = LlmAgent(
     name="trace_analyzer_agent",
