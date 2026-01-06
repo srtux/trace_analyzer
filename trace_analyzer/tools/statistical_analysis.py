@@ -492,13 +492,28 @@ def perform_causal_analysis(
         
                 # Check if parent is also slow (propagation) or this is the origin
                 parent_name = parent_map.get(span_name)
-                parent_is_slow = any(s.get("span_name") == parent_name for s in slower_spans)
+                parent_span_data = next((s for s in slower_spans if s.get("span_name") == parent_name), None)
+                parent_is_slow = parent_span_data is not None
                 
+                # A span is a root cause if its parent is NOT slow, OR if it explains most of the parent's slowness
+                is_root_cause = True
+                if parent_is_slow:
+                    parent_diff_ms = parent_span_data.get("diff_ms", 0)
+                    # If this span's slowdown accounts for a significant portion of parent's slowdown,
+                    # it is likely the root cause (passed up the stack)
+                    if parent_diff_ms > 0:
+                        ratio = diff_ms / parent_diff_ms
+                        if ratio < 0.8: # If it explains < 80% of parent slowdown, it's likely just a victim or partial contributor
+                             is_root_cause = False
+                    else:
+                        # Should not happen if parent_is_slow is True, but safety check
+                        is_root_cause = False
+
                 candidate = {
                     "span_name": span_name,
                     "slowdown_ms": diff_ms,
                     "slowdown_percent": diff_pct,
-                    "is_root_cause": not parent_is_slow,
+                    "is_root_cause": is_root_cause,
                     "parent_span": parent_name,
                     "parent_is_slow": parent_is_slow,
                 }

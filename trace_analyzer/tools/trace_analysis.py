@@ -185,10 +185,12 @@ def extract_errors(trace: str) -> List[Dict[str, Any]]:
                     key_lower = key.lower()
                     value_str = str(value).lower() if value else ""
                     
+                    is_http_status = False
                     # Check for HTTP error status codes (4xx, 5xx)
                     if "status" in key_lower or "code" in key_lower:
                         try:
                             code = int(value)
+                            is_http_status = True
                             if code >= 400:
                                 is_error = True
                                 error_info["status_code"] = code
@@ -198,13 +200,11 @@ def extract_errors(trace: str) -> List[Dict[str, Any]]:
                     
                     # Check for explicitly named error/exception labels
                     if any(indicator in key_lower for indicator in error_indicators):
-                        # Special handling for 'status' which might be numeric
-                        if "status" in key_lower and value_str.isdigit():
-                             # We already handled numeric status above (HTTP/gRPC check)
-                             # If it was 200/0, it didn't set is_error.
-                             # If we are here, we don't want to re-flag it just because it's not "ok"
-                             pass
-                        elif value_str and value_str not in ("false", "0", "none", "ok"):
+                        # If it was identified as a numeric status code, we rely on the threshold check above
+                        if is_http_status and ("status" in key_lower or "code" in key_lower):
+                            continue
+
+                        if value_str and value_str not in ("false", "0", "none", "ok"):
                             is_error = True
                             error_info["error_type"] = key
                             error_info["error_message"] = str(value)
