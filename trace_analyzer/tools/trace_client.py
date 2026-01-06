@@ -1,6 +1,7 @@
 """Tools for interacting with the Google Cloud Trace API."""
 
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Union, Tuple
 import json
@@ -41,6 +42,61 @@ def _record_telemetry(func_name: str, success: bool = True, duration_ms: float =
     logger.debug(f"Recording telemetry for {func_name}: success={success}, duration={duration_ms}ms, attributes={attributes}")
     execution_count.add(1, attributes)
     execution_duration.record(duration_ms, attributes)
+
+
+class TraceFilterBuilder:
+    """Helper to construct Cloud Trace filter strings."""
+
+    def __init__(self):
+        self.terms = []
+
+    def add_latency(self, duration_ms: int):
+        self.terms.append(f"latency:{duration_ms}ms")
+        return self
+
+    def add_root_span_name(self, name: str, exact: bool = False):
+        # root:[NAME_PREFIX] or +root:[NAME]
+        term = f"root:{name}"
+        if exact:
+            term = f"+{term}"
+        self.terms.append(term)
+        return self
+
+    def add_span_name(self, name: str, exact: bool = False, root_span: bool = False):
+        # span:[NAME_PREFIX] or +span:[NAME]
+        # with root_span=True: ^span:... or +^span:...
+        prefix = "^" if root_span else ""
+        op = "+" if exact else ""
+        term = f"{op}{prefix}span:{name}"
+        self.terms.append(term)
+        return self
+
+    def add_attribute(self, key: str, value: Any, exact: bool = False, root_span: bool = False):
+        """
+        Adds an attribute filter.
+        Args:
+            key: The attribute key (e.g. 'label', '/http/status_code', 'service.name').
+            value: The attribute value.
+            exact: If True, uses exact match (+) for the value.
+            root_span: If True, restricts to root span (^).
+        """
+        str_val = str(value)
+        # Quote value if it contains special characters
+        if not re.match(r'^[a-zA-Z0-9./_-]+$', str_val):
+            # Escape double quotes and backslashes
+            escaped_val = str_val.replace('\\', '\\\\').replace('"', '\\"')
+            str_val = f'"{escaped_val}"'
+
+        prefix = "^" if root_span else ""
+        op = "+" if exact else ""
+
+        # Cloud Trace syntax: [^][+]key:value
+        term = f"{op}{prefix}{key}:{str_val}"
+        self.terms.append(term)
+        return self
+
+    def build(self) -> str:
+        return " ".join(self.terms)
 
 
 def get_current_time() -> str:
@@ -273,63 +329,106 @@ def find_example_traces() -> str:
             except ValueError:
                 return json.dumps({"error": "GOOGLE_CLOUD_PROJECT not set"})
             
-            # 1. Fetch a larger batch of recent traces to build a statistical model
-            raw_traces = list_traces(project_id, limit=50)
-            traces = json.loads(raw_traces)
+            # Default Strategy:
+            # 1. Look for a slow root span first (e.g. latency > 1s, or just fetch recent and find P95)
+            # The user requested: "By default it should look for root spans that take a long time."
+            # We can try to fetch traces with latency > 1000ms.
 
-            if isinstance(traces, list) and len(traces) > 0 and "error" in traces[0]:
-                return raw_traces
-
-            if not traces:
-                return json.dumps({"error": "No traces found in the last hour."})
-
-            # 2. Extract Latencies
-            valid_traces = [t for t in traces if t.get("duration_ms", 0) > 0]
-            if not valid_traces:
-                 # If we only got 0-duration traces, maybe the ViewType failed to return spans?
-                 # But we fixed it to ROOTSPAN. So it means traces are weird or empty.
-                 return json.dumps({"error": "No traces with valid duration found."})
-
-            latencies = [t["duration_ms"] for t in valid_traces]
-            latencies.sort()
-
-            # 3. Calculate Stats
-            p50 = statistics.median(latencies)
-            p95 = latencies[int(len(latencies) * 0.95)]
-            mean = statistics.mean(latencies)
-            stdev = statistics.stdev(latencies) if len(latencies) > 1 else 0
-
-            span.set_attribute("trace_stats.p50", p50)
-            span.set_attribute("trace_stats.p95", p95)
-
-            # 4. Find Baseline (Closest to P50)
-            baseline = min(valid_traces, key=lambda x: abs(x["duration_ms"] - p50))
-
-            # 5. Find Anomaly
             anomaly = None
-            candidates = [t for t in valid_traces if t["duration_ms"] > p95]
-            if candidates:
-                anomaly = candidates[-1] # The slowest
-            else:
-                anomaly = valid_traces[-1]
+            baseline = None
 
-            if abs(anomaly["duration_ms"] - baseline["duration_ms"]) < (stdev * 0.5):
-                error_traces_json = list_traces(project_id, limit=1, error_only=True)
-                error_traces = json.loads(error_traces_json)
-                if error_traces and not (isinstance(error_traces, list) and "error" in error_traces[0]):
-                    if error_traces:
-                        anomaly = error_traces[0]
-                        anomaly["note"] = "Explicit error trace found"
+            # Try to find a slow trace directly first
+            # We'll fetch 10 recent traces that took longer than 1s.
+            filter_builder = TraceFilterBuilder()
+            filter_builder.add_latency(1000)
+
+            slow_traces_json = list_traces(project_id, limit=10, filter_str=filter_builder.build())
+            slow_traces = json.loads(slow_traces_json)
+
+            if isinstance(slow_traces, list) and len(slow_traces) > 0 and "error" not in slow_traces[0]:
+                 # We found slow traces. Pick the slowest.
+                 slow_traces.sort(key=lambda x: x.get("duration_ms", 0))
+                 anomaly = slow_traces[-1]
+                 span.set_attribute("trace_stats.strategy", "latency_filter")
+            else:
+                 # Fallback: fetch general recent traces and do stats
+                 raw_traces = list_traces(project_id, limit=50)
+                 traces = json.loads(raw_traces)
+
+                 if isinstance(traces, list) and len(traces) > 0 and "error" not in traces[0]:
+                     valid_traces = [t for t in traces if t.get("duration_ms", 0) > 0]
+                     if valid_traces:
+                        latencies = [t["duration_ms"] for t in valid_traces]
+                        latencies.sort()
+                        p95 = latencies[int(len(latencies) * 0.95)]
+                        candidates = [t for t in valid_traces if t["duration_ms"] >= p95]
+                        anomaly = candidates[-1] if candidates else valid_traces[-1]
+                        span.set_attribute("trace_stats.strategy", "statistical_p95")
+
+            if not anomaly:
+                return json.dumps({"error": "No valid traces found to analyze."})
+
+            # Now find a similar trace that took shorter.
+            # We need the root span name of the anomaly.
+            # But list_traces output (summary) doesn't have the name.
+            # We need to fetch the full trace details for the anomaly to get the root name.
+            anomaly_full_json = fetch_trace(project_id, anomaly["trace_id"])
+            anomaly_full = json.loads(anomaly_full_json)
+
+            if "error" in anomaly_full:
+                 return json.dumps({"error": f"Failed to fetch details for anomaly trace: {anomaly_full['error']}"})
+
+            # Find root span name
+            # Assuming the first span or one without parent is root.
+            # fetch_trace returns spans.
+            root_span_name = None
+            for s in anomaly_full.get("spans", []):
+                if not s.get("parent_span_id"):
+                    root_span_name = s.get("name")
+                    break
+
+            if not root_span_name:
+                # Fallback: use the first span's name
+                if anomaly_full.get("spans"):
+                    root_span_name = anomaly_full["spans"][0].get("name")
+
+            if root_span_name:
+                # Search for shorter traces with same root name
+                fb = TraceFilterBuilder()
+                fb.add_root_span_name(root_span_name, exact=True)
+                # We can't filter by "latency < X" in Cloud Trace API (only >=).
+                # So we fetch recent ones with same name and filter in memory.
+
+                candidates_json = list_traces(project_id, limit=20, filter_str=fb.build())
+                candidates = json.loads(candidates_json)
+
+                if isinstance(candidates, list) and "error" not in candidates[0]:
+                    # Filter for shorter duration
+                    shorter = [t for t in candidates if t.get("duration_ms", 0) < anomaly["duration_ms"]]
+                    if shorter:
+                        # Pick the fastest one? or median?
+                        # User said "took shorter". Let's pick the fastest one as a good baseline contrast.
+                        shorter.sort(key=lambda x: x.get("duration_ms", 0))
+                        baseline = shorter[0]
+
+            if not baseline:
+                # If we couldn't find a baseline by name, fall back to statistical baseline from the initial batch if we had one
+                # Or just fetch recent traces again.
+                raw_traces = list_traces(project_id, limit=50)
+                traces = json.loads(raw_traces)
+                if isinstance(traces, list) and len(traces) > 0 and "error" not in traces[0]:
+                     valid_traces = [t for t in traces if t.get("duration_ms", 0) > 0]
+                     if valid_traces:
+                        # Pick median
+                         latencies = [t["duration_ms"] for t in valid_traces]
+                         latencies.sort()
+                         p50 = statistics.median(latencies)
+                         baseline = min(valid_traces, key=lambda x: abs(x["duration_ms"] - p50))
 
             return json.dumps({
-                "stats": {
-                    "count": len(valid_traces),
-                    "p50_ms": round(p50, 2),
-                    "p95_ms": round(p95, 2),
-                    "mean_ms": round(mean, 2)
-                },
+                "anomaly": anomaly,
                 "baseline": baseline,
-                "anomaly": anomaly
+                "note": "Anomaly found via latency filter (>1s) or P95. Baseline found via same root span name or P50."
             })
 
         except Exception as e:
