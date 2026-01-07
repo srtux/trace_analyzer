@@ -38,7 +38,8 @@ from .tools.trace_client import (
     list_error_events,
     get_logs_for_trace,
 )
-from .tools.trace_analysis import summarize_trace
+from .tools.trace_analysis import summarize_trace, validate_trace_quality
+from .tools.statistical_analysis import analyze_trace_patterns
 from .sub_agents.latency.agent import latency_analyzer
 from .sub_agents.error.agent import error_analyzer
 from .sub_agents.structure.agent import structure_analyzer
@@ -256,6 +257,8 @@ base_tools = [
     list_traces,
     get_trace_by_url,
     summarize_trace,
+    validate_trace_quality,
+    analyze_trace_patterns,
     get_current_time,
     list_log_entries,
     list_time_series,
