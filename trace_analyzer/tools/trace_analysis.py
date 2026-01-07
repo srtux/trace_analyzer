@@ -542,11 +542,79 @@ def compare_span_timings(
                             })
 
             # 2. Serial Chain Detection
-            # Identify the longest serial chain of spans
-            if target_timings:
-                # Naive approach: Long sequential dependency chain?
-                # Better: Check for "waterfall" where End(N) ~= Start(N+1)
-                pass # (Simple implementation left for future iteration to keep this complex tool reliable, focusing on N+1)
+            # Identify waterfall patterns where End(span_N) ≈ Start(span_N+1)
+            if target_timings and sorted_spans:
+                # Find chains where spans are sequential but not nested
+                # This indicates operations that COULD run in parallel but don't
+                sequential_chains = []
+                current_chain = []
+
+                # Gap threshold: if gap < 10ms, consider it sequential
+                # (accounts for small network/processing delays)
+                gap_threshold_ms = 10
+
+                for i in range(len(sorted_spans) - 1):
+                    curr_span = sorted_spans[i]
+                    next_span = sorted_spans[i + 1]
+
+                    # Skip if we don't have timing info
+                    if not (curr_span.get("end_time") and next_span.get("start_time")):
+                        continue
+
+                    try:
+                        curr_end = datetime.fromisoformat(curr_span["end_time"].replace('Z', '+00:00')).timestamp() * 1000
+                        next_start = datetime.fromisoformat(next_span["start_time"].replace('Z', '+00:00')).timestamp() * 1000
+
+                        # Check if they're NOT parent-child (that's expected nesting)
+                        is_parent_child = (
+                            curr_span.get("span_id") == next_span.get("parent_span_id") or
+                            next_span.get("span_id") == curr_span.get("parent_span_id")
+                        )
+
+                        if is_parent_child:
+                            # Reset chain if we hit nested spans
+                            if len(current_chain) >= 3:
+                                sequential_chains.append(current_chain[:])
+                            current_chain = []
+                            continue
+
+                        # Calculate gap
+                        gap = next_start - curr_end
+
+                        if gap >= 0 and gap <= gap_threshold_ms:
+                            # Sequential! Add to chain
+                            if not current_chain:
+                                current_chain.append(curr_span)
+                            current_chain.append(next_span)
+                        else:
+                            # Chain broken
+                            if len(current_chain) >= 3:
+                                sequential_chains.append(current_chain[:])
+                            current_chain = []
+
+                    except (ValueError, TypeError, KeyError):
+                        continue
+
+                # Check last chain
+                if len(current_chain) >= 3:
+                    sequential_chains.append(current_chain[:])
+
+                # Report significant chains
+                for chain in sequential_chains:
+                    chain_duration = sum(s.get("duration_ms") or 0 for s in chain)
+
+                    # Only report if significant impact (>100ms total)
+                    if chain_duration > 100:
+                        span_names = [s.get("name") for s in chain]
+                        patterns.append({
+                            "type": "serial_chain",
+                            "description": f"Serial Chain: {len(chain)} operations running sequentially that could potentially be parallelized.",
+                            "span_names": span_names,
+                            "count": len(chain),
+                            "total_duration_ms": round(chain_duration, 2),
+                            "impact": "high" if chain_duration > 500 else "medium",
+                            "recommendation": "Consider parallelizing these operations using async/await or concurrent execution."
+                        })
             
             # --- End Detection ---
 

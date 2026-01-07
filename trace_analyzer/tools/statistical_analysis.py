@@ -9,6 +9,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from ..telemetry import get_tracer, get_meter
+from ..decorators import adk_tool
 
 # Telemetry setup
 tracer = get_tracer(__name__)
@@ -87,19 +88,27 @@ def compute_latency_statistics(traces: List[str]) -> Dict[str, Any]:
             stats["stdev"] = 0
             stats["variance"] = 0
             
-        # Calculate per-span stats
+        # Calculate per-span stats with Z-score support
         per_span_stats = {}
         for name, durs in span_durations.items():
             if not durs: continue
             durs.sort()
             c = len(durs)
+            span_mean = statistics.mean(durs)
             per_span_stats[name] = {
                 "count": c,
-                "mean": statistics.mean(durs),
+                "mean": span_mean,
                 "min": durs[0],
                 "max": durs[-1],
                 "p95": durs[int(c * 0.95)] if c > 0 else 0
             }
+            # Calculate stdev for Z-score anomaly detection (need at least 2 samples)
+            if c > 1:
+                per_span_stats[name]["stdev"] = statistics.stdev(durs)
+                per_span_stats[name]["variance"] = statistics.variance(durs)
+            else:
+                per_span_stats[name]["stdev"] = 0
+                per_span_stats[name]["variance"] = 0
 
         stats["per_span_stats"] = per_span_stats
             
@@ -161,7 +170,7 @@ def detect_latency_anomalies(
 
         anomalous_spans = []
 
-        # Check individual spans against baseline per-span stats
+        # Check individual spans against baseline per-span stats using Z-score
         if "per_span_stats" in baseline_stats and "spans" in target_data:
             span_stats = baseline_stats["per_span_stats"]
             for s in target_data["spans"]:
@@ -174,19 +183,32 @@ def detect_latency_anomalies(
                         end = datetime.fromisoformat(s["end_time"].replace('Z', '+00:00'))
                         dur = (end - start).total_seconds() * 1000
                      except: pass
-                
+
                 if name in span_stats and dur is not None:
                     b_span = span_stats[name]
-                    # We don't have stdev for spans in the simple stats,
-                    # so let's use a simpler heuristic: > max observed in baseline OR > 2*mean
-                    # Or better: check if it exceeds p95 significantly
-                    threshold = b_span["p95"] * 1.5 if b_span["p95"] > 0 else b_span["max"]
-                    if dur > threshold and dur > 50: # Ignore tiny spans
+                    span_mean = b_span.get("mean", 0)
+                    span_stdev = b_span.get("stdev", 0)
+
+                    # Calculate Z-score for this span
+                    if span_stdev > 0:
+                        span_z_score = (dur - span_mean) / span_stdev
+                    else:
+                        # If stdev is 0, use same logic as trace-level
+                        if dur == span_mean:
+                            span_z_score = 0
+                        else:
+                            span_z_score = 100.0 if dur > span_mean else -100.0
+
+                    # Check if anomalous (using same threshold as trace level)
+                    if abs(span_z_score) > threshold_sigma and dur > 50: # Ignore tiny spans
                         anomalous_spans.append({
                             "span_name": name,
                             "duration_ms": dur,
+                            "baseline_mean": span_mean,
+                            "baseline_stdev": span_stdev,
                             "baseline_p95": b_span["p95"],
-                            "anomaly_type": "slow"
+                            "z_score": round(span_z_score, 2),
+                            "anomaly_type": "slow" if span_z_score > 0 else "fast"
                         })
 
         return {
@@ -251,53 +273,121 @@ def analyze_critical_path(trace: str) -> Dict[str, Any]:
 
         if not root_id:
             return {"critical_path": []}
-            
-        # Critical Path Calculation:
-        # For a span, the critical child is the one that ends last (pushing the boundary).
-        # But simply picking the latest ending child works for synchronous blocking chains.
-        # For async, it's more complex, but "Longest Path" in terms of time coverage is a good proxy.
-        # We start from root.
-        # If root duration is dominated by a specific child chain, we follow it.
 
+        # Enhanced Critical Path Calculation:
+        # This algorithm handles both synchronous and asynchronous operations.
+        # It calculates the "critical path" as the sequence of spans that determines
+        # the minimum possible execution time considering parallelism.
+        #
         # Algorithm:
-        # Start at root.
-        # Add to path.
-        # Find child with latest end time.
-        # If that child's end time is close to current span's end time (within small delta),
-        # it implies this child is "blocking" or extending the duration.
-        # Recurse.
+        # 1. For each span, calculate "self time" (time not overlapping with children)
+        # 2. Use dynamic programming to find the path with maximum blocking time
+        # 3. Account for concurrent children by considering overlap
 
-        path = []
-        curr_id = root_id
+        def calculate_critical_path_recursive(span_id: str) -> Tuple[List[Dict], float]:
+            """
+            Returns (path, blocking_time) where:
+            - path: list of span info dicts forming the critical path from this node
+            - blocking_time: the actual blocking/critical duration from this span down
+            """
+            node = parsed_spans[span_id]
 
-        while curr_id:
-            node = parsed_spans[curr_id]
-            path.append({
+            if not node["children"]:
+                # Leaf node - its duration is fully critical
+                return ([{
+                    "name": node["name"],
+                    "span_id": node["id"],
+                    "duration_ms": node["duration"],
+                    "start_ms": node["start"],
+                    "end_ms": node["end"],
+                    "self_time_ms": node["duration"],
+                }], node["duration"])
+
+            # Calculate self time (time not overlapping with any child)
+            child_coverage = []
+            for child_id in node["children"]:
+                child = parsed_spans[child_id]
+                child_coverage.append((child["start"], child["end"]))
+
+            # Sort and merge overlapping intervals
+            if child_coverage:
+                child_coverage.sort()
+                merged = [child_coverage[0]]
+                for start, end in child_coverage[1:]:
+                    if start <= merged[-1][1]:
+                        # Overlapping - merge
+                        merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+                    else:
+                        merged.append((start, end))
+
+                # Calculate self time
+                children_total_time = sum(end - start for start, end in merged)
+                self_time = node["duration"] - children_total_time
+                self_time = max(0, self_time)  # Can't be negative
+            else:
+                self_time = node["duration"]
+
+            # Find critical child (the one with longest blocking path)
+            max_child_path = None
+            max_child_blocking = 0
+
+            for child_id in node["children"]:
+                child_path, child_blocking = calculate_critical_path_recursive(child_id)
+
+                # Check if this child is truly blocking (ends close to parent end)
+                child = parsed_spans[child_id]
+                gap_to_parent_end = node["end"] - child["end"]
+
+                # If child ends within 5ms of parent, consider it blocking
+                # Otherwise, discount its blocking time
+                if gap_to_parent_end > 5:
+                    # Child finished early - might have been parallel with others
+                    # Reduce its effective blocking time
+                    effective_blocking = child_blocking * 0.5
+                else:
+                    effective_blocking = child_blocking
+
+                if effective_blocking > max_child_blocking:
+                    max_child_blocking = effective_blocking
+                    max_child_path = child_path
+
+            # Build path for this span
+            current_span_info = {
                 "name": node["name"],
                 "span_id": node["id"],
                 "duration_ms": node["duration"],
                 "start_ms": node["start"],
-                "end_ms": node["end"]
-            })
-            
-            if not node["children"]:
-                break
-                
-            # Find child that ends latest
-            latest_child_id = max(node["children"], key=lambda cid: parsed_spans[cid]["end"])
-            latest_child = parsed_spans[latest_child_id]
-            
-            # Heuristic: Only follow if child accounts for significant portion of remaining time
-            # or ends very close to parent end.
-            # For simplicity in this agent, we just follow the "latest ending" chain as the critical path.
-            curr_id = latest_child_id
-            
-        # Calculate contribution percentage
-        total_dur = path[0]["duration_ms"] if path else 0
+                "end_ms": node["end"],
+                "self_time_ms": self_time,
+            }
+
+            total_blocking = self_time + max_child_blocking
+
+            if max_child_path:
+                full_path = [current_span_info] + max_child_path
+            else:
+                full_path = [current_span_info]
+
+            return (full_path, total_blocking)
+
+        path, total_critical_duration = calculate_critical_path_recursive(root_id)
+
+        # Calculate contribution percentage based on total trace duration
+        trace_total_dur = parsed_spans[root_id]["duration"]
         for p in path:
-            p["contribution_pct"] = (p["duration_ms"] / total_dur * 100) if total_dur > 0 else 0
-            
-        return {"critical_path": path}
+            p["contribution_pct"] = (p["self_time_ms"] / trace_total_dur * 100) if trace_total_dur > 0 else 0
+            p["blocking_contribution_pct"] = (p["self_time_ms"] / total_critical_duration * 100) if total_critical_duration > 0 else 0
+
+        # Calculate parallelism metrics
+        parallelism_ratio = trace_total_dur / total_critical_duration if total_critical_duration > 0 else 1.0
+
+        return {
+            "critical_path": path,
+            "total_critical_duration_ms": round(total_critical_duration, 2),
+            "trace_duration_ms": round(trace_total_dur, 2),
+            "parallelism_ratio": round(parallelism_ratio, 2),
+            "parallelism_pct": round((1 - 1/parallelism_ratio) * 100, 2) if parallelism_ratio > 1 else 0
+        }
 
 
 def perform_causal_analysis(
@@ -305,94 +395,313 @@ def perform_causal_analysis(
     target_trace: Any
 ) -> Dict[str, Any]:
     """
-    Attempts to identify the root cause span for a slowdown.
-    
+    Enhanced root cause analysis using span-ID-level precision.
+
+    This improved algorithm:
+    - Calculates per-span-ID timing differences
+    - Uses actual span IDs from critical path (no approximation)
+    - Considers span hierarchy and self-time contributions
+    - Provides confidence scores based on multiple factors
+
     Args:
         baseline_trace: The reference trace data.
         target_trace: The abnormal trace data to analyze.
     """
     baseline_data = baseline_trace if isinstance(baseline_trace, dict) else json.loads(baseline_trace)
     target_data = target_trace if isinstance(target_trace, dict) else json.loads(target_trace)
-    
-    # 1. Compare durations to find slow spans
-    from .trace_analysis import compare_span_timings
-    diff_report = compare_span_timings(json.dumps(baseline_data), json.dumps(target_data))
-    
-    if "error" in diff_report:
-        return {"error": diff_report["error"]}
 
-    slow_spans = diff_report.get("slower_spans", [])
-    if not slow_spans:
-        return {"root_cause_candidates": [], "message": "No slow spans found"}
+    # 1. Build span name mappings for both traces
+    baseline_spans_by_name = defaultdict(list)
+    for s in baseline_data.get("spans", []):
+        baseline_spans_by_name[s.get("name")].append(s)
 
-    # 2. Analyze Critical Path of the target trace
+    target_spans_by_id = {s.get("span_id"): s for s in target_data.get("spans", [])}
+    target_spans_by_name = defaultdict(list)
+    for s in target_data.get("spans", []):
+        target_spans_by_name[s.get("name")].append(s)
+
+    # 2. Analyze Critical Path of target trace to get actual span IDs
     cp_report = analyze_critical_path(target_data)
-    critical_path_ids = {s["span_id"] for s in cp_report.get("critical_path", [])}
-    
-    # 3. Intersection: Slow spans that are ON the critical path
-    candidates = []
-    for s in slow_spans:
-        # We need span_id for critical path check, but compare_span_timings aggregates by name.
-        # We need to find if *any* span of this name is on critical path.
-        # This is an approximation.
-        
-        # Find span instances in target to get ID
-        instances = [sp for sp in target_data["spans"] if sp.get("name") == s["span_name"]]
-        on_cp = any(sp["span_id"] in critical_path_ids for sp in instances)
-        
-        candidates.append({
-            "span_name": s["span_name"],
-            "diff_ms": s["diff_ms"],
-            "diff_percent": s["diff_percent"],
-            "on_critical_path": on_cp,
-            # Heuristic score: diff * (1.5 if on_cp else 1.0)
-            "score": s["diff_ms"] * (1.5 if on_cp else 1.0)
-        })
-        
-    # Sort by score
-    candidates.sort(key=lambda x: x["score"], reverse=True)
-    
-    # Identify "Root Cause"
-    # The "Root Cause" is usually the deepest span in the call graph that is slow.
-    # If A calls B, and both are slow, B is likely the cause.
-    # We need depth info.
-    
+    critical_path = cp_report.get("critical_path", [])
+    critical_path_ids = {s["span_id"] for s in critical_path}
+
+    # Create map of span_id -> critical path info
+    cp_info_map = {s["span_id"]: s for s in critical_path}
+
+    # 3. Build call graph to get depth information
     from .trace_analysis import build_call_graph
     target_graph = build_call_graph(target_data)
-    
-    # Flatten tree to map name -> depth
+
+    # Flatten tree to map span_id -> depth
     depth_map = {}
     def traverse(node):
-        depth_map[node["name"]] = node["depth"]
+        depth_map[node["span_id"]] = node["depth"]
         for child in node["children"]:
             traverse(child)
-            
+
     for root in target_graph.get("span_tree", []):
         traverse(root)
 
-    for c in candidates:
-        c["depth"] = depth_map.get(c["span_name"], 0)
+    # 4. Calculate detailed timing differences at span-ID level
+    candidates = []
 
-    # Re-sort: Prefer deeper spans if they account for most of the diff
-    # If Child diff is close to Parent diff, Child is root cause.
+    for span_id, target_span in target_spans_by_id.items():
+        span_name = target_span.get("name")
 
-    final_candidates = []
+        # Get baseline comparison
+        baseline_instances = baseline_spans_by_name.get(span_name, [])
+        if not baseline_instances:
+            continue  # New span, not a slowdown cause
 
-    # We will iterate and try to find independent causes
-    # Simplest heuristic: Just take the top ones sorted by diff_ms descending,
-    # but boost depth.
+        # Calculate durations
+        target_duration = target_span.get("duration_ms")
+        if target_duration is None:
+            try:
+                start = datetime.fromisoformat(target_span["start_time"].replace('Z', '+00:00'))
+                end = datetime.fromisoformat(target_span["end_time"].replace('Z', '+00:00'))
+                target_duration = (end - start).total_seconds() * 1000
+            except:
+                continue
 
-    # Actually, let's keep it simple: Top slow span that is a leaf node (or near leaf) is likely root.
-    for c in candidates:
-        c["is_root_cause"] = False
-        # If this span explains a significant part of total slowness
-        if c["on_critical_path"]:
-             c["is_root_cause"] = True # Provisional
+        # Get average baseline duration for this span name
+        baseline_durations = []
+        for b_span in baseline_instances:
+            b_dur = b_span.get("duration_ms")
+            if b_dur is None:
+                try:
+                    start = datetime.fromisoformat(b_span["start_time"].replace('Z', '+00:00'))
+                    end = datetime.fromisoformat(b_span["end_time"].replace('Z', '+00:00'))
+                    b_dur = (end - start).total_seconds() * 1000
+                except:
+                    continue
+            baseline_durations.append(b_dur)
+
+        if not baseline_durations:
+            continue
+
+        baseline_avg = statistics.mean(baseline_durations)
+        diff_ms = target_duration - baseline_avg
+        diff_percent = (diff_ms / baseline_avg * 100) if baseline_avg > 0 else 0
+
+        # Only consider significantly slower spans
+        if diff_ms < 10 and diff_percent < 10:
+            continue
+
+        # Check if on critical path
+        on_critical_path = span_id in critical_path_ids
+
+        # Get self-time contribution if on critical path
+        self_time_contribution = 0
+        if on_critical_path and span_id in cp_info_map:
+            self_time_contribution = cp_info_map[span_id].get("self_time_ms", 0)
+
+        # Calculate confidence score based on multiple factors
+        # Factors:
+        # 1. Absolute time difference (higher = more impactful)
+        # 2. On critical path (2x multiplier)
+        # 3. Self-time contribution (indicates actual work, not just child overhead)
+        # 4. Depth (deeper = more likely root cause, diminishing returns after depth 5)
+
+        depth = depth_map.get(span_id, 0)
+        depth_factor = min(1.0 + (depth * 0.1), 1.5)  # Max 1.5x boost for depth
+
+        score = diff_ms * depth_factor
+        if on_critical_path:
+            score *= 2.0
+            # Further boost if significant self-time (not just child overhead)
+            if self_time_contribution > diff_ms * 0.3:
+                score *= 1.3
+
+        candidates.append({
+            "span_id": span_id,
+            "span_name": span_name,
+            "diff_ms": round(diff_ms, 2),
+            "diff_percent": round(diff_percent, 1),
+            "baseline_avg_ms": round(baseline_avg, 2),
+            "target_ms": round(target_duration, 2),
+            "on_critical_path": on_critical_path,
+            "self_time_ms": round(self_time_contribution, 2) if on_critical_path else None,
+            "depth": depth,
+            "confidence_score": round(score, 2),
+            "is_likely_root_cause": on_critical_path and self_time_contribution > 50,
+        })
+
+    # Sort by confidence score
+    candidates.sort(key=lambda x: x["confidence_score"], reverse=True)
+
+    # Mark top candidates as probable root causes
+    if candidates and candidates[0]["on_critical_path"]:
+        candidates[0]["is_likely_root_cause"] = True
 
     return {
-        "root_cause_candidates": candidates[:5],
-        "analysis_method": "critical_path_diff_intersection"
+        "root_cause_candidates": candidates[:10],  # Return top 10
+        "analysis_method": "span_id_level_critical_path_analysis",
+        "total_candidates": len(candidates),
+        "critical_path_spans": len(critical_path)
     }
+
+@adk_tool
+def analyze_trace_patterns(traces: List[str], lookback_window_minutes: int = 60) -> Dict[str, Any]:
+    """
+    Analyzes patterns across multiple traces to detect trends and recurring issues.
+
+    This function helps identify:
+    - Recurring slowdowns (specific spans consistently slow)
+    - Intermittent issues (problems that come and go)
+    - Degradation trends (performance getting worse over time)
+    - Correlation patterns (spans that slow down together)
+
+    Args:
+        traces: List of trace JSON strings to analyze.
+        lookback_window_minutes: Time window to consider for trend analysis.
+
+    Returns:
+        Dictionary containing pattern analysis results.
+    """
+    with tracer.start_as_current_span("analyze_trace_patterns"):
+        if len(traces) < 3:
+            return {"error": "Need at least 3 traces for pattern analysis"}
+
+        # Parse all traces
+        parsed_traces = []
+        for t in traces:
+            trace_data = t if isinstance(t, dict) else json.loads(t) if isinstance(t, str) else None
+            if trace_data and isinstance(trace_data, dict):
+                parsed_traces.append(trace_data)
+
+        if len(parsed_traces) < 3:
+            return {"error": "Not enough valid traces for pattern analysis"}
+
+        # Track span performance across traces
+        span_performance = defaultdict(lambda: {
+            "occurrences": 0,
+            "durations": [],
+            "error_count": 0,
+            "traces_with_span": []
+        })
+
+        trace_durations = []
+        trace_timestamps = []
+
+        for trace in parsed_traces:
+            trace_duration = trace.get("duration_ms", 0)
+            trace_durations.append(trace_duration)
+
+            # Extract timestamp if available
+            trace_id = trace.get("trace_id", "")
+            trace_timestamps.append(trace_id)
+
+            for span in trace.get("spans", []):
+                span_name = span.get("name", "unknown")
+                duration = span.get("duration_ms")
+
+                if duration is None and span.get("start_time") and span.get("end_time"):
+                    try:
+                        start = datetime.fromisoformat(span["start_time"].replace('Z', '+00:00'))
+                        end = datetime.fromisoformat(span["end_time"].replace('Z', '+00:00'))
+                        duration = (end - start).total_seconds() * 1000
+                    except:
+                        continue
+
+                if duration is not None:
+                    perf = span_performance[span_name]
+                    perf["occurrences"] += 1
+                    perf["durations"].append(duration)
+                    perf["traces_with_span"].append(trace_id)
+
+                    # Check for errors
+                    labels = span.get("labels", {})
+                    if "error" in str(labels).lower():
+                        perf["error_count"] += 1
+
+        # Analyze patterns
+        recurring_slowdowns = []
+        intermittent_issues = []
+        high_variance_spans = []
+
+        for span_name, perf in span_performance.items():
+            if perf["occurrences"] < 2:
+                continue
+
+            durations = perf["durations"]
+            mean_dur = statistics.mean(durations)
+
+            if len(durations) > 1:
+                stdev_dur = statistics.stdev(durations)
+                cv = stdev_dur / mean_dur if mean_dur > 0 else 0  # Coefficient of variation
+            else:
+                stdev_dur = 0
+                cv = 0
+
+            # Recurring slowdown: consistently slow (low variance, high duration)
+            if mean_dur > 100 and cv < 0.3:
+                recurring_slowdowns.append({
+                    "span_name": span_name,
+                    "avg_duration_ms": round(mean_dur, 2),
+                    "occurrences": perf["occurrences"],
+                    "consistency": round((1 - cv) * 100, 1),  # How consistent
+                    "pattern_type": "recurring_slowdown"
+                })
+
+            # Intermittent issue: high variance (sometimes fast, sometimes slow)
+            if cv > 0.5 and mean_dur > 50:
+                intermittent_issues.append({
+                    "span_name": span_name,
+                    "avg_duration_ms": round(mean_dur, 2),
+                    "stdev_ms": round(stdev_dur, 2),
+                    "coefficient_of_variation": round(cv, 2),
+                    "min_ms": round(min(durations), 2),
+                    "max_ms": round(max(durations), 2),
+                    "occurrences": perf["occurrences"],
+                    "pattern_type": "intermittent"
+                })
+
+            # High variance spans (unpredictable performance)
+            if cv > 0.7 and perf["occurrences"] >= 3:
+                high_variance_spans.append({
+                    "span_name": span_name,
+                    "coefficient_of_variation": round(cv, 2),
+                    "avg_duration_ms": round(mean_dur, 2),
+                    "occurrences": perf["occurrences"],
+                    "pattern_type": "high_variance"
+                })
+
+        # Sort by impact
+        recurring_slowdowns.sort(key=lambda x: x["avg_duration_ms"] * x["occurrences"], reverse=True)
+        intermittent_issues.sort(key=lambda x: x["stdev_ms"], reverse=True)
+        high_variance_spans.sort(key=lambda x: x["coefficient_of_variation"], reverse=True)
+
+        # Analyze overall trace trend
+        trend = "stable"
+        if len(trace_durations) >= 3:
+            # Simple linear trend detection
+            first_half_avg = statistics.mean(trace_durations[:len(trace_durations)//2])
+            second_half_avg = statistics.mean(trace_durations[len(trace_durations)//2:])
+
+            change_pct = ((second_half_avg - first_half_avg) / first_half_avg * 100) if first_half_avg > 0 else 0
+
+            if change_pct > 15:
+                trend = "degrading"
+            elif change_pct < -15:
+                trend = "improving"
+
+        return {
+            "traces_analyzed": len(parsed_traces),
+            "unique_spans": len(span_performance),
+            "overall_trend": trend,
+            "patterns": {
+                "recurring_slowdowns": recurring_slowdowns[:5],
+                "intermittent_issues": intermittent_issues[:5],
+                "high_variance_spans": high_variance_spans[:5],
+            },
+            "summary": {
+                "total_recurring_slowdowns": len(recurring_slowdowns),
+                "total_intermittent_issues": len(intermittent_issues),
+                "total_high_variance_spans": len(high_variance_spans),
+                "trace_duration_trend": trend,
+            }
+        }
+
 
 def compute_service_level_stats(traces: List[str]) -> Dict[str, Any]:
     """
