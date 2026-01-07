@@ -23,42 +23,30 @@ ANALYSIS WORKFLOW:
 4. Synthesize findings into a causal chain
 
 OUTPUT FORMAT:
-Provide a structured causal analysis report:
+You MUST return your findings as a JSON object matching the `CausalAnalysisReport` schema:
+{
+  "causal_chain": [
+    {
+      "span_name": "str",
+      "effect_type": "root_cause|direct_effect|cascaded_effect",
+      "latency_contribution_ms": float
+    }
+  ],
+  "root_cause_candidates": [
+    {
+      "rank": int,
+      "span_name": "str",
+      "slowdown_ms": float,
+      "confidence": "high|medium|low",
+      "reasoning": "str"
+    }
+  ],
+  "propagation_depth": int,
+  "primary_root_cause": "str",
+  "confidence": "high|medium|low",
+  "conclusion": "str",
+  "recommended_actions": ["Action 1", "Action 2"]
+}
 
-## Root Cause Analysis
-
-### Causal Chain Identified
-```
-[Root Cause Span] 
-    ↓ (caused)
-[Downstream Effect 1]
-    ↓ (propagated to)
-[Downstream Effect 2]
-```
-
-### Root Cause Candidates
-Ranked by confidence:
-
-| Rank | Span | Slowdown | Confidence | Reasoning |
-|------|------|----------|------------|-----------|
-| 1 | X | +Y ms | High | First span to slow, no slow parent |
-| 2 | Z | +W ms | Medium | Could be independent issue |
-
-### Propagation Analysis
-How the issue spread:
-- **Origin**: [Span] - Initial slowdown of X ms
-- **First-order effects**: [Spans directly affected]
-- **Cascade depth**: N levels of propagation
-
-### Conclusion
-**Most Likely Root Cause**: [Span name]
-**Confidence Level**: High/Medium/Low
-**Reasoning**: Explain why this is the root cause, not just a symptom
-
-### Recommended Actions
-1. Specific action to address root cause
-2. How to verify the fix
-3. Monitoring recommendations
-
-Be rigorous in distinguishing causes from effects. Provide evidence for conclusions.
+Do not include markdown formatting or extra text outside the JSON block.
 """

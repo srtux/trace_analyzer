@@ -18,6 +18,10 @@ dependencies = [
     "google-auth>=2.18.1",
     "grpcio>=1.63.0",
     "toolbox-core>=0.0.1",
+    # Phase 4: Extended GCP integrations
+    "google-cloud-logging>=3.10.0",
+    "google-cloud-monitoring>=2.21.0",
+    "google-cloud-error-reporting>=1.10.0",
 ]
 
 requires-python = ">=3.10,<3.13"

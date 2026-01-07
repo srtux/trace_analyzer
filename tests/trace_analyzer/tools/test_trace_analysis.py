@@ -1,4 +1,3 @@
-
 import json
 import pytest
 from trace_analyzer.tools.trace_analysis import (
@@ -6,6 +5,7 @@ from trace_analyzer.tools.trace_analysis import (
     calculate_span_durations,
     compare_span_timings,
     extract_errors,
+    validate_trace_quality,
 )
 
 # Sample trace data
@@ -85,38 +85,51 @@ def test_extract_errors():
             {"span_id": "3", "name": "fail", "labels": {"error": "true"}}
         ]
     }
+    # Note: status:200 is NOT an error in the fixed implementation
     errors = extract_errors(json.dumps(trace))
-    # It seems my logic counts "status": "200" as error??
-    # Let's check extract_errors implementation.
-    # Ah, the logic in extract_errors: if "status" in key_lower: code = int(value). if code >= 400: is_error=True.
-    # Wait, the test failure says it found 3 errors.
-    # Span 1 has labels={"status": "200"}. key="status". code=200. >=400 is False.
-    # Why is it counting span 1?
-    # Ah:
-    # if any(indicator in key_lower for indicator in error_indicators):
-    # error_indicators = ["error", "exception", "fault", "failure", "status"]
-    # So "status" is an error indicator!
-    # And value is "200".
-    # Check: if value_str and value_str not in ("false", "0", "none", "ok"):
-    # "200" is not in that list. So it thinks it's an error.
-
-    # I should update the test to not use "status" label for the ok span if I can't change code,
-    # or update code. The code logic for generic indicators is a bit loose.
-    # But for now, let's fix the test expectation or input.
-    # Standard OTel uses http.status_code.
-
-    # Use explicit response code to verify error extraction logic
-    trace_fixed = {
-        "spans": [
-            {"span_id": "1", "name": "ok", "labels": {"response_code": "200"}},
-            {"span_id": "2", "name": "error", "labels": {"status": "500"}},
-            {"span_id": "3", "name": "fail", "labels": {"error": "true"}}
-        ]
-    }
-    errors = extract_errors(json.dumps(trace_fixed))
     assert len(errors) == 2
     assert any(e["span_id"] == "2" for e in errors)
     assert any(e["span_id"] == "3" for e in errors)
+    assert not any(e["span_id"] == "1" for e in errors)
+
+def test_extract_errors_http_200_not_flagged():
+    """Regression test: HTTP 200 should NOT be flagged as error."""
+    trace = {
+        "spans": [{
+            "span_id": "1",
+            "name": "test_span",
+            "labels": {"/http/status_code": "200"}
+        }]
+    }
+    errors = extract_errors(json.dumps(trace))
+    assert len(errors) == 0, "HTTP 200 should not be treated as error"
+
+def test_extract_errors_http_500_flagged():
+    """Test HTTP 5xx is correctly flagged."""
+    trace = {
+        "spans": [{
+            "span_id": "1",
+            "name": "error_span",
+            "labels": {"/http/status_code": "500"}
+        }]
+    }
+    errors = extract_errors(json.dumps(trace))
+    assert len(errors) == 1
+    assert errors[0]["status_code"] == 500
+    assert errors[0]["span_id"] == "1"
+
+def test_validate_trace_quality_detects_orphans():
+    """Test trace validation detects orphaned spans."""
+    trace = {
+        "spans": [
+            {"span_id": "1", "name": "root", "start_time": "2023-01-01T00:00:00Z", "end_time": "2023-01-01T00:00:01Z"},
+            {"span_id": "2", "name": "child", "parent_span_id": "999", "start_time": "2023-01-01T00:00:00Z", "end_time": "2023-01-01T00:00:01Z"}
+        ]
+    }
+    result = validate_trace_quality(json.dumps(trace))
+    assert result["valid"] == False
+    assert result["issue_count"] == 1
+    assert result["issues"][0]["type"] == "orphaned_span"
 
 def test_compare_span_timings(sample_trace_dict):
     """Test compare_span_timings."""

@@ -18,31 +18,25 @@ ANALYSIS WORKFLOW:
    - Changes in error types or status codes
 
 OUTPUT FORMAT:
-Provide a structured error analysis report:
+You MUST return your findings as a JSON object matching the `ErrorAnalysisReport` schema:
+{
+  "baseline_error_count": int,
+  "target_error_count": int,
+  "net_change": int,
+  "new_errors": [
+    {
+      "span_name": "str",
+      "error_type": "str",
+      "status_code": int | str | None,
+      "error_message": "str" | None,
+      "service_name": "str" | None
+    }
+  ],
+  "resolved_errors": [...],
+  "common_errors": [...],
+  "error_pattern_analysis": "Analysis of error patterns (clustering, cascading, etc.)",
+  "recommendations": ["Action 1", "Action 2"]
+}
 
-## Error Analysis Summary
-- **Baseline Trace**: [X] errors detected
-- **Target Trace**: [Y] errors detected
-- **Net Change**: [+/-Z] errors
-
-## New Errors in Target
-Errors that appeared in the target trace but not in baseline:
-| Span Name | Error Type | Status Code | Error Message |
-|-----------|------------|-------------|---------------|
-
-## Resolved Errors
-Errors present in baseline but not in target (if any).
-
-## Common Errors
-Errors present in both traces (persistent issues).
-
-## Error Pattern Analysis
-- Are errors clustered in specific services?
-- Are there cascading failures?
-- What is the likely root cause?
-
-## Recommendations
-Specific actions to address the errors found.
-
-Be thorough in identifying error patterns and their potential impact on system reliability.
+Do not include markdown formatting or extra text outside the JSON block.
 """

@@ -1,0 +1,4 @@
+databases:
+  bigquery:
+    type: bigquery
+    project_id: ${GOOGLE_CLOUD_PROJECT}

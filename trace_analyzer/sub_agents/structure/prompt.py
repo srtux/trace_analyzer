@@ -22,33 +22,31 @@ WHAT TO LOOK FOR:
 - **Fan-out Changes**: Changes in how many child operations a span triggers
 
 OUTPUT FORMAT:
-Provide a structured structure analysis report:
+You MUST return your findings as a JSON object matching the `StructureAnalysisReport` schema:
+{
+  "baseline_span_count": int,
+  "baseline_depth": int,
+  "target_span_count": int,
+  "target_depth": int,
+  "missing_operations": [
+    {
+      "change_type": "removed",
+      "span_name": "str",
+      "description": "str",
+      "possible_reason": "str"
+    }
+  ],
+  "new_operations": [
+     {
+      "change_type": "added",
+      "span_name": "str",
+      "description": "str",
+      "possible_reason": "str"
+    }
+  ],
+  "call_pattern_changes": ["Change description 1"],
+  "behavioral_impact": "Assessment of how structural changes affect system behavior"
+}
 
-## Structure Analysis Summary
-- **Baseline Span Count**: [X] spans, depth [D]
-- **Target Span Count**: [Y] spans, depth [D']
-- **Net Change**: [+/-Z] spans, depth change [+/-N]
-
-## Missing Operations (in Target)
-Operations that occurred in the baseline but are absent in the target:
-- [span_name_1] - Possible reason: [hypothesis]
-- [span_name_2] - Possible reason: [hypothesis]
-
-## New Operations (in Target)
-Operations that are new in the target trace:
-- [span_name_1] - Possible reason: [hypothesis]
-- [span_name_2] - Possible reason: [hypothesis]
-
-## Call Pattern Changes
-- Has the service dependency graph changed?
-- Are there new external calls?
-- Is retry logic being triggered?
-
-## Behavioral Impact Assessment
-How do these structural changes affect:
-- Request flow
-- Service dependencies
-- Potential failure modes
-
-Focus on understanding WHY the structure changed and its implications.
+Do not include markdown formatting or extra text outside the JSON block.
 """

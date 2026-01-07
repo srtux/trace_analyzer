@@ -9,6 +9,9 @@ import logging
 import statistics
 
 from google.cloud import trace_v1
+from google.cloud import logging_v2
+from google.cloud import monitoring_v3
+from google.cloud import error_reporting_v1beta1
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from ..telemetry import get_tracer, get_meter, log_tool_call
@@ -30,6 +33,208 @@ execution_count = meter.create_counter(
     description="Total number of tool calls",
     unit="1",
 )
+from google.adk.tools import adk_tool
+
+@adk_tool
+def list_log_entries(project_id: str, filter_str: str, limit: int = 10) -> str:
+    """
+    Lists log entries from Google Cloud Logging.
+
+    Args:
+        project_id: The Google Cloud Project ID.
+        filter_str: The filter string to use.
+        limit: The maximum number of log entries to return.
+
+    Returns:
+        A JSON string representing the list of log entries.
+    """
+    start_time = time.time()
+    success = True
+    with tracer.start_as_current_span("list_log_entries") as span:
+        span.set_attribute("trace_analyzer.project_id", project_id)
+        span.set_attribute("trace_analyzer.filter", filter_str)
+        log_tool_call(logger, "list_log_entries", project_id=project_id, filter_str=filter_str, limit=limit)
+        try:
+            client = logging_v2.LoggingServiceV2Client()
+            resource_names = [f"projects/{project_id}"]
+            entries = client.list_log_entries(
+                resource_names=resource_names,
+                filter_=filter_str,
+                page_size=limit,
+            )
+            results = []
+            for entry in entries:
+                payload_str = str(entry.payload)
+                if len(payload_str) > 500:
+                    payload_str = payload_str[:500] + "...(truncated)"
+                
+                results.append(
+                    {
+                        "timestamp": entry.timestamp.isoformat(),
+                        "severity": entry.severity.name,
+                        "payload": payload_str,
+                        "resource": {
+                            "type": entry.resource.type,
+                            "labels": dict(entry.resource.labels),
+                        },
+                    }
+                )
+            return json.dumps(results)
+        except Exception as e:
+            span.record_exception(e)
+            success = False
+            error_msg = f"Failed to list log entries: {str(e)}"
+            logger.error(error_msg)
+            return json.dumps({"error": error_msg})
+        finally:
+            duration_ms = (time.time() - start_time) * 1000
+            _record_telemetry("list_log_entries", success, duration_ms)
+
+
+@adk_tool
+def list_time_series(
+    project_id: str, filter_str: str, minutes_ago: int = 60
+) -> str:
+    """
+    Lists time series data from Google Cloud Monitoring.
+
+    Args:
+        project_id: The Google Cloud Project ID.
+        filter_str: The filter string to use.
+        minutes_ago: The number of minutes in the past to query.
+
+    Returns:
+        A JSON string representing the list of time series.
+    """
+    start_time = time.time()
+    success = True
+    with tracer.start_as_current_span("list_time_series") as span:
+        span.set_attribute("trace_analyzer.project_id", project_id)
+        span.set_attribute("trace_analyzer.filter", filter_str)
+        log_tool_call(logger, "list_time_series", project_id=project_id, filter_str=filter_str, minutes_ago=minutes_ago)
+        try:
+            client = monitoring_v3.MetricServiceClient()
+            project_name = f"projects/{project_id}"
+            now = time.time()
+            seconds = int(now)
+            nanos = int((now - seconds) * 10**9)
+            interval = monitoring_v3.TimeInterval(
+                {
+                    "end_time": {"seconds": seconds, "nanos": nanos},
+                    "start_time": {
+                        "seconds": seconds - (minutes_ago * 60),
+                        "nanos": nanos,
+                    },
+                }
+            )
+            results = client.list_time_series(
+                name=project_name,
+                filter=filter_str,
+                interval=interval,
+                view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+            )
+            time_series_data = []
+            for result in results:
+                time_series_data.append(
+                    {
+                        "metric": {
+                            "type": result.metric.type,
+                            "labels": dict(result.metric.labels),
+                        },
+                        "resource": {
+                            "type": result.resource.type,
+                            "labels": dict(result.resource.labels),
+                        },
+                        "points": [
+                            {
+                                "timestamp": point.interval.end_time.isoformat(),
+                                "value": point.value.double_value,
+                            }
+                            for point in result.points
+                        ],
+                    }
+                )
+            return json.dumps(time_series_data)
+        except Exception as e:
+            span.record_exception(e)
+            success = False
+            error_msg = f"Failed to list time series: {str(e)}"
+            logger.error(error_msg)
+            return json.dumps({"error": error_msg})
+        finally:
+            duration_ms = (time.time() - start_time) * 1000
+            _record_telemetry("list_time_series", success, duration_ms)
+
+
+@adk_tool
+def list_error_events(project_id: str, minutes_ago: int = 60) -> str:
+    """
+    Lists error events from Google Cloud Error Reporting.
+
+    Args:
+        project_id: The Google Cloud Project ID.
+        minutes_ago: The number of minutes in the past to query.
+
+    Returns:
+        A JSON string representing the list of error events.
+    """
+    start_time = time.time()
+    success = True
+    with tracer.start_as_current_span("list_error_events") as span:
+        span.set_attribute("trace_analyzer.project_id", project_id)
+        log_tool_call(logger, "list_error_events", project_id=project_id, minutes_ago=minutes_ago)
+        try:
+            client = error_reporting_v1beta1.ErrorStatsServiceClient()
+            project_name = f"projects/{project_id}"
+            time_range = error_reporting_v1beta1.QueryTimeRange()
+            time_range.period = error_reporting_v1beta1.QueryTimeRange.Period.PERIOD_1_HOUR
+            request = error_reporting_v1beta1.ListEventsRequest(
+                project_name=project_name,
+                group_id=None,
+                time_range=time_range,
+                page_size=100,
+            )
+
+            events = client.list_events(request=request)
+
+            results = []
+            for event in events:
+                results.append(
+                    {
+                        "event_time": event.event_time.isoformat(),
+                        "message": event.message,
+                        "service_context": {
+                            "service": event.service_context.service,
+                            "version": event.service_context.version,
+                        },
+                    }
+                )
+            return json.dumps(results)
+        except Exception as e:
+            span.record_exception(e)
+            success = False
+            error_msg = f"Failed to list error events: {str(e)}"
+            logger.error(error_msg)
+            return json.dumps({"error": error_msg})
+        finally:
+            duration_ms = (time.time() - start_time) * 1000
+            _record_telemetry("list_error_events", success, duration_ms)
+
+@adk_tool
+def get_logs_for_trace(project_id: str, trace_id: str, limit: int = 100) -> str:
+    """
+    Fetches log entries correlated with a specific trace ID.
+    
+    Args:
+        project_id: The Google Cloud Project ID.
+        trace_id: The unique trace ID.
+        limit: Max logs to return.
+        
+    Returns:
+        JSON list of log entries.
+    """
+    filter_str = f'trace="projects/{project_id}/traces/{trace_id}"'
+    return list_log_entries(project_id, filter_str, limit)
 
 def _record_telemetry(func_name: str, success: bool = True, duration_ms: float = 0.0):
     attributes = {
@@ -41,6 +246,7 @@ def _record_telemetry(func_name: str, success: bool = True, duration_ms: float =
     logger.debug(f"Recording telemetry for {func_name}: success={success}, duration={duration_ms}ms, attributes={attributes}")
     execution_count.add(1, attributes)
     execution_duration.record(duration_ms, attributes)
+
 
 
 def get_current_time() -> str:
@@ -62,25 +268,37 @@ def _get_project_id() -> str:
 def fetch_trace(project_id: str, trace_id: str) -> str:
     """
     Fetches a specific trace by ID.
-    
+
+    Uses caching to avoid redundant API calls when the same trace
+    is requested multiple times (e.g., by different sub-agents).
+
     Args:
         project_id: The Google Cloud Project ID.
         trace_id: The unique hex ID of the trace.
-    
+
     Returns:
         A dictionary representation of the trace, including all spans.
     """
+    # Check cache first
+    from .trace_cache import get_trace_cache
+    cache = get_trace_cache()
+
+    cached = cache.get(trace_id)
+    if cached:
+        logger.debug(f"Cache hit for trace {trace_id}, skipping API call")
+        return cached
+
     start_time = time.time()
     success = True
-    
+
     with tracer.start_as_current_span("fetch_trace") as span:
         span.set_attribute("trace_analyzer.project_id", project_id)
         span.set_attribute("trace_analyzer.trace_id", trace_id)
-        span.set_attribute("trace_analyzer.trace_id", trace_id)
         span.set_attribute("code.function", "fetch_trace")
-        
+        span.set_attribute("cache_hit", False)
+
         log_tool_call(logger, "fetch_trace", project_id=project_id, trace_id=trace_id)
-        
+
         try:
             client = trace_v1.TraceServiceClient()
             
@@ -119,7 +337,12 @@ def fetch_trace(project_id: str, trace_id: str) -> str:
                 "duration_ms": duration_ms
             }
             span.set_attribute("trace_analyzer.span_count", len(spans))
-            return json.dumps(result)
+
+            # Cache the result before returning
+            result_json = json.dumps(result)
+            cache.put(trace_id, result_json)
+
+            return result_json
             
         except Exception as e:
             span.record_exception(e)
@@ -261,25 +484,152 @@ def list_traces(
             _record_telemetry("list_traces", success, duration_ms)
 
 
-def find_example_traces() -> str:
+def _calculate_anomaly_score(
+    trace: Dict[str, Any],
+    mean_latency: float,
+    stdev_latency: float,
+    has_error: bool = False
+) -> float:
     """
-    Intelligently discovers representative baseline and anomaly traces.
-    
+    Calculate a composite anomaly score for a trace.
+
+    The score combines multiple signals:
+    - Latency z-score (how many std devs from mean)
+    - Error presence (significant boost)
+    - Extreme latency bonus (for very slow traces)
+
+    Args:
+        trace: Trace data dict with duration_ms.
+        mean_latency: Mean latency across sample.
+        stdev_latency: Standard deviation of latencies.
+        has_error: Whether this trace has errors.
+
     Returns:
-        JSON string with 'baseline' and 'anomaly' keys containing trace summaries.
+        Composite anomaly score (higher = more anomalous).
+    """
+    score = 0.0
+    duration = trace.get("duration_ms", 0)
+
+    # Z-score component (0-5 points typical)
+    if stdev_latency > 0:
+        z_score = (duration - mean_latency) / stdev_latency
+        score += max(0, z_score)  # Only positive z-scores count
+    elif duration > mean_latency:
+        # If no variance, any deviation is significant
+        score += 3.0
+
+    # Error component (big boost)
+    if has_error:
+        score += 5.0
+
+    # Extreme latency bonus (>3x mean)
+    if mean_latency > 0 and duration > mean_latency * 3:
+        score += 2.0
+
+    return score
+
+
+def validate_trace(trace_data: Union[str, Dict]) -> Dict[str, Any]:
+    """
+    Validates trace data for completeness and quality.
+
+    Checks:
+    - Has required fields (trace_id, spans)
+    - Has valid span structure
+    - Has reasonable duration
+    - Spans have timestamps
+
+    Args:
+        trace_data: Trace data as JSON string or dict.
+
+    Returns:
+        Validation result with 'valid' boolean and 'issues' list.
+    """
+    issues = []
+
+    if isinstance(trace_data, str):
+        try:
+            data = json.loads(trace_data)
+        except json.JSONDecodeError as e:
+            return {"valid": False, "issues": [f"Invalid JSON: {str(e)}"]}
+    else:
+        data = trace_data
+
+    # Check for error response
+    if "error" in data:
+        return {"valid": False, "issues": [data["error"]]}
+
+    # Required fields
+    if not data.get("trace_id"):
+        issues.append("Missing trace_id")
+
+    spans = data.get("spans", [])
+    if not spans:
+        issues.append("No spans in trace")
+    else:
+        # Validate span structure
+        for i, span in enumerate(spans):
+            if not span.get("span_id"):
+                issues.append(f"Span {i} missing span_id")
+            if not span.get("name"):
+                issues.append(f"Span {i} missing name")
+            if not span.get("start_time"):
+                issues.append(f"Span {i} missing start_time")
+            if not span.get("end_time"):
+                issues.append(f"Span {i} missing end_time")
+
+        # Check for reasonable structure
+        if len(spans) > 1000:
+            issues.append(f"Unusually large trace with {len(spans)} spans")
+
+    # Check duration
+    duration = data.get("duration_ms", 0)
+    if duration <= 0:
+        issues.append("Invalid or missing duration")
+    elif duration > 300000:  # 5 minutes
+        issues.append(f"Unusually long duration: {duration}ms")
+
+    return {
+        "valid": len(issues) == 0,
+        "issues": issues,
+        "span_count": len(spans),
+        "duration_ms": duration
+    }
+
+
+def find_example_traces(
+    prefer_errors: bool = True,
+    min_sample_size: int = 20
+) -> str:
+    """
+    Intelligently discovers representative baseline and anomaly traces using
+    a hybrid selection algorithm.
+
+    The algorithm:
+    1. Fetches recent traces to build a statistical model
+    2. Also fetches recent error traces for multi-signal analysis
+    3. Scores traces using composite anomaly scoring
+    4. Validates selected traces before returning
+
+    Args:
+        prefer_errors: If True, error traces get higher anomaly scores.
+        min_sample_size: Minimum traces needed for statistical analysis.
+
+    Returns:
+        JSON string with 'baseline', 'anomaly', 'stats', and 'validation' keys.
     """
     ts_start = time.time()
     success = True
-    
+
     with tracer.start_as_current_span("find_example_traces") as span:
-        log_tool_call(logger, "find_example_traces")
+        log_tool_call(logger, "find_example_traces", prefer_errors=prefer_errors)
         try:
             try:
                 project_id = _get_project_id()
             except ValueError:
                 return json.dumps({"error": "GOOGLE_CLOUD_PROJECT not set"})
-            
-            # 1. Fetch a larger batch of recent traces to build a statistical model
+
+            # 1. Fetch recent traces for statistical baseline
             raw_traces = list_traces(project_id, limit=50)
             traces = json.loads(raw_traces)
 
@@ -289,53 +639,109 @@ def find_example_traces() -> str:
             if not traces:
                 return json.dumps({"error": "No traces found in the last hour."})
 
-            # 2. Extract Latencies
+            # 2. Fetch error traces separately for hybrid selection
+            error_trace_ids = set()
+            if prefer_errors:
+                error_traces_json = list_traces(project_id, limit=10, error_only=True)
+                error_traces = json.loads(error_traces_json)
+                if error_traces and not (isinstance(error_traces, list) and "error" in error_traces[0]):
+                    error_trace_ids = {t.get("trace_id") for t in error_traces if t.get("trace_id")}
+                    # Merge error traces into main list if not already present
+                    existing_ids = {t.get("trace_id") for t in traces}
+                    for et in error_traces:
+                        if et.get("trace_id") not in existing_ids:
+                            et["has_error"] = True
+                            traces.append(et)
+
+            # 3. Extract valid traces with latencies
             valid_traces = [t for t in traces if t.get("duration_ms", 0) > 0]
-            if not valid_traces:
-                 # If we only got 0-duration traces, maybe the ViewType failed to return spans?
-                 # But we fixed it to ROOTSPAN. So it means traces are weird or empty.
-                 return json.dumps({"error": "No traces with valid duration found."})
+            if len(valid_traces) < 2:
+                return json.dumps({"error": "Insufficient traces with valid duration found."})
 
             latencies = [t["duration_ms"] for t in valid_traces]
             latencies.sort()
 
-            # 3. Calculate Stats
+            # 4. Calculate statistical metrics
             p50 = statistics.median(latencies)
-            p95 = latencies[int(len(latencies) * 0.95)]
+            p95 = latencies[int(len(latencies) * 0.95)] if len(latencies) > 1 else latencies[0]
+            p99 = latencies[int(len(latencies) * 0.99)] if len(latencies) > 1 else latencies[0]
             mean = statistics.mean(latencies)
             stdev = statistics.stdev(latencies) if len(latencies) > 1 else 0
 
             span.set_attribute("trace_stats.p50", p50)
             span.set_attribute("trace_stats.p95", p95)
+            span.set_attribute("trace_stats.sample_size", len(valid_traces))
 
-            # 4. Find Baseline (Closest to P50)
-            baseline = min(valid_traces, key=lambda x: abs(x["duration_ms"] - p50))
+            # 5. Score all traces for anomaly detection
+            for trace in valid_traces:
+                has_error = (
+                    trace.get("has_error", False) or
+                    trace.get("trace_id") in error_trace_ids
+                )
+                trace["_anomaly_score"] = _calculate_anomaly_score(
+                    trace, mean, stdev, has_error
+                )
+                trace["_has_error"] = has_error
 
-            # 5. Find Anomaly
-            anomaly = None
-            candidates = [t for t in valid_traces if t["duration_ms"] > p95]
-            if candidates:
-                anomaly = candidates[-1] # The slowest
+            # 6. Select baseline (closest to P50, prefer no errors)
+            baseline_candidates = [
+                t for t in valid_traces
+                if not t.get("_has_error", False)
+            ]
+            if not baseline_candidates:
+                baseline_candidates = valid_traces
+
+            baseline = min(
+                baseline_candidates,
+                key=lambda x: abs(x["duration_ms"] - p50)
+            )
+
+            # 7. Select anomaly (highest anomaly score, excluding baseline)
+            anomaly_candidates = [
+                t for t in valid_traces
+                if t.get("trace_id") != baseline.get("trace_id")
+            ]
+            if anomaly_candidates:
+                anomaly = max(anomaly_candidates, key=lambda x: x.get("_anomaly_score", 0))
             else:
-                anomaly = valid_traces[-1]
+                # Fallback: just pick the slowest trace
+                anomaly = max(valid_traces, key=lambda x: x.get("duration_ms", 0))
 
-            if abs(anomaly["duration_ms"] - baseline["duration_ms"]) < (stdev * 0.5):
-                error_traces_json = list_traces(project_id, limit=1, error_only=True)
-                error_traces = json.loads(error_traces_json)
-                if error_traces and not (isinstance(error_traces, list) and "error" in error_traces[0]):
-                    if error_traces:
-                        anomaly = error_traces[0]
-                        anomaly["note"] = "Explicit error trace found"
+            # 8. Add selection reasoning
+            baseline["_selection_reason"] = f"Closest to P50 ({p50:.1f}ms)"
+            anomaly_score = anomaly.get("_anomaly_score", 0)
+            if anomaly.get("_has_error"):
+                anomaly["_selection_reason"] = f"Error trace with anomaly score {anomaly_score:.2f}"
+            else:
+                anomaly["_selection_reason"] = f"High latency anomaly score {anomaly_score:.2f}"
+
+            # 9. Clean up internal fields before returning
+            for trace in [baseline, anomaly]:
+                trace.pop("_anomaly_score", None)
+                trace.pop("_has_error", None)
+
+            # 10. Validate both traces exist (light validation - full validation requires fetch)
+            validation = {
+                "baseline_valid": baseline.get("trace_id") is not None,
+                "anomaly_valid": anomaly.get("trace_id") is not None,
+                "sample_adequate": len(valid_traces) >= min_sample_size,
+                "latency_variance_detected": stdev > 0
+            }
 
             return json.dumps({
                 "stats": {
                     "count": len(valid_traces),
                     "p50_ms": round(p50, 2),
                     "p95_ms": round(p95, 2),
-                    "mean_ms": round(mean, 2)
+                    "p99_ms": round(p99, 2),
+                    "mean_ms": round(mean, 2),
+                    "stdev_ms": round(stdev, 2) if stdev else 0,
+                    "error_traces_found": len(error_trace_ids)
                 },
                 "baseline": baseline,
-                "anomaly": anomaly
+                "anomaly": anomaly,
+                "validation": validation,
+                "selection_method": "hybrid_multi_signal"
             })
 
         except Exception as e:

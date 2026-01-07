@@ -103,9 +103,9 @@ def calculate_span_durations(trace: str) -> List[SpanData]:
                         start_dt = datetime.fromisoformat(s_start.replace('Z', '+00:00'))
                         end_dt = datetime.fromisoformat(s_end.replace('Z', '+00:00'))
                         duration_ms = (end_dt - start_dt).total_seconds() * 1000
-                    except (ValueError, TypeError):
+                    except (ValueError, TypeError) as e:
                         # Fallback if timestamp parsing fails
-                        pass
+                        logger.warning(f"Failed to parse timestamps for span {s.get('span_id')}: {e}")
                 
                 timing_info.append({
                     "span_id": s.get("span_id"),
@@ -171,12 +171,13 @@ def extract_errors(trace: str) -> List[Dict[str, Any]]:
             spans = trace.get("spans", [])
             errors = []
             
-            error_indicators = ["error", "exception", "fault", "failure", "status"]
-            
+            # Removed "status" from error_indicators to prevent HTTP 200 false positives
+            error_indicators = ["error", "exception", "fault", "failure"]
+
             for s in spans:
                 labels = s.get("labels", {})
                 span_name = s.get("name", "")
-                
+
                 is_error = False
                 error_info: Dict[str, Any] = {
                     "span_id": s.get("span_id"),
@@ -186,31 +187,39 @@ def extract_errors(trace: str) -> List[Dict[str, Any]]:
                     "status_code": None,
                     "labels": labels,
                 }
-                
+
                 # Check labels for error indicators
                 for key, value in labels.items():
                     key_lower = key.lower()
                     value_str = str(value).lower() if value else ""
-                    
-                    is_http_status = False
-                    # Check for HTTP error status codes (4xx, 5xx)
-                    if "status" in key_lower or "code" in key_lower:
+
+                    # CRITICAL: Check HTTP/gRPC status codes FIRST and skip other checks for status fields
+                    if "/http/status_code" in key_lower or "http.status_code" in key_lower:
                         try:
                             code = int(value)
-                            is_http_status = True
                             if code >= 400:
                                 is_error = True
                                 error_info["status_code"] = code
-                                error_info["error_type"] = "HTTP Error"
-                        except (ValueError, TypeError):
-                            pass
-                    
+                                error_info["error_type"] = "http_error"
+                        except (ValueError, TypeError) as e:
+                             logger.warning(f"Failed to parse HTTP status code for span {s.get('span_id')}: {e}")
+                        continue  # Skip other error checks for HTTP status fields
+
+                    # Check for general status/code fields (might be HTTP or other)
+                    if "status" in key_lower or "code" in key_lower:
+                        try:
+                            code = int(value)
+                            if code >= 400:
+                                is_error = True
+                                error_info["status_code"] = code
+                                error_info["error_type"] = "http_error"
+                        except (ValueError, TypeError) as e:
+                             # Don't log here as many fields have "code"/ "status" in name but aren't ints
+                             pass
+                        continue  # Skip other error checks for status fields
+
                     # Check for explicitly named error/exception labels
                     if any(indicator in key_lower for indicator in error_indicators):
-                        # If it was identified as a numeric status code, we rely on the threshold check above
-                        if is_http_status and ("status" in key_lower or "code" in key_lower):
-                            continue
-
                         if value_str and value_str not in ("false", "0", "none", "ok"):
                             is_error = True
                             error_info["error_type"] = key
@@ -237,6 +246,96 @@ def extract_errors(trace: str) -> List[Dict[str, Any]]:
         finally:
             duration_ms = (time.time() - start_time) * 1000
             _record_telemetry("extract_errors", success, duration_ms)
+
+
+def validate_trace_quality(trace_json: str) -> Dict[str, Any]:
+    """
+    Validate trace data quality and detect issues.
+    
+    Checks for:
+    - Orphaned spans (missing parent)
+    - Negative durations
+    - Clock skew (child span outside parent timespan)
+    - Timestamp parsing errors
+    
+    Args:
+        trace_json: JSON string of the trace data.
+        
+    Returns:
+        Dictionary with 'valid' boolean, 'issue_count', and list of 'issues'.
+    """
+    try:
+        trace = json.loads(trace_json)
+    except json.JSONDecodeError as e:
+        return {"valid": False, "issue_count": 1, "issues": [{"type": "json_error", "message": str(e)}]}
+
+    spans = trace.get("spans", [])
+    issues = []
+
+    # Build parent-child map
+    span_map = {s["span_id"]: s for s in spans if "span_id" in s}
+
+    for span in spans:
+        span_id = span.get("span_id")
+        if not span_id:
+            issues.append({"type": "missing_span_id", "message": "Span missing ID"})
+            continue
+
+        # Check for orphaned spans
+        parent_id = span.get("parent_span_id")
+        if parent_id and parent_id not in span_map:
+            issues.append({
+                "type": "orphaned_span",
+                "span_id": span_id,
+                "message": f"Parent span {parent_id} not found"
+            })
+
+        # Check for negative durations and clock skew
+        try:
+            start_str = span.get("start_time")
+            end_str = span.get("end_time")
+            
+            if start_str and end_str:
+                start = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                end = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+                duration = (end - start).total_seconds()
+
+                if duration < 0:
+                    issues.append({
+                        "type": "negative_duration",
+                        "span_id": span_id,
+                        "duration_s": duration
+                    })
+
+                # Check clock skew (child outside parent timespan)
+                if parent_id and parent_id in span_map:
+                    parent = span_map[parent_id]
+                    p_start_str = parent.get("start_time")
+                    p_end_str = parent.get("end_time")
+                    
+                    if p_start_str and p_end_str:
+                        p_start = datetime.fromisoformat(p_start_str.replace('Z', '+00:00'))
+                        p_end = datetime.fromisoformat(p_end_str.replace('Z', '+00:00'))
+
+                        # Allow some small buffer for clock skew? Strict for now.
+                        if start < p_start or end > p_end:
+                            issues.append({
+                                "type": "clock_skew",
+                                "span_id": span_id,
+                                "message": "Child span outside parent timespan"
+                            })
+        except (ValueError, TypeError, KeyError) as e:
+            issues.append({
+                "type": "timestamp_error",
+                "span_id": span_id,
+                "error": str(e)
+            })
+
+    return {
+        "valid": len(issues) == 0,
+        "issue_count": len(issues),
+        "issues": issues
+    }
 
 
 def build_call_graph(trace: str) -> Dict[str, Any]:
@@ -520,7 +619,8 @@ def summarize_trace(trace_data: str) -> Dict[str, Any]:
                 start = datetime.fromisoformat(s["start_time"].replace('Z', '+00:00'))
                 end = datetime.fromisoformat(s["end_time"].replace('Z', '+00:00'))
                 dur = (end - start).total_seconds() * 1000
-             except: pass
+             except (ValueError, TypeError) as e:
+                logger.warning(f"Failed to parse timestamps for span {s.get('name')} in summarize_trace: {e}")
         spans_with_dur.append({"name": s.get("name"), "duration_ms": dur})
 
     spans_with_dur.sort(key=lambda x: x["duration_ms"], reverse=True)

@@ -16,27 +16,24 @@ ANALYSIS WORKFLOW:
 4. Analyze the slowest spans and their impact on overall latency
 
 OUTPUT FORMAT:
-Provide a structured latency analysis report:
+You MUST return your findings as a JSON object matching the `LatencyAnalysisReport` schema:
+{
+  "baseline_trace_id": "str",
+  "target_trace_id": "str",
+  "overall_diff_ms": float,
+  "top_slowdowns": [
+    {
+      "span_name": "str",
+      "baseline_ms": float,
+      "target_ms": float,
+      "diff_ms": float,
+      "diff_percent": float,
+      "severity": "critical|high|medium|low|info"
+    }
+  ],
+  "improvements": [...],
+  "root_cause_hypothesis": "Hypothesis about the cause of latency differences"
+}
 
-## Latency Analysis Summary
-- **Baseline Trace ID**: [trace_id]
-- **Target Trace ID**: [trace_id]
-- **Overall Impact**: Target is X ms slower/faster than baseline
-
-## Top Slowdowns
-List the spans with the most significant latency increases:
-| Span Name | Baseline | Target | Diff | % Change |
-|-----------|----------|--------|------|----------|
-
-## Improvements (if any)
-Spans that got faster in the target trace.
-
-## Root Cause Hypothesis
-Based on the data, suggest possible causes for the latency differences:
-- Database queries taking longer
-- External API calls
-- Increased processing time
-- Network latency
-
-Be precise with numbers and percentages. Focus on actionable insights.
+Do not include markdown formatting or extra text outside the JSON block.
 """

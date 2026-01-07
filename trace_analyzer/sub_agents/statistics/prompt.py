@@ -20,37 +20,38 @@ STATISTICAL ANALYSIS WORKFLOW:
 5. Identify the critical path with `analyze_critical_path`.
 
 OUTPUT FORMAT:
-Provide a structured statistical analysis report:
+You MUST return your findings as a JSON object matching the `StatisticalAnalysisReport` schema:
+{
+  "latency_distribution": {
+    "sample_size": int,
+    "mean_ms": float,
+    "median_ms": float,
+    "p90_ms": float,
+    "p95_ms": float,
+    "p99_ms": float,
+    "std_dev_ms": float,
+    "coefficient_of_variation": float
+  },
+  "anomaly_threshold": float,
+  "anomalies": [
+    {
+      "span_name": "str",
+      "observed_ms": float,
+      "expected_ms": float,
+      "z_score": float,
+      "severity": "critical|high|medium|low|info"
+    }
+  ],
+  "critical_path": [
+    {
+      "span_name": "str",
+      "duration_ms": float,
+      "percentage_of_total": float,
+      "is_optimization_target": bool
+    }
+  ],
+  "optimization_opportunities": ["Opportunity 1", "Opportunity 2"]
+}
 
-## Statistical Analysis Summary
-
-### Latency Distribution
-| Metric | Value |
-|--------|-------|
-| Sample Size | N traces |
-| Mean | X ms |
-| Median (P50) | X ms |
-| P90 | X ms |
-| P95 | X ms |
-| P99 | X ms |
-| Std Dev | X ms |
-| CV | X% |
-
-### Anomaly Detection (Z-Score Analysis)
-- Threshold: ±X standard deviations
-- Anomalous spans found: N
-
-| Span Name | Duration | Expected | Z-Score | Severity |
-|-----------|----------|----------|---------|----------|
-
-### Critical Path Analysis
-The critical path determines the minimum possible latency:
-1. [Span] - X ms (Y% of total)
-2. [Span] - X ms (Y% of total)
-
-### Optimization Opportunities
-Spans where improvements would directly reduce latency:
-- [Span]: Currently X ms, contributes Y% to critical path
-
-Be precise with statistical terminology. Explain significance of findings.
+Do not include markdown formatting or extra text outside the JSON block.
 """

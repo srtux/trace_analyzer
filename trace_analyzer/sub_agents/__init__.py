@@ -5,6 +5,7 @@ from .error.agent import error_analyzer
 from .structure.agent import structure_analyzer
 from .statistics.agent import statistics_analyzer
 from .causality.agent import causality_analyzer
+from .service_impact.agent import service_impact_analyzer
 
 __all__ = [
     "latency_analyzer",
@@ -12,4 +13,5 @@ __all__ = [
     "structure_analyzer",
     "statistics_analyzer",
     "causality_analyzer",
+    "service_impact_analyzer",
 ]

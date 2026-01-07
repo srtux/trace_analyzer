@@ -1,30 +1,91 @@
-"""Cloud Trace Analyzer - Root Agent Definition."""
+"""Cloud Trace Analyzer - Root Agent Definition.
+
+This module implements a two-stage hierarchical analysis architecture:
+
+Stage 1 (Triage Squad):
+    - latency_analyzer: Quick span timing comparison
+    - error_analyzer: Error detection and comparison
+    - structure_analyzer: Call graph topology changes
+
+    Purpose: Rapidly identify WHAT is different between traces.
+
+Stage 2 (Deep Dive Squad):
+    - statistics_analyzer: Statistical distribution analysis
+    - causality_analyzer: Root cause determination
+    - service_impact_analyzer: Blast radius assessment
+
+    Purpose: Deeply analyze WHY the differences matter and WHERE to focus.
+
+The root agent orchestrates both stages, using Stage 1 results to guide
+Stage 2 analysis for efficient, targeted investigation.
+"""
 
 import json
 from google.adk.agents import LlmAgent, ParallelAgent
-from google.adk.tools import AgentTool
+from google.adk.tools import AgentTool, adk_tool, Tool
 
 from . import prompt
-from .tools.trace_client import find_example_traces, fetch_trace, list_traces, get_trace_by_url, get_current_time
+from .tools.trace_client import (
+    find_example_traces,
+    fetch_trace,
+    list_traces,
+    get_trace_by_url,
+    get_current_time,
+    list_log_entries,
+    list_time_series,
+    list_error_events,
+    get_logs_for_trace,
+)
 from .tools.trace_analysis import summarize_trace
 from .sub_agents.latency.agent import latency_analyzer
 from .sub_agents.error.agent import error_analyzer
 from .sub_agents.structure.agent import structure_analyzer
 from .sub_agents.statistics.agent import statistics_analyzer
 from .sub_agents.causality.agent import causality_analyzer
+from .sub_agents.service_impact.agent import service_impact_analyzer
+from .tools.trace_filter import (
+    select_traces_from_error_reports,
+    select_traces_from_monitoring_alerts,
+    select_traces_from_statistical_outliers,
+    select_traces_manually,
+)
 
-# Define the parallel squad of specialists
-trace_analysis_squad = ParallelAgent(
-    name="trace_analysis_squad",
+# =============================================================================
+# Stage 1: Triage Squad - Quick identification of differences
+# =============================================================================
+stage1_triage_squad = ParallelAgent(
+    name="stage1_triage_squad",
     sub_agents=[
         latency_analyzer,
         error_analyzer,
         structure_analyzer,
         statistics_analyzer,
-        causality_analyzer
     ],
-    description="Runs a comprehensive analysis using 5 specialized agents in parallel."
+    description=(
+        "Stage 1 Triage: Runs 4 parallel analyzers to quickly identify "
+        "latency differences, error changes, and structural modifications "
+        "between baseline and target traces. Use this first to understand "
+        "WHAT is different."
+    ),
 )
+
+# =============================================================================
+# Stage 2: Deep Dive Squad - Root cause and impact analysis
+# =============================================================================
+stage2_deep_dive_squad = ParallelAgent(
+    name="stage2_deep_dive_squad",
+    sub_agents=[
+        causality_analyzer,
+        service_impact_analyzer,
+    ],
+    description=(
+        "Stage 2 Deep Dive: Runs 2 parallel analyzers for "
+        "root cause determination, and service impact assessment. Use this after "
+        "Stage 1 to understand WHY differences occurred and their blast radius."
+    ),
+)
+
+
 
 
 import os
@@ -80,29 +141,99 @@ def load_mcp_tools():
     except Exception as e:
         print(f"Warning: Failed to setup BigQuery MCP tools: {e}")
 
-    # 2. MCP Toolbox for Databases (Local/Self-hosted)
-    # toolbox_url = "http://localhost:8080"
-    # try:
-    #     toolbox_client = ToolboxSyncClient(toolbox_url)
-    #     if hasattr(toolbox_client, 'list_tools'):
-    #          tools.extend(toolbox_client.list_tools())
-    # except Exception:
-    #     # Ignore if toolbox is not running
-    #     pass
+    # 2. MCP Toolbox for Databases (Local/Self-hosted or Cloud Run)
+    toolbox_url = os.environ.get("TOOLBOX_MCP_URL")
+    if toolbox_url:
+        try:
+            # Use authenticated HTTP client
+            from google.auth import default as google_auth_default
+            from google.auth.transport.requests import Request
+            from toolbox_core import ToolboxSyncClient
+
+            creds, _ = google_auth_default(scopes=['https://www.googleapis.com/auth/cloud-platform'])
+            creds.refresh(Request())
+
+            # Create client with auth headers
+            toolbox_client = ToolboxSyncClient(
+                toolbox_url,
+                headers={'Authorization': f'Bearer {creds.token}'}
+            )
+
+            if hasattr(toolbox_client, 'list_tools'):
+                tools.extend(toolbox_client.list_tools())
+                print(f"Successfully loaded tools from Toolbox MCP at {toolbox_url}")
+
+        except Exception as e:
+            print(f"Warning: Failed to setup Toolbox MCP tools: {e}")
         
     return tools
 
+from google.adk.tools import adk_tool, Tool
+
+
+@adk_tool
+async def run_two_stage_analysis(
+    baseline_trace_id: str, target_trace_id: str
+) -> dict:
+    """
+    Runs a two-stage analysis comparing a baseline and target trace.
+
+    Args:
+        baseline_trace_id: The ID of the baseline trace to analyze.
+        target_trace_id: The ID of the target trace to analyze.
+
+    Returns:
+        A dictionary containing the analysis reports from both stages.
+    """
+    print(
+        "Executing Stage 1 (Triage) analysis for baseline "
+        f"{baseline_trace_id} and target {target_trace_id}..."
+    )
+    stage1_input = {
+        "baseline_trace_id": baseline_trace_id,
+        "target_trace_id": target_trace_id,
+    }
+    stage1_report = await stage1_triage_squad.arun(
+        context=stage1_input, instruction="Analyze the traces provided."
+    )
+
+    print("Executing Stage 2 (Deep Dive) analysis...")
+    stage2_input = {
+        "baseline_trace_id": baseline_trace_id,
+        "target_trace_id": target_trace_id,
+        "stage1_report": stage1_report,
+    }
+    stage2_report = await stage2_deep_dive_squad.arun(
+        context=stage2_input,
+        instruction=(
+            "Using the Stage 1 triage report, perform a deep-dive analysis "
+            "to find the root cause and service impact."
+        ),
+    )
+
+    return {"stage1_report": stage1_report, "stage2_report": stage2_report}
+
+
 # Initialize base tools
 base_tools = [
-        # Direct tools for trace discovery and fetching
-        find_example_traces,
-        fetch_trace,
-        list_traces,
-        get_trace_by_url,
-        summarize_trace,
-        get_current_time,
-        # The parallel squad as a single tool
-        AgentTool(agent=trace_analysis_squad),
+    # Two-stage analysis architecture
+    run_two_stage_analysis,
+    # Trace selection tools
+    select_traces_from_error_reports,
+    select_traces_from_monitoring_alerts,
+    select_traces_from_statistical_outliers,
+    select_traces_manually,
+    # Data source tools
+    find_example_traces,
+    fetch_trace,
+    list_traces,
+    get_trace_by_url,
+    summarize_trace,
+    get_current_time,
+    list_log_entries,
+    list_time_series,
+    list_error_events,
+    get_logs_for_trace,
 ]
 
 # Load MCP tools
