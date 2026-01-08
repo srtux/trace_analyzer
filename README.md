@@ -22,17 +22,20 @@ The agent is built using the Google Agent Development Kit (ADK) and follows a hi
 
 ```mermaid
 sequenceDiagram
-    %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'arial', 'fontSize': '14px', 'actorBorder': '#1A73E8', 'actorBkg': '#E8F0FE', 'signalColor': '#1A73E8', 'activationBorderColor': '#1A73E8', 'activationBkgColor': '#E8F0FE', 'noteBkgColor': '#FFF8E1', 'noteBorderColor': '#FFC107'}}}%%
+    %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'arial', 'fontSize': '14px', 'actorBorder': '#1A73E8', 'actorBkg': '#FFFFFF', 'signalColor': '#1A73E8', 'activationBorderColor': '#1A73E8', 'activationBkgColor': '#E8F0FE', 'noteBkgColor': '#FFF8E1', 'noteBorderColor': '#FFC107'}}}%%
     
     autonumber
-    actor User as 👤 User
-    participant Root as 🕵️ Trace Detective
+    
+    box "📢 Request Origin" #E3F2FD
+        actor User as 👤 User
+        participant Root as 🕵️ Trace Detective
+    end
     
     box "🛠️ The Toolbox" #F1F3F4
         participant Tools as Discovery Tools
     end
     
-    box "🚨 The Squads" #FEF7E0
+    box "🚨 The Squads" #FFF3E0
         participant S1 as Triage Squad
         participant S2 as Deep Dive Squad
     end
