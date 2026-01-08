@@ -22,58 +22,65 @@ The agent is built using the Google Agent Development Kit (ADK) and follows a hi
 
 ```mermaid
 sequenceDiagram
-    %% Use a standard theme or 'neutral' for best compatibility
-    %%{init: {'theme': 'base', 'themeVariables': {'darkMode': false, 'background': '#ffffff', 'mainBkg': '#ffffff', 'fontFamily': 'arial', 'fontSize': '14px', 'textColor': '#000000', 'primaryTextColor': '#000000', 'actorTextColor': '#000000', 'actorBorder': '#000000', 'actorBkg': '#FFFFFF', 'actorLineColor': '#333333', 'signalColor': '#333333', 'signalTextColor': '#000000', 'activationBorderColor': '#333333', 'activationBkgColor': '#E8F0FE', 'noteBkgColor': '#FFF8E1', 'noteBorderColor': '#333333', 'noteTextColor': '#000000'}}}%%
+    %% 'neutral' theme adapts best to dark/light modes. 
+    %% wrap: true helps text fitting.
+    %%{init: {
+        'theme': 'neutral', 
+        'themeVariables': { 
+            'fontFamily': 'arial',
+            'fontSize': '14px'
+        }
+    }}%%
     
     autonumber
     
-    box "📢 Request Origin" #FFFFFF
+    box "📢 Request Origin"
         actor User as 👤 User
         participant Agent as 🕵️ Trace Detective
     end
     
-    box "🛠️ The Toolbox" #FFFFFF
-        participant Tools as Discovery Tools
+    box "🛠️ The Toolbox"
+        participant Tools as Discovery<br/>Tools
     end
     
-    box "🚨 The Squads" #FFFFFF
-        participant S1 as Triage Squad
-        participant S2 as Deep Dive Squad
+    box "🚨 The Squads"
+        participant S1 as Triage<br/>Squad
+        participant S2 as Deep Dive<br/>Squad
     end
 
     User->>Agent: "Analyze these traces..."
     
-    Note over User, S2: ─── PHASE 1: EVIDENCE GATHERING ───
+    %% Using <br/> and shorter dividers reduces width significantly
+    Note over User, S2: ── PHASE 1: EVIDENCE GATHERING ──
     
-    Agent->>Tools: Fetch Trace Data (Baseline vs Target)
+    Agent->>Tools: Fetch Trace Data<br/>(Baseline vs Target)
     activate Tools
     Tools-->>Agent: Trace Data
     deactivate Tools
 
-    Note over User, S2: ─── PHASE 2: IDENTIFICATION (Interactive) ───
+    Note over User, S2: ── PHASE 2: IDENTIFICATION ──
     
     Agent->>S1: run_triage_analysis()
     activate S1
-    S1->>S1: Parallel Analysis<br/>(Latency, Error, Structure, Stats)
-    S1-->>Agent: Triage Report (Suspects Found)
+    S1->>S1: Parallel Analysis<br/>(Latency, Error, Structure)
+    S1-->>Agent: Triage Report<br/>(Suspects Found)
     deactivate S1
     
     Agent->>User: "I found latency spikes in Service X..."
 
-    Note over User, S2: ─── PHASE 3: ROOT CAUSE (On Demand) ───
+    Note over User, S2: ── PHASE 3: ROOT CAUSE ──
     
-    %% ADDED: User interaction to make it actually "On Demand"
     User->>Agent: "Dig deeper into Service X"
     
     Agent->>S2: run_deep_dive_analysis()
     activate S2
     S2->>S2: Causal & Impact Analysis
-    S2-->>Agent: Deep Dive Report (Root Cause)
+    S2-->>Agent: Deep Dive Report<br/>(Root Cause)
     deactivate S2
 
-    Note over User, S2: ─── PHASE 4: VERDICT ───
+    Note over User, S2: ── PHASE 4: VERDICT ──
     
-    Agent->>User: 📂 FINAL CASE FILE (Root Cause + Fixes)
+    Agent->>User: 📂 FINAL CASE FILE<br/>(Root Cause + Fixes)
 ```
 
 ### Core Components
