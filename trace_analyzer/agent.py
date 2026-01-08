@@ -123,8 +123,6 @@ class LazyMcpRegistryToolset(BaseToolset):
     
     # Leaking toolsets intentionally to avoid 'anyio' RuntimeError during GC/cleanup
     # when accessed across different asyncio Tasks (FastAPI requests).
-    _leaked_toolsets = []
-
     def __init__(self, project_id: str, mcp_server_name: str, tool_filter: list[str]):
         self.project_id = project_id
         self.mcp_server_name = mcp_server_name
@@ -133,12 +131,6 @@ class LazyMcpRegistryToolset(BaseToolset):
         self._inner_toolset = None
         
     async def get_tools(self, readonly_context=None):
-        # Move current toolset dummy to leaked list if exists (mostly for subsequent calls)
-        if self._inner_toolset:
-            LazyMcpRegistryToolset._leaked_toolsets.append(self._inner_toolset)
-            if len(LazyMcpRegistryToolset._leaked_toolsets) > 20:
-                LazyMcpRegistryToolset._leaked_toolsets.pop(0)
-
         # Create ApiRegistry with explicit quota project header
         api_registry = ApiRegistry(
             self.project_id,
@@ -150,14 +142,16 @@ class LazyMcpRegistryToolset(BaseToolset):
             tool_filter=self.tool_filter
         )
         
-        # PERSIST: Immediately leak this toolset to the class-level list to prevent GC 
-        # from terminating the session during the request.
-        LazyMcpRegistryToolset._leaked_toolsets.append(self._inner_toolset)
-        if len(LazyMcpRegistryToolset._leaked_toolsets) > 20:
-            LazyMcpRegistryToolset._leaked_toolsets.pop(0)
-
         # Resolve the actual tools from the toolset, passing context for auth/quota propagation
         return await self._inner_toolset.get_tools(readonly_context)
+
+    async def close(self):
+        """Explicitly closes the inner toolset to free resources."""
+        if self._inner_toolset:
+            try:
+                await self._inner_toolset.close()
+            except Exception as e:
+                logger.warning(f"Error closing LazyMcpRegistryToolset: {e}")
 
 def load_mcp_tools():
     """Loads tools from configured MCP endpoints."""
@@ -253,16 +247,23 @@ async def run_aggregate_analysis(
     )
 
     aggregate_tool = AgentTool(fresh_aggregate_analyzer)
-    return await aggregate_tool.run_async(
-        args={
-            "request": (
-                f"Context: {json.dumps(stage0_input)}\n"
-                "Instruction: Perform aggregate analysis of trace data using BigQuery. "
-                "Identify problem areas, detect trends, and select exemplar traces for investigation."
-            )
-        },
-        tool_context=tool_context
-    )
+    try:
+        return await aggregate_tool.run_async(
+            args={
+                "request": (
+                    f"Context: {json.dumps(stage0_input)}\n"
+                    "Instruction: Perform aggregate analysis of trace data using BigQuery. "
+                    "Identify problem areas, detect trends, and select exemplar traces for investigation."
+                )
+            },
+            tool_context=tool_context
+        )
+    finally:
+        # Explicitly close the fresh MCP toolsets to prevent 'anyio' TaskGroup errors
+        # This ensures cleanup happens in the same Task that created the session.
+        for toolset in fresh_mcp_tools:
+            if hasattr(toolset, 'close'):
+                await toolset.close()
 
 
 @adk_tool
