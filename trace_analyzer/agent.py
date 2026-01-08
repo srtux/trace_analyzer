@@ -76,6 +76,75 @@ from .tools.trace_filter import (
     select_traces_manually,
 )
 
+
+# =============================================================================
+# Module-level MCP Toolset (Singleton Pattern)
+# =============================================================================
+# Following Google Cloud blog pattern: create toolset ONCE at module level,
+# let ADK framework manage the session lifecycle across the entire app lifetime.
+# This avoids session timeout issues that occur with per-request creation.
+# =============================================================================
+
+def _create_module_level_mcp_toolset():
+    """
+    Creates BigQuery MCP toolset at module level (singleton pattern).
+
+    This follows the Google Cloud blog pattern:
+    https://cloud.google.com/blog/products/data-analytics/using-the-fully-managed-remote-bigquery-mcp-server-to-build-data-ai-agents/
+
+    Key insight: Creating toolset per-request causes session timeout issues because:
+    1. MCP session is created when toolset is created
+    2. LLM calls can take 5-10+ seconds
+    3. MCP session times out during LLM call
+    4. When agent tries to use MCP tool, session is already terminated
+
+    By creating at module level:
+    - Session persists across requests
+    - ADK framework manages lifecycle
+    - No async context scope issues
+    """
+    project_id = None
+    try:
+        _, project_id = google.auth.default()
+        project_id = project_id or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    except Exception:
+        pass
+
+    if not project_id:
+        logger.warning("No Project ID detected at module load; MCP toolset will not be available")
+        return None
+
+    try:
+        logger.info(f"Creating module-level BigQuery MCP toolset for project: {project_id}")
+
+        # Pattern: projects/{project}/locations/global/mcpServers/{server_id}
+        mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/google-bigquery.googleapis.com-mcp"
+
+        # Create ApiRegistry with explicit quota project header
+        api_registry = ApiRegistry(
+            project_id,
+            header_provider=lambda _: {"x-goog-user-project": project_id}
+        )
+
+        # Get the MCP toolset - this creates the session that will persist
+        mcp_toolset = api_registry.get_toolset(
+            mcp_server_name=mcp_server_name,
+            tool_filter=["execute_sql", "list_dataset_ids", "list_table_ids", "get_table_info"]
+        )
+
+        logger.info("Successfully created module-level BigQuery MCP toolset")
+        return mcp_toolset
+
+    except Exception as e:
+        logger.error(f"Failed to create module-level BigQuery MCP toolset: {e}", exc_info=True)
+        return None
+
+
+# Create the module-level MCP toolset (singleton)
+# This is created once when the module is imported, session persists for app lifetime
+_bigquery_mcp_toolset = _create_module_level_mcp_toolset()
+
+
 # =============================================================================
 # Stage 0: Aggregate Analysis - BigQuery-powered broad analysis
 # =============================================================================
@@ -118,58 +187,43 @@ stage2_deep_dive_squad = ParallelAgent(
 )
 
 
-def create_bigquery_mcp_toolset(project_id: str):
+def get_bigquery_mcp_toolset():
     """
-    Creates BigQuery MCP toolset following the pattern from Google Cloud blog post:
-    https://cloud.google.com/blog/products/data-analytics/using-the-fully-managed-remote-bigquery-mcp-server-to-build-data-ai-agents/
+    Returns the module-level BigQuery MCP toolset (singleton).
 
-    SIMPLIFIED APPROACH (following official Google Cloud guidance):
-
-    Key Principles:
-    1. Create toolset ONCE (not per-request)
-    2. Pass toolset directly to agent (not extracted tools)
-    3. Let ADK framework handle lifecycle (no manual cleanup)
-    4. Toolset is stateful and reusable across agent invocations
-
-    This avoids the async task scope errors by:
-    - Not manually calling get_tools() or close()
-    - Letting the agent framework manage the toolset lifecycle
-    - Toolset creation is synchronous (no async context issues)
-
-    Args:
-        project_id: Google Cloud project ID for BigQuery access
+    This follows the Google Cloud blog pattern where the toolset is created once
+    at module level and reused across all requests. This avoids session timeout
+    issues that occur with per-request toolset creation.
 
     Returns:
-        Toolset instance to pass directly to agent's tools list
+        The shared MCP toolset instance, or None if not available
     """
-    if not project_id:
-        logger.warning("No Project ID provided; cannot create BigQuery MCP toolset")
-        return None
+    return _bigquery_mcp_toolset
 
-    try:
-        logger.info(f"Creating BigQuery MCP toolset for project: {project_id}")
 
-        # Pattern: projects/{project}/locations/global/mcpServers/{server_id}
-        mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/google-bigquery.googleapis.com-mcp"
+# Deprecated: Keep for backwards compatibility with tests
+def create_bigquery_mcp_toolset(project_id: str):
+    """
+    DEPRECATED: Use get_bigquery_mcp_toolset() instead.
 
-        # Create ApiRegistry with explicit quota project header
-        api_registry = ApiRegistry(
-            project_id,
-            header_provider=lambda _: {"x-goog-user-project": project_id}
-        )
+    This function now returns the module-level singleton toolset.
+    The project_id parameter is ignored - the toolset uses the project
+    detected at module load time.
 
-        # Get the MCP toolset (this is synchronous, returns a toolset object)
-        mcp_toolset = api_registry.get_toolset(
-            mcp_server_name=mcp_server_name,
-            tool_filter=["execute_sql", "list_dataset_ids", "list_table_ids", "get_table_info"]
-        )
+    Per-request toolset creation caused MCP session timeout issues because:
+    1. MCP session is created when toolset is created
+    2. LLM calls can take 5-10+ seconds
+    3. MCP session times out during LLM call
+    4. When agent tries to use MCP tool, session is already terminated
 
-        logger.info("Successfully created BigQuery MCP toolset")
-        return mcp_toolset
+    Args:
+        project_id: Ignored (kept for API compatibility)
 
-    except Exception as e:
-        logger.error(f"Failed to create BigQuery MCP toolset: {e}", exc_info=True)
-        return None
+    Returns:
+        The shared module-level MCP toolset instance
+    """
+    logger.debug("create_bigquery_mcp_toolset() is deprecated; returning module-level singleton")
+    return _bigquery_mcp_toolset
 
 
 
@@ -205,28 +259,29 @@ async def run_aggregate_analysis(
         "service_name": service_name,
     }
 
-    # Detect Project ID for instruction
+    # Detect Project ID for instruction enrichment
     project_id = None
     try:
         _, project_id = google.auth.default()
         project_id = project_id or os.environ.get("GOOGLE_CLOUD_PROJECT")
-    except:
+    except Exception:
         pass
 
-    # Create MCP toolset (following blog post pattern: create once, pass directly)
-    mcp_toolset = create_bigquery_mcp_toolset(project_id)
+    # Get the module-level MCP toolset (singleton pattern)
+    # This avoids session timeout issues that occur with per-request creation
+    mcp_toolset = get_bigquery_mcp_toolset()
 
     instruction = stage0_aggregate_analyzer.instruction
     if project_id:
         instruction += f"\n\nCurrent Project ID: {project_id}\nUse this for 'projectId' arguments in BigQuery tools."
 
     # Create a fresh agent instance with merged tools
-    original_tools = stage0_aggregate_analyzer.tools or []
+    # The MCP toolset is the module-level singleton - its session persists
+    original_tools = list(stage0_aggregate_analyzer.tools or [])
 
-    # Build tools list: add toolset if available (ADK will call get_tools() internally)
-    agent_tools = original_tools.copy()
+    # Build tools list: add toolset if available (ADK manages its lifecycle)
     if mcp_toolset:
-        agent_tools.append(mcp_toolset)
+        original_tools.append(mcp_toolset)
 
     fresh_aggregate_analyzer = LlmAgent(
         name=stage0_aggregate_analyzer.name,
@@ -234,7 +289,7 @@ async def run_aggregate_analysis(
         description=stage0_aggregate_analyzer.description,
         instruction=instruction,
         # Pass toolset directly - ADK framework handles lifecycle
-        tools=agent_tools
+        tools=original_tools,
     )
 
     aggregate_tool = AgentTool(fresh_aggregate_analyzer)
@@ -355,10 +410,12 @@ base_tools = [
     get_logs_for_trace,
 ]
 
-# Note: MCP toolsets are created per-request in run_aggregate_analysis() and passed
-# directly to the agent (following Google Cloud blog post pattern). The ADK framework
-# handles toolset lifecycle automatically - no manual cleanup needed.
-# This avoids "cancel scope in different task" errors.
+# Note: MCP toolset is created ONCE at module level (singleton pattern) and reused
+# across all requests. This follows the Google Cloud blog post pattern:
+# https://cloud.google.com/blog/products/data-analytics/using-the-fully-managed-remote-bigquery-mcp-server-to-build-data-ai-agents/
+#
+# The singleton pattern avoids MCP session timeout issues that occurred with
+# per-request toolset creation (where sessions would terminate during LLM calls).
 
 # Detect Project ID for instruction
 try:
