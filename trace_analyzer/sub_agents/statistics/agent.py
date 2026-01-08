@@ -8,7 +8,7 @@ from ...tools.statistical_analysis import (
     compute_service_level_stats,
     detect_latency_anomalies,
 )
-from ...tools.trace_client import fetch_trace, list_traces
+from ...tools.o11y_clients import fetch_trace, list_traces
 from . import prompt
 
 statistics_analyzer = Agent(

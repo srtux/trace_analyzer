@@ -28,15 +28,18 @@ def bad_trace_json():
 @pytest.fixture
 def mock_fetch_trace():
     """
-    Mock fetch_trace to return the input trace_id as the result.
+    Mock fetch_trace_data to return the input trace_id (as dict) as the result.
     This is necessary because the tests pass the full JSON content as the trace_id.
     """
+    import json
     with (
-        patch("trace_analyzer.tools.trace_analysis.fetch_trace") as mock_a,
-        patch("trace_analyzer.tools.statistical_analysis.fetch_trace") as mock_b,
+        patch("trace_analyzer.tools.trace_analysis.fetch_trace_data") as mock_a,
+        patch("trace_analyzer.tools.statistical_analysis.fetch_trace_data") as mock_b,
     ):
 
-        def side_effect(project_id, trace_id):
+        def side_effect(trace_id, project_id=None):
+            if isinstance(trace_id, str) and trace_id.strip().startswith("{"):
+                return json.loads(trace_id)
             return trace_id
 
         mock_a.side_effect = side_effect

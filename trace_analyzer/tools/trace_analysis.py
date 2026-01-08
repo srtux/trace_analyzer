@@ -7,7 +7,7 @@ from typing import Any
 
 from ..decorators import adk_tool
 from ..telemetry import get_meter, get_tracer, log_tool_call
-from .trace_client import fetch_trace_data
+from .o11y_clients import fetch_trace_data
 
 logger = logging.getLogger(__name__)
 

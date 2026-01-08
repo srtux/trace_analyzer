@@ -11,7 +11,7 @@ from tests.fixtures.synthetic_otel_data import (
     CloudTraceAPIGenerator,
     generate_trace_id,
 )
-from trace_analyzer.tools import trace_client
+from trace_analyzer.tools import o11y_clients as trace_client
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def mock_logging_client():
 class TestFetchTrace:
     """Tests for fetch_trace function."""
 
-    @patch("trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient")
+    @patch("trace_analyzer.tools.o11y_clients.trace_v1.TraceServiceClient")
     def test_fetch_trace_success(self, mock_client_class):
         """Test successful trace fetch."""
         # Setup mock
@@ -59,7 +59,7 @@ class TestFetchTrace:
         assert result["trace_id"] == trace_id
         mock_client.get_trace.assert_called_once()
 
-    @patch("trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient")
+    @patch("trace_analyzer.tools.o11y_clients.trace_v1.TraceServiceClient")
     def test_fetch_trace_with_invalid_trace_id(self, mock_client_class):
         """Test fetch trace with invalid trace ID."""
         mock_client = MagicMock()
@@ -84,7 +84,7 @@ class TestFetchTrace:
 class TestListTraces:
     """Tests for list_traces function."""
 
-    @patch("trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient")
+    @patch("trace_analyzer.tools.o11y_clients.trace_v1.TraceServiceClient")
     def test_list_traces_success(self, mock_client_class):
         """Test successful trace listing."""
         mock_client = MagicMock()
@@ -110,7 +110,7 @@ class TestListTraces:
         assert len(result) <= 5
         mock_client.list_traces.assert_called_once()
 
-    @patch("trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient")
+    @patch("trace_analyzer.tools.o11y_clients.trace_v1.TraceServiceClient")
     def test_list_traces_with_time_filter(self, mock_client_class):
         """Test trace listing with time filter."""
         mock_client = MagicMock()
@@ -133,7 +133,7 @@ class TestListTraces:
 class TestGetLogsForTrace:
     """Tests for get_logs_for_trace function."""
 
-    @patch("trace_analyzer.tools.trace_client.LoggingServiceV2Client")
+    @patch("trace_analyzer.tools.o11y_clients.LoggingServiceV2Client")
     def test_get_logs_for_trace_success(self, mock_client_class):
         """Test successful log retrieval for trace."""
         mock_client = MagicMock()
@@ -175,7 +175,7 @@ class TestGetLogsForTrace:
 class TestFindExampleTraces:
     """Tests for find_example_traces function."""
 
-    @patch("trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient")
+    @patch("trace_analyzer.tools.o11y_clients.trace_v1.TraceServiceClient")
     def test_find_example_traces_with_error_filter(self, mock_client_class):
         """Test finding example traces with error filter."""
         mock_client = MagicMock()
@@ -219,7 +219,7 @@ class TestGetTraceByURL:
         url = "https://console.cloud.google.com/traces/trace-details/4fb09ce68979116e0ca143d225695000?project=test-project"
 
         # Mock the actual fetch to focus on URL parsing
-        with patch("trace_analyzer.tools.trace_client.fetch_trace") as mock_fetch:
+        with patch("trace_analyzer.tools.o11y_clients.fetch_trace") as mock_fetch:
             mock_fetch.return_value = json.dumps(
                 {"trace_id": "4fb09ce68979116e0ca143d225695000"}
             )
@@ -276,7 +276,7 @@ class TestListErrorEvents:
 class TestListLogEntries:
     """Tests for list_log_entries function."""
 
-    @patch("trace_analyzer.tools.trace_client.LoggingServiceV2Client")
+    @patch("trace_analyzer.tools.o11y_clients.LoggingServiceV2Client")
     def test_list_log_entries_success(self, mock_client_class):
         """Test successful log entry listing."""
         mock_client = MagicMock()
@@ -314,8 +314,8 @@ class TestListLogEntries:
 class TestIntegration:
     """Integration tests for trace client tools."""
 
-    @patch("trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient")
-    @patch("trace_analyzer.tools.trace_client.LoggingServiceV2Client")
+    @patch("trace_analyzer.tools.o11y_clients.trace_v1.TraceServiceClient")
+    @patch("trace_analyzer.tools.o11y_clients.LoggingServiceV2Client")
     def test_fetch_trace_and_logs_workflow(
         self, mock_logging_client, mock_trace_client
     ):

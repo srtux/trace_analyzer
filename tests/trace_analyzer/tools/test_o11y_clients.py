@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from trace_analyzer.tools.trace_client import (
+from trace_analyzer.tools.o11y_clients import (
     _get_project_id,
     fetch_trace,
     find_example_traces,
@@ -16,7 +16,7 @@ from trace_analyzer.tools.trace_client import (
 @pytest.fixture
 def mock_trace_service_client():
     with mock.patch(
-        "trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient"
+        "trace_analyzer.tools.o11y_clients.trace_v1.TraceServiceClient"
     ) as mock_client:
         yield mock_client
 
@@ -164,7 +164,7 @@ def test_list_traces_error(mock_trace_service_client):
 def test_find_example_traces_success(mock_env_vars, mock_trace_service_client):
     # Mock list_traces indirectly by mocking the client it uses
     # Or we can patch list_traces. Let's patch list_traces to verify integration logic
-    with mock.patch("trace_analyzer.tools.trace_client.list_traces") as mock_list:
+    with mock.patch("trace_analyzer.tools.o11y_clients.list_traces") as mock_list:
         mock_list.return_value = json.dumps(
             [
                 {"trace_id": "example1", "duration_ms": 100},
@@ -191,7 +191,7 @@ def test_find_example_traces_no_project_id():
 def test_get_trace_by_url_success(mock_trace_service_client):
     url = "https://console.cloud.google.com/traces/list?project=test-project&tid=test-trace-id"
 
-    with mock.patch("trace_analyzer.tools.trace_client.fetch_trace") as mock_fetch:
+    with mock.patch("trace_analyzer.tools.o11y_clients.fetch_trace") as mock_fetch:
         mock_fetch.return_value = json.dumps({"trace_id": "test-trace-id"})
 
         result_json = get_trace_by_url(url)
@@ -204,7 +204,7 @@ def test_get_trace_by_url_success(mock_trace_service_client):
 def test_get_trace_by_url_details_format():
     url = "https://console.cloud.google.com/traces/details/test-trace-id?project=test-project"
 
-    with mock.patch("trace_analyzer.tools.trace_client.fetch_trace") as mock_fetch:
+    with mock.patch("trace_analyzer.tools.o11y_clients.fetch_trace") as mock_fetch:
         mock_fetch.return_value = json.dumps({"trace_id": "test-trace-id"})
 
         get_trace_by_url(url)

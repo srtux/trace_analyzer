@@ -351,7 +351,7 @@ trace_analyzer/
 │   │   └── service_impact/ # Service Impact Analyzer
 │   ├── tools/
 │   │   ├── bigquery_otel.py    # BigQuery OpenTelemetry analysis tools
-│   │   ├── trace_client.py     # Cloud Trace API wrapper
+│   │   ├── o11y_clients.py     # Shared Observability (Trace/Log/Error) Client
 │   │   ├── trace_filter.py     # Advanced TraceQueryBuilder
 │   │   ├── statistical_analysis.py  # Statistical analysis tools
 │   │   └── ...

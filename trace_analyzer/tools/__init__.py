@@ -14,7 +14,7 @@ from .trace_analysis import (
     extract_errors,
     find_structural_differences,
 )
-from .trace_client import (
+from .o11y_clients import (
     fetch_trace,
     find_example_traces,
     get_trace_by_url,

@@ -4,7 +4,7 @@ from google.adk.agents import Agent
 
 from ...tools.statistical_analysis import compute_service_level_stats
 from ...tools.trace_analysis import extract_errors
-from ...tools.trace_client import fetch_trace, list_traces
+from ...tools.o11y_clients import fetch_trace, list_traces
 from . import prompt
 
 service_impact_analyzer = Agent(

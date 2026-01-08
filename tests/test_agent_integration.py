@@ -37,10 +37,10 @@ async def test_agent_initialization(mock_env):
     assert analysis_tool is not None
 
 
-@patch("trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient")
+@patch("trace_analyzer.tools.o11y_clients.trace_v1.TraceServiceClient")
 def test_list_traces_mock(mock_client_cls):
     """Test list_traces with mocked client to verify filter construction."""
-    from trace_analyzer.tools.trace_client import list_traces
+    from trace_analyzer.tools.o11y_clients import list_traces
 
     mock_client = MagicMock()
     mock_client_cls.return_value = mock_client

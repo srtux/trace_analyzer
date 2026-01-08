@@ -3,7 +3,7 @@
 from google.adk.agents import Agent
 
 from ...tools.trace_analysis import build_call_graph, find_structural_differences
-from ...tools.trace_client import fetch_trace
+from ...tools.o11y_clients import fetch_trace
 from . import prompt
 
 structure_analyzer = Agent(

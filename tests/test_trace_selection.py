@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from trace_analyzer.tools.trace_client import find_example_traces
+from trace_analyzer.tools.o11y_clients import find_example_traces
 from trace_analyzer.tools.trace_filter import (
     select_traces_from_statistical_outliers,
     select_traces_manually,
@@ -55,7 +55,7 @@ def test_statistical_outlier_tool():
     pass
 
 
-@patch("trace_analyzer.tools.trace_client.list_traces")
+@patch("trace_analyzer.tools.o11y_clients.list_traces")
 def test_hybrid_selection_includes_stats(mock_list_traces):
     """Test hybrid selection returns statistics."""
     # Mock return values
@@ -70,7 +70,7 @@ def test_hybrid_selection_includes_stats(mock_list_traces):
     # Call function
     # Note: We need to mock _get_project_id or set env var
     with patch(
-        "trace_analyzer.tools.trace_client._get_project_id", return_value="test-project"
+        "trace_analyzer.tools.o11y_clients._get_project_id", return_value="test-project"
     ):
         result_json = find_example_traces(project_id="test-project")
         result = json.loads(result_json)

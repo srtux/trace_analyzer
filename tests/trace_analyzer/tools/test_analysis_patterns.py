@@ -7,8 +7,8 @@ from trace_analyzer.tools.trace_analysis import compare_span_timings
 def test_compare_span_timings_n_plus_one_detection():
     """Test that N+1 query patterns are detected."""
     with patch(
-        "trace_analyzer.tools.trace_analysis.fetch_trace",
-        side_effect=lambda pid, tid: tid,
+        "trace_analyzer.tools.trace_analysis.fetch_trace_data",
+        side_effect=lambda tid, pid: json.loads(tid) if isinstance(tid, str) else tid,
     ):
         baseline = {
             "trace_id": "base",
@@ -65,8 +65,8 @@ def test_compare_span_timings_n_plus_one_detection():
 def test_compare_span_timings_serial_chain_detection():
     """Test that serial chain patterns (waterfalls) are detected."""
     with patch(
-        "trace_analyzer.tools.trace_analysis.fetch_trace",
-        side_effect=lambda pid, tid: tid,
+        "trace_analyzer.tools.trace_analysis.fetch_trace_data",
+        side_effect=lambda tid, pid: json.loads(tid) if isinstance(tid, str) else tid,
     ):
         baseline = {
             "trace_id": "base",

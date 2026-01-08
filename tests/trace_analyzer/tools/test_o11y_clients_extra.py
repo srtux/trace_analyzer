@@ -1,14 +1,14 @@
 import json
 from unittest import mock
 
-from trace_analyzer.tools.trace_client import (
+from trace_analyzer.tools.o11y_clients import (
     list_error_events,
     list_log_entries,
     list_time_series,
 )
 
 
-@mock.patch("trace_analyzer.tools.trace_client.LoggingServiceV2Client")
+@mock.patch("trace_analyzer.tools.o11y_clients.LoggingServiceV2Client")
 def test_list_log_entries(mock_logging_client_cls):
     """Test list_log_entries tool."""
     mock_client = mock.Mock()
@@ -34,7 +34,7 @@ def test_list_log_entries(mock_logging_client_cls):
     )
 
 
-@mock.patch("trace_analyzer.tools.trace_client.monitoring_v3.MetricServiceClient")
+@mock.patch("trace_analyzer.tools.o11y_clients.monitoring_v3.MetricServiceClient")
 def test_list_time_series(mock_metric_client_cls):
     """Test list_time_series tool."""
     mock_client = mock.Mock()

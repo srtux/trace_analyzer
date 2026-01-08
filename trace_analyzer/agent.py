@@ -56,7 +56,7 @@ from .tools.bigquery_otel import (
 )
 from .tools.statistical_analysis import analyze_trace_patterns
 from .tools.trace_analysis import summarize_trace, validate_trace_quality
-from .tools.trace_client import (
+from .tools.o11y_clients import (
     fetch_trace,
     find_example_traces,
     get_current_time,
