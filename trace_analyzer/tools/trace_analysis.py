@@ -8,7 +8,7 @@ from typing import Any
 
 from ..decorators import adk_tool
 from ..telemetry import get_meter, get_tracer, log_tool_call
-from .trace_client import fetch_trace, _get_project_id
+from .trace_client import fetch_trace, _get_project_id, fetch_trace_data
 
 logger = logging.getLogger(__name__)
 
@@ -50,24 +50,6 @@ SpanData = dict[str, Any]
 
 
 
-def _fetch_trace_data(trace_id: str, project_id: str | None = None) -> dict[str, Any]:
-    """Helper to fetch trace data by ID."""
-    if not project_id:
-        try:
-            project_id = _get_project_id()
-        except ValueError:
-             pass
-
-    if not project_id:
-         return {"error": "Project ID required to fetch trace."}
-
-    trace_json = fetch_trace(project_id, trace_id)
-    try:
-        if isinstance(trace_json, dict):
-            return trace_json
-        return json.loads(trace_json)
-    except json.JSONDecodeError:
-        return {"error": "Invalid trace JSON"}
 
 
 @adk_tool
@@ -96,12 +78,7 @@ def calculate_span_durations(trace_id: str, project_id: str | None = None) -> li
         log_tool_call(logger, "calculate_span_durations", trace_id=trace_id)
 
         try:
-            trace = _fetch_trace_data(trace_id, project_id)
-            if "error" in trace:
-                span.set_attribute("error", True)
-                span.set_status(trace.get("error"))
-                return [{"error": trace["error"]}]
-
+            trace = fetch_trace_data(trace_id, project_id)
             if "error" in trace:
                 span.set_attribute("error", True)
                 span.set_status(trace.get("error"))
@@ -179,10 +156,7 @@ def extract_errors(trace_id: str, project_id: str | None = None) -> list[dict[st
         log_tool_call(logger, "extract_errors", trace_id=trace_id)
 
         try:
-            trace = _fetch_trace_data(trace_id, project_id)
-            if "error" in trace:
-                return [{"error": trace["error"]}]
-
+            trace = fetch_trace_data(trace_id, project_id)
             if "error" in trace:
                 return [{"error": trace["error"]}]
 
@@ -284,7 +258,7 @@ def validate_trace_quality(trace_id: str, project_id: str | None = None) -> dict
     Returns:
         Dictionary with 'valid' boolean, 'issue_count', and list of 'issues'.
     """
-    trace = _fetch_trace_data(trace_id, project_id)
+    trace = fetch_trace_data(trace_id, project_id)
     if "error" in trace:
         return {"valid": False, "issue_count": 1, "issues": [{"type": "fetch_error", "message": trace["error"]}]}
 
@@ -385,10 +359,7 @@ def build_call_graph(trace_id: str, project_id: str | None = None) -> dict[str, 
         log_tool_call(logger, "build_call_graph", trace_id=trace_id)
 
         try:
-            trace = _fetch_trace_data(trace_id, project_id)
-            if "error" in trace:
-                return {"error": trace["error"]}
-
+            trace = fetch_trace_data(trace_id, project_id)
             if "error" in trace:
                 return {"error": trace["error"]}
 
@@ -731,10 +702,7 @@ def summarize_trace(trace_id: str, project_id: str | None = None) -> dict[str, A
     """
     log_tool_call(logger, "summarize_trace", trace_id=trace_id)
     
-    trace_data = _fetch_trace_data(trace_id, project_id)
-    if "error" in trace_data:
-        return trace_data
-
+    trace_data = fetch_trace_data(trace_id, project_id)
     if "error" in trace_data:
         return trace_data
 

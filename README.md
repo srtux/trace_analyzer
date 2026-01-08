@@ -215,7 +215,7 @@ sequenceDiagram
 
 The agent expects traces to be exported to BigQuery using the OpenTelemetry schema:
 
-**Required Table Structure** (example: `project.telemetry.otel_traces`):
+**Required Table Structure** (example: `project.telemetry._AllSpans`):
 - `trace_id`: Unique trace identifier
 - `span_id`: Unique span identifier
 - `parent_span_id`: Parent span reference
@@ -382,7 +382,7 @@ To enable the full SRE investigation workflow with aggregate analysis:
 2. **Configure BigQuery dataset**: Ensure your BigQuery dataset contains a table with the OpenTelemetry schema
    ```bash
    # Example dataset: myproject.telemetry
-   # Example table: otel_traces
+   # Example table: _AllSpans
    ```
 
 3. **Grant BigQuery permissions**: Ensure the agent has access

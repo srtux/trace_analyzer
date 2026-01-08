@@ -12,10 +12,21 @@ sys.modules["google.adk"] = mock_adk
 sys.modules["google.adk.agents"] = mock_adk
 sys.modules["google.adk.tools"] = mock_adk
 sys.modules["google.adk.tools.api_registry"] = MagicMock() # Mock the registry module
+sys.modules["google.adk.tools.base_toolset"] = MagicMock() 
+class MockBaseToolset:
+    pass
+sys.modules["google.adk.tools.base_toolset"].BaseToolset = MockBaseToolset
 
 sys.modules["google.cloud"] = MagicMock()
 sys.modules["google.cloud.trace_v1"] = MagicMock()
 sys.modules["opentelemetry"] = MagicMock()
+sys.modules["opentelemetry.trace"] = MagicMock()
+sys.modules["opentelemetry.metrics"] = MagicMock()
+sys.modules["google.cloud.logging_v2"] = MagicMock()
+sys.modules["google.cloud.logging_v2.services"] = MagicMock()
+sys.modules["google.cloud.logging_v2.services.logging_service_v2"] = MagicMock()
+sys.modules["google.cloud.errorreporting_v1beta1"] = MagicMock()
+sys.modules["google.cloud.monitoring_v3"] = MagicMock()
 # Mock google.auth return value explicitly on the mock object
 mock_auth = MagicMock()
 sys.modules["google.auth"] = mock_auth

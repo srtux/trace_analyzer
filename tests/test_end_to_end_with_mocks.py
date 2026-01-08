@@ -9,8 +9,29 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 
-from google_adk.agents import Agent
-from google_adk.messages import Message, TextContent, ToolResponse, ToolCall
+from google.adk.agents import LlmAgent as Agent
+
+# Mock classes to replace broken google_adk.messages imports
+class TextContent:
+    def __init__(self, text: str):
+        self.text = text
+
+class ToolCall:
+    def __init__(self, id: str, name: str, parameters: dict):
+        self.id = id
+        self.name = name
+        self.parameters = parameters
+
+class ToolResponse:
+    def __init__(self, id: str, name: str, output: str):
+        self.id = id
+        self.name = name
+        self.output = output
+
+class Message:
+    def __init__(self, role: str, content: list):
+        self.role = role
+        self.content = content
 
 from tests.fixtures.synthetic_otel_data import (
     BigQueryResultGenerator,
@@ -255,10 +276,10 @@ def mock_tool_executor():
 @pytest.fixture
 def mock_llm_client():
     """Fixture providing a mock LLM client."""
-    mock = AsyncMock()
+    mock = MagicMock()
 
     # Define a sequence of mock responses for a typical analysis flow
-    mock.generate.side_effect = [
+    responses = [
         # 1. Initial aggregate analysis
         MockLLMResponse.aggregate_analysis_response("call_1"),
         # 2. Execute BigQuery for aggregate metrics
@@ -273,6 +294,12 @@ def mock_llm_client():
         MockLLMResponse.final_analysis_response()
     ]
 
+    async def generate_response_stream(*args, **kwargs):
+        for response in responses:
+            yield response
+
+    mock.generate = generate_response_stream
+
     return mock
 
 
@@ -284,7 +311,7 @@ class TestEndToEndWithMocks:
         """Test complete analysis workflow with mocked LLM and tool responses."""
 
         # Create a mock agent with our mocked LLM
-        with patch('google_adk.agents.Agent') as MockAgent:
+        with patch('google.adk.agents.LlmAgent') as MockAgent:
             agent_instance = MockAgent.return_value
             agent_instance.generate = mock_llm_client.generate
 

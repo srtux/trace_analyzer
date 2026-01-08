@@ -29,7 +29,10 @@ The root agent orchestrates all three stages:
 """
 
 import json
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 import google.auth
 from google.adk.agents import LlmAgent, ParallelAgent
@@ -117,30 +120,44 @@ stage2_deep_dive_squad = ParallelAgent(
 
 class LazyMcpRegistryToolset(BaseToolset):
     """Lazily initializes the ApiRegistry and McpToolset to ensure session creation happens in the correct event loop."""
+    
+    # Leaking toolsets intentionally to avoid 'anyio' RuntimeError during GC/cleanup
+    # when accessed across different asyncio Tasks (FastAPI requests).
+    _leaked_toolsets = []
+
     def __init__(self, project_id: str, mcp_server_name: str, tool_filter: list[str]):
         self.project_id = project_id
         self.mcp_server_name = mcp_server_name
         self.tool_filter = tool_filter
-        self.tool_name_prefix = None
+        self.tool_name_prefix = ""
         self._inner_toolset = None
-        # Leaking toolsets intentionally to avoid 'anyio' RuntimeError during GC/cleanup
-        # when accessed across different asyncio Tasks (FastAPI requests).
-        self._leaked_toolsets = []
-
+        
     async def get_tools(self, readonly_context=None):
-        # Move current toolset to leaked list to prevent GC cleanup from crashing anyio
+        # Move current toolset dummy to leaked list if exists (mostly for subsequent calls)
         if self._inner_toolset:
-            self._leaked_toolsets.append(self._inner_toolset)
-            # Cap the leak to avoid OOM in very long runs, though each session is smallish
-            if len(self._leaked_toolsets) > 20:
-                self._leaked_toolsets.pop(0)
+            LazyMcpRegistryToolset._leaked_toolsets.append(self._inner_toolset)
+            if len(LazyMcpRegistryToolset._leaked_toolsets) > 20:
+                LazyMcpRegistryToolset._leaked_toolsets.pop(0)
 
-        api_registry = ApiRegistry(self.project_id)
+        # Create ApiRegistry with explicit quota project header
+        api_registry = ApiRegistry(
+            self.project_id,
+            header_provider=lambda _: {"x-goog-user-project": self.project_id}
+        )
+        
         self._inner_toolset = api_registry.get_toolset(
             mcp_server_name=self.mcp_server_name,
             tool_filter=self.tool_filter
         )
-        return await self._inner_toolset.get_tools()
+        
+        # PERSIST: Immediately leak this toolset to the class-level list to prevent GC 
+        # from terminating the session during the request.
+        LazyMcpRegistryToolset._leaked_toolsets.append(self._inner_toolset)
+        if len(LazyMcpRegistryToolset._leaked_toolsets) > 20:
+            LazyMcpRegistryToolset._leaked_toolsets.pop(0)
+
+        # Resolve the actual tools from the toolset, passing context for auth/quota propagation
+        return await self._inner_toolset.get_tools(readonly_context)
 
 def load_mcp_tools():
     """Loads tools from configured MCP endpoints."""
@@ -154,6 +171,7 @@ def load_mcp_tools():
         project_id = project_id or os.environ.get("GOOGLE_CLOUD_PROJECT")
 
         if project_id:
+            logger.info(f"Setting up BigQuery MCP tools for project: {project_id}")
             # Pattern: projects/{project}/locations/global/mcpServers/{server_id}
             mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/google-bigquery.googleapis.com-mcp"
 
@@ -166,9 +184,11 @@ def load_mcp_tools():
             )
             # Add the toolset directly. LlmAgent will call get_tools() on it.
             tools.append(bq_lazy_toolset)
+        else:
+            logger.warning("No Project ID detected; skipping BigQuery MCP tools.")
 
     except Exception as e:
-        print(f"Warning: Failed to setup BigQuery MCP tools: {e}")
+        logger.error(f"Failed to setup BigQuery MCP tools: {e}", exc_info=True)
 
     return tools
 
@@ -206,7 +226,33 @@ async def run_aggregate_analysis(
         "service_name": service_name,
     }
 
-    aggregate_tool = AgentTool(stage0_aggregate_analyzer)
+    # Detect Project ID for instruction
+    project_id = None
+    try:
+        _, project_id = google.auth.default()
+        project_id = project_id or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    except:
+        pass
+
+    # Recreate the agent with fresh MCP tools and project context
+    fresh_mcp_tools = load_mcp_tools()
+    
+    instruction = stage0_aggregate_analyzer.instruction
+    if project_id:
+        instruction += f"\n\nCurrent Project ID: {project_id}\nUse this for 'projectId' arguments in BigQuery tools."
+    
+    # Create a fresh agent instance with merged tools
+    original_tools = stage0_aggregate_analyzer.tools or []
+    fresh_aggregate_analyzer = LlmAgent(
+        name=stage0_aggregate_analyzer.name,
+        model=stage0_aggregate_analyzer.model,
+        description=stage0_aggregate_analyzer.description,
+        instruction=instruction,
+        # Merge the original python tools with the fresh MCP toolset
+        tools=original_tools + fresh_mcp_tools
+    )
+
+    aggregate_tool = AgentTool(fresh_aggregate_analyzer)
     return await aggregate_tool.run_async(
         args={
             "request": (
@@ -328,12 +374,8 @@ mcp_tools = load_mcp_tools()
 # Inject MCP tools into the Aggregate Analyzer sub-agent
 # This is necessary because the sub-agent needs access to 'execute_sql'
 # but we can't easily import mcp_tools in the sub-agent module due to circular deps/context.
-if mcp_tools:
-    print(f"Injecting {len(mcp_tools)} MCP tools into stage0_aggregate_analyzer")
-    # LlmAgent.tools is a list, we can extend it.
-    # Note: This modifies the agent instance in-place.
-    current_tools = stage0_aggregate_analyzer.tools or []
-    stage0_aggregate_analyzer.tools = current_tools + mcp_tools
+# Note: We do NOT load MCP tools globally into an agent instance to avoid stale sessions.
+# Instead, run_aggregate_analysis loads them on-demand.
 
 
 # Detect Project ID for instruction
@@ -353,7 +395,7 @@ trace_analyzer_agent = LlmAgent(
     description="Orchestrates a team of trace analysis specialists to perform diff analysis between distributed traces.",
     instruction=final_instruction,
     output_key="trace_analysis_report",
-    tools=base_tools + mcp_tools,
+    tools=base_tools,
 )
 
 # Expose as root_agent for ADK CLI compatibility

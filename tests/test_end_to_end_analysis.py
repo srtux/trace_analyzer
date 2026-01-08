@@ -24,7 +24,23 @@ def good_trace_json():
 def bad_trace_json():
     return load_trace("bad_trace.json")
 
-def test_compare_span_timings_e2e(good_trace_json, bad_trace_json):
+@pytest.fixture
+def mock_fetch_trace():
+    """
+    Mock fetch_trace to return the input trace_id as the result.
+    This is necessary because the tests pass the full JSON content as the trace_id.
+    """
+    with patch("trace_analyzer.tools.trace_analysis.fetch_trace") as mock_a, \
+         patch("trace_analyzer.tools.statistical_analysis.fetch_trace") as mock_b:
+        
+        def side_effect(project_id, trace_id):
+            return trace_id
+            
+        mock_a.side_effect = side_effect
+        mock_b.side_effect = side_effect
+        yield
+
+def test_compare_span_timings_e2e(good_trace_json, bad_trace_json, mock_fetch_trace):
     """
     Test comparison between a good baseline and a bad target trace.
     Should detect N+1 pattern and slowness.
@@ -48,7 +64,7 @@ def test_compare_span_timings_e2e(good_trace_json, bad_trace_json):
     assert root_diff is not None
     assert root_diff["diff_ms"] > 1000 # 1500ms vs 150ms
 
-def test_analyze_trace_patterns_e2e(bad_trace_json):
+def test_analyze_trace_patterns_e2e(bad_trace_json, mock_fetch_trace):
     """
     Test pattern analysis on a set of bad traces.
     """

@@ -22,7 +22,7 @@ async def test_agent_initialization(mock_env):
     assert root_agent.name == "trace_analyzer_agent"
 
     # Check if the analysis tool is present
-    analysis_tool = next((t for t in root_agent.tools if getattr(t, 'name', getattr(t, '__name__', '')) == "run_two_stage_analysis"), None)
+    analysis_tool = next((t for t in root_agent.tools if getattr(t, 'name', getattr(t, '__name__', '')) == "run_triage_analysis"), None)
     assert analysis_tool is not None
 
 @patch("trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient")

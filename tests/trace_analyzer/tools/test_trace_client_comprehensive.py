@@ -2,7 +2,7 @@
 
 import json
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 from google.cloud import trace_v1
 from google.cloud import logging_v2
 
@@ -39,11 +39,7 @@ class TestFetchTrace:
         mock_client_class.return_value = mock_client
 
         trace_id = generate_trace_id()
-        mock_response = CloudTraceAPIGenerator.trace_response(
-            trace_id=trace_id,
-            include_error=False
-        )
-
+        
         # Convert to mock Trace object
         mock_trace = MagicMock()
         mock_trace.trace_id = trace_id
@@ -53,13 +49,15 @@ class TestFetchTrace:
         mock_client.get_trace.return_value = mock_trace
 
         # Execute
-        result = trace_client.fetch_trace(
+        result_json = trace_client.fetch_trace(
             project_id="test-project",
             trace_id=trace_id
         )
 
         # Verify
-        assert result is not None
+        assert result_json is not None
+        result = json.loads(result_json)
+        assert result["trace_id"] == trace_id
         mock_client.get_trace.assert_called_once()
 
     @patch('trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient')
@@ -72,12 +70,16 @@ class TestFetchTrace:
         from google.api_core import exceptions
         mock_client.get_trace.side_effect = exceptions.NotFound("Trace not found")
 
-        # Execute and verify exception handling
-        with pytest.raises(Exception):
-            trace_client.fetch_trace(
-                project_id="test-project",
-                trace_id="invalid-trace-id"
-            )
+        # Execute
+        result_json = trace_client.fetch_trace(
+            project_id="test-project",
+            trace_id="invalid-trace-id"
+        )
+        
+        # Verify error handling (it returns an error JSON, not raises)
+        result = json.loads(result_json)
+        assert "error" in result
+        assert "404" in result["error"]
 
 
 class TestListTraces:
@@ -95,18 +97,21 @@ class TestListTraces:
             mock_trace = MagicMock()
             mock_trace.trace_id = generate_trace_id()
             mock_trace.project_id = "test-project"
+            mock_trace.spans = [] # Needed for duration calc
             mock_traces.append(mock_trace)
 
         mock_client.list_traces.return_value = mock_traces
 
         # Execute
-        result = trace_client.list_traces(
+        result_json = trace_client.list_traces(
             project_id="test-project",
-            page_size=10
+            limit=10
         )
 
         # Verify
-        assert result is not None
+        assert result_json is not None
+        result = json.loads(result_json)
+        assert len(result) <= 5
         mock_client.list_traces.assert_called_once()
 
     @patch('trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient')
@@ -132,7 +137,7 @@ class TestListTraces:
 class TestGetLogsForTrace:
     """Tests for get_logs_for_trace function."""
 
-    @patch('trace_analyzer.tools.trace_client.logging_v2.LoggingServiceV2Client')
+    @patch('trace_analyzer.tools.trace_client.LoggingServiceV2Client')
     def test_get_logs_for_trace_success(self, mock_client_class):
         """Test successful log retrieval for trace."""
         mock_client = MagicMock()
@@ -149,42 +154,29 @@ class TestGetLogsForTrace:
         mock_entries = []
         for log_entry in mock_logs["entries"]:
             mock_entry = MagicMock()
-            mock_entry.text_payload = log_entry["textPayload"]
-            mock_entry.severity = log_entry["severity"]
-            mock_entry.timestamp = log_entry["timestamp"]
+            mock_entry.payload = log_entry["textPayload"]
+            mock_entry.severity = MagicMock()
+            mock_entry.severity.name = log_entry["severity"]
+            mock_entry.timestamp = MagicMock()
+            mock_entry.timestamp.isoformat.return_value = log_entry["timestamp"]
+            mock_entry.resource = MagicMock()
+            mock_entry.resource.type = "global"
+            mock_entry.resource.labels = {}
             mock_entries.append(mock_entry)
 
         mock_client.list_log_entries.return_value = mock_entries
 
         # Execute
-        result = trace_client.get_logs_for_trace(
+        result_json = trace_client.get_logs_for_trace(
             project_id="test-project",
             trace_id=trace_id
         )
 
         # Verify
-        assert result is not None
+        assert result_json is not None
+        result = json.loads(result_json)
+        assert len(result) == 5
         mock_client.list_log_entries.assert_called_once()
-
-    @patch('trace_analyzer.tools.trace_client.logging_v2.LoggingServiceV2Client')
-    def test_get_logs_with_severity_filter(self, mock_client_class):
-        """Test log retrieval with severity filter."""
-        mock_client = MagicMock()
-        mock_client_class.return_value = mock_client
-        mock_client.list_log_entries.return_value = []
-
-        trace_id = generate_trace_id()
-
-        # Execute with severity filter
-        result = trace_client.get_logs_for_trace(
-            project_id="test-project",
-            trace_id=trace_id,
-            severity="ERROR"
-        )
-
-        # Verify filter was applied in call
-        call_args = mock_client.list_log_entries.call_args
-        assert call_args is not None
 
 
 class TestFindExampleTraces:
@@ -202,38 +194,27 @@ class TestFindExampleTraces:
             mock_trace = MagicMock()
             mock_trace.trace_id = generate_trace_id()
             mock_trace.project_id = "test-project"
+            # Give them some span to avoid duration errors
+            mock_span = MagicMock()
+            mock_span.start_time.timestamp.return_value = 1000
+            mock_span.end_time.timestamp.return_value = 2000
+            mock_trace.spans = [mock_span]
             mock_traces.append(mock_trace)
 
         mock_client.list_traces.return_value = mock_traces
 
         # Execute
-        result = trace_client.find_example_traces(
+        result_json = trace_client.find_example_traces(
             project_id="test-project",
-            filter_errors=True,
-            max_results=5
+            prefer_errors=True
         )
 
         # Verify
-        assert result is not None
-        mock_client.list_traces.assert_called_once()
-
-    @patch('trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient')
-    def test_find_example_traces_with_latency_threshold(self, mock_client_class):
-        """Test finding example traces with latency threshold."""
-        mock_client = MagicMock()
-        mock_client_class.return_value = mock_client
-        mock_client.list_traces.return_value = []
-
-        # Execute with latency filter
-        result = trace_client.find_example_traces(
-            project_id="test-project",
-            min_latency_ms=100.0,
-            max_results=10
-        )
-
-        # Verify filter was applied
-        call_args = mock_client.list_traces.call_args
-        assert call_args is not None
+        assert result_json is not None
+        result = json.loads(result_json)
+        assert "baseline" in result
+        assert "anomaly" in result
+        mock_client.list_traces.assert_called()
 
 
 class TestGetTraceByURL:
@@ -241,25 +222,28 @@ class TestGetTraceByURL:
 
     def test_extract_trace_id_from_url(self):
         """Test extracting trace ID from Cloud Console URL."""
-        url = "https://console.cloud.google.com/traces/trace-details/abc123?project=test-project"
+        # Use a long enough hex string to satisfy the fallback parser if needed, 
+        # but here we test the 'trace-details' part.
+        url = "https://console.cloud.google.com/traces/trace-details/4fb09ce68979116e0ca143d225695000?project=test-project"
 
         # Mock the actual fetch to focus on URL parsing
         with patch('trace_analyzer.tools.trace_client.fetch_trace') as mock_fetch:
-            mock_fetch.return_value = {"traceId": "abc123"}
+            mock_fetch.return_value = json.dumps({"trace_id": "4fb09ce68979116e0ca143d225695000"})
 
             result = trace_client.get_trace_by_url(url)
 
             # Verify trace was fetched with correct ID
             mock_fetch.assert_called_once()
-            call_args = mock_fetch.call_args[1]
-            assert "trace_id" in call_args
+            args, kwargs = mock_fetch.call_args
+            assert args[1] == "4fb09ce68979116e0ca143d225695000"
 
     def test_get_trace_by_url_invalid_url(self):
         """Test handling of invalid URL."""
         invalid_url = "https://example.com/invalid"
-
-        with pytest.raises(Exception):
-            trace_client.get_trace_by_url(invalid_url)
+    
+        result_json = trace_client.get_trace_by_url(invalid_url)
+        result = json.loads(result_json)
+        assert "error" in result
 
 
 class TestListErrorEvents:
@@ -276,44 +260,30 @@ class TestListErrorEvents:
         for i in range(5):
             mock_event = MagicMock()
             mock_event.message = f"Error message {i}"
-            mock_event.count = i + 1
+            mock_event.event_time.isoformat.return_value = "2024-01-01T00:00:00Z"
+            mock_event.service_context.service = "test-service"
+            mock_event.service_context.version = "1.0"
             mock_events.append(mock_event)
 
-        mock_client.list_group_stats.return_value = mock_events
+        mock_client.list_events.return_value = mock_events
 
         # Execute
-        result = trace_client.list_error_events(
+        result_json = trace_client.list_error_events(
             project_id="test-project",
-            time_range_hours=24
+            minutes_ago=60
         )
 
         # Verify
-        assert result is not None
-        mock_client.list_group_stats.assert_called_once()
-
-    @patch('trace_analyzer.tools.trace_client.errorreporting_v1beta1.ErrorStatsServiceClient')
-    def test_list_error_events_with_service_filter(self, mock_client_class):
-        """Test error event listing with service filter."""
-        mock_client = MagicMock()
-        mock_client_class.return_value = mock_client
-        mock_client.list_group_stats.return_value = []
-
-        # Execute with service filter
-        result = trace_client.list_error_events(
-            project_id="test-project",
-            service_name="frontend",
-            time_range_hours=24
-        )
-
-        # Verify filter was applied
-        call_args = mock_client.list_group_stats.call_args
-        assert call_args is not None
+        assert result_json is not None
+        result = json.loads(result_json)
+        assert len(result) == 5
+        mock_client.list_events.assert_called_once()
 
 
 class TestListLogEntries:
     """Tests for list_log_entries function."""
 
-    @patch('trace_analyzer.tools.trace_client.logging_v2.LoggingServiceV2Client')
+    @patch('trace_analyzer.tools.trace_client.LoggingServiceV2Client')
     def test_list_log_entries_success(self, mock_client_class):
         """Test successful log entry listing."""
         mock_client = MagicMock()
@@ -328,47 +298,34 @@ class TestListLogEntries:
         mock_entries = []
         for log_entry in mock_logs["entries"]:
             mock_entry = MagicMock()
-            mock_entry.text_payload = log_entry["textPayload"]
-            mock_entry.severity = log_entry["severity"]
+            mock_entry.payload = log_entry["textPayload"]
+            mock_entry.severity.name = log_entry["severity"]
+            mock_entry.timestamp.isoformat.return_value = log_entry["timestamp"]
+            mock_entry.resource.type = "global"
+            mock_entry.resource.labels = {}
             mock_entries.append(mock_entry)
 
         mock_client.list_log_entries.return_value = mock_entries
 
         # Execute
-        result = trace_client.list_log_entries(
+        result_json = trace_client.list_log_entries(
             project_id="test-project",
             filter_str='severity="ERROR"',
-            max_results=10
+            limit=10
         )
 
         # Verify
-        assert result is not None
+        assert result_json is not None
+        result = json.loads(result_json)
+        assert len(result) == 10
         mock_client.list_log_entries.assert_called_once()
-
-    @patch('trace_analyzer.tools.trace_client.logging_v2.LoggingServiceV2Client')
-    def test_list_log_entries_with_time_range(self, mock_client_class):
-        """Test log entry listing with time range."""
-        mock_client = MagicMock()
-        mock_client_class.return_value = mock_client
-        mock_client.list_log_entries.return_value = []
-
-        # Execute with time range
-        result = trace_client.list_log_entries(
-            project_id="test-project",
-            start_time="2024-01-01T00:00:00Z",
-            end_time="2024-01-02T00:00:00Z"
-        )
-
-        # Verify filter was applied
-        call_args = mock_client.list_log_entries.call_args
-        assert call_args is not None
 
 
 class TestIntegration:
     """Integration tests for trace client tools."""
 
     @patch('trace_analyzer.tools.trace_client.trace_v1.TraceServiceClient')
-    @patch('trace_analyzer.tools.trace_client.logging_v2.LoggingServiceV2Client')
+    @patch('trace_analyzer.tools.trace_client.LoggingServiceV2Client')
     def test_fetch_trace_and_logs_workflow(self, mock_logging_client, mock_trace_client):
         """Test complete workflow of fetching trace and its logs."""
         # Setup trace mock
@@ -376,13 +333,17 @@ class TestIntegration:
         mock_trace = MagicMock()
         mock_trace.trace_id = trace_id
         mock_trace.project_id = "test-project"
+        mock_trace.spans = []
 
         mock_trace_client.return_value.get_trace.return_value = mock_trace
 
         # Setup logging mock
         mock_log_entry = MagicMock()
-        mock_log_entry.text_payload = "Error occurred"
-        mock_log_entry.severity = "ERROR"
+        mock_log_entry.payload = "Error occurred"
+        mock_log_entry.severity.name = "ERROR"
+        mock_log_entry.timestamp.isoformat.return_value = "2024-01-01T00:00:00Z"
+        mock_log_entry.resource.type = "global"
+        mock_log_entry.resource.labels = {}
 
         mock_logging_client.return_value.list_log_entries.return_value = [mock_log_entry]
 

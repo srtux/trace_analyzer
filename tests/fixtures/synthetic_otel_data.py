@@ -8,7 +8,7 @@ import json
 import random
 import string
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 import uuid
 
@@ -26,7 +26,7 @@ def generate_span_id() -> str:
 def generate_timestamp(base_time: datetime | None = None, offset_seconds: int = 0) -> str:
     """Generate a timestamp in ISO format."""
     if base_time is None:
-        base_time = datetime.utcnow()
+        base_time = datetime.now(timezone.utc)
     timestamp = base_time + timedelta(seconds=offset_seconds)
     return timestamp.isoformat() + "Z"
 
@@ -141,7 +141,7 @@ class OtelSpanGenerator:
     service_name: str = "test-service"
     trace_id: str = field(default_factory=generate_trace_id)
     parent_span_id: str | None = None
-    base_time: datetime = field(default_factory=datetime.utcnow)
+    base_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def create_span(
         self,
@@ -310,7 +310,7 @@ class TraceGenerator:
     """Generator for complete traces with multiple spans."""
 
     service_name: str = "test-service"
-    base_time: datetime = field(default_factory=datetime.utcnow)
+    base_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def create_simple_http_trace(
         self,
@@ -427,7 +427,7 @@ class BigQueryResultGenerator:
                 "p95_ms": round(random.uniform(100, 300), 2),
                 "p99_ms": round(random.uniform(300, 800), 2),
                 "avg_duration_ms": round(random.uniform(30, 100), 2),
-                "first_seen": generate_timestamp(datetime.utcnow() - timedelta(hours=24)),
+                "first_seen": generate_timestamp(datetime.now(timezone.utc) - timedelta(hours=24)),
                 "last_seen": generate_timestamp()
             })
 
@@ -447,7 +447,7 @@ class BigQueryResultGenerator:
                 "service_name": random.choice(["frontend", "api-gateway", "user-service"]),
                 "duration_ms": round(random.uniform(100, 800), 2),
                 "status_code": 2 if strategy == "errors" else random.choice([1, 1, 1, 2]),
-                "start_time": generate_timestamp(datetime.utcnow() - timedelta(hours=random.randint(1, 24))),
+                "start_time": generate_timestamp(datetime.now(timezone.utc) - timedelta(hours=random.randint(1, 24))),
                 "selection_reason": strategy
             }
 
@@ -484,7 +484,7 @@ class BigQueryResultGenerator:
                 "span_name": random.choice(["HTTP GET /api/users", "DB SELECT users", "AUTH validate_token"]),
                 "service_name": random.choice(["frontend", "api-gateway", "user-service"]),
                 "event_name": "exception",
-                "event_time": generate_timestamp(datetime.utcnow() - timedelta(hours=random.randint(1, 24))),
+                "event_time": generate_timestamp(datetime.now(timezone.utc) - timedelta(hours=random.randint(1, 24))),
                 "exception_type": exc_type,
                 "exception_message": f"Sample {exc_type} message",
                 "exception_stacktrace": f"Traceback...\n{exc_type}: Sample error"
@@ -538,7 +538,7 @@ class CloudTraceAPIGenerator:
                     {
                         "spanId": generate_span_id(),
                         "name": random.choice(["HTTP GET /api/users", "DB SELECT", "CACHE GET"]),
-                        "startTime": generate_timestamp(datetime.utcnow() - timedelta(hours=random.randint(1, 24))),
+                        "startTime": generate_timestamp(datetime.now(timezone.utc) - timedelta(hours=random.randint(1, 24))),
                         "endTime": generate_timestamp()
                     }
                 ]
@@ -569,7 +569,7 @@ class CloudLoggingAPIGenerator:
                     }
                 },
                 "textPayload": f"Sample {severity} log message {i}",
-                "timestamp": generate_timestamp(datetime.utcnow() - timedelta(minutes=random.randint(1, 60))),
+                "timestamp": generate_timestamp(datetime.now(timezone.utc) - timedelta(minutes=random.randint(1, 60))),
                 "severity": severity,
                 "trace": f"projects/test-project/traces/{trace_id or generate_trace_id()}",
                 "labels": {

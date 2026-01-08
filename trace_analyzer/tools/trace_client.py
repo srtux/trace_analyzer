@@ -211,6 +211,48 @@ def _get_project_id() -> str:
     return project_id
 
 
+def fetch_trace_data(trace_id_or_json: str | dict[str, Any], project_id: str | None = None) -> dict[str, Any]:
+    """
+    Helper to fetch trace data by ID or from JSON/dict.
+    Commonly used across analysis tools to handle flexible inputs.
+    """
+    # Check if it's already a dictionary
+    if isinstance(trace_id_or_json, dict):
+        if "trace_id" in trace_id_or_json or "spans" in trace_id_or_json or "error" in trace_id_or_json:
+            return trace_id_or_json
+        return {"error": "Invalid trace dictionary provided."}
+
+    # Check if it's a JSON string containing a trace
+    if isinstance(trace_id_or_json, str) and trace_id_or_json.strip().startswith("{"):
+        try:
+            data = json.loads(trace_id_or_json)
+            if isinstance(data, dict):
+                return data
+        except json.JSONDecodeError:
+            return {"error": "Failed to parse trace JSON"}
+
+    if not project_id:
+        try:
+            project_id = _get_project_id()
+        except ValueError:
+             pass
+
+    if not project_id:
+         return {"error": "Project ID required to fetch trace."}
+
+    trace_json = fetch_trace(project_id, trace_id_or_json)
+    try:
+        if isinstance(trace_json, dict):
+            return trace_json
+        data = json.loads(trace_json)
+        if data and "error" in data:
+            return data
+        return data
+    except json.JSONDecodeError:
+        return {"error": "Invalid trace JSON"}
+
+
+
 @adk_tool
 def fetch_trace(project_id: str, trace_id: str) -> str:
     """
@@ -686,10 +728,18 @@ def get_trace_by_url(url: str) -> str:
                 trace_id = params["tid"][0]
         elif "details" in parsed.path:
             parts = parsed.path.split("/")
-            if "details" in parts:
-                idx = parts.index("details")
-                if idx + 1 < len(parts):
-                    trace_id = parts[idx+1]
+            # Handle both /details/abc123 and /trace-details/abc123
+            for i, part in enumerate(parts):
+                if "details" in part and i + 1 < len(parts):
+                    trace_id = parts[i+1]
+                    break
+        
+        # Fallback: if we still don't have trace_id, look for last segment that looks like a hex ID
+        if not trace_id:
+             for part in reversed(parsed.path.split("/")):
+                  if part and all(c in "0123456789abcdefABCDEF" for c in part) and len(part) >= 32:
+                       trace_id = part
+                       break
 
         if not project_id or not trace_id:
             return json.dumps({"error": "Could not parse project_id or trace_id from URL"})

@@ -13,7 +13,7 @@ from ...tools.bigquery_otel import (
 
 aggregate_analyzer = LlmAgent(
     name="aggregate_analyzer",
-    model="gemini-2.0-flash-001",
+    model="gemini-2.5-pro",
     description=(
         "Analyzes trace data at scale using BigQuery to identify trends, patterns, "
         "and select exemplar traces for investigation. Uses OpenTelemetry schema."

@@ -8,11 +8,7 @@ from typing import Any
 
 from ..decorators import adk_tool
 from ..telemetry import get_meter, get_tracer
-from .trace_client import fetch_trace, _get_project_id
-
-# Telemetry setup
-from ..telemetry import get_meter, get_tracer
-from .trace_client import fetch_trace, _get_project_id
+from .trace_client import fetch_trace, _get_project_id, fetch_trace_data
 import concurrent.futures
 
 # Telemetry setup
@@ -30,7 +26,7 @@ def _fetch_traces_parallel(trace_ids: list[str], project_id: str | None = None, 
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         # Submit all tasks
         future_to_tid = {
-            executor.submit(_fetch_trace_data, tid, project_id): tid 
+            executor.submit(fetch_trace_data, tid, project_id): tid 
             for tid in target_ids
         }
         
@@ -47,24 +43,6 @@ def _fetch_traces_parallel(trace_ids: list[str], project_id: str | None = None, 
 
 
 
-def _fetch_trace_data(trace_id: str, project_id: str | None = None) -> dict[str, Any] | None:
-    """Helper to fetch trace data by ID."""
-    if not project_id:
-        try:
-            project_id = _get_project_id()
-        except ValueError:
-             pass
-
-    if not project_id:
-         return None
-
-    trace_json = fetch_trace(project_id, trace_id)
-    try:
-        if isinstance(trace_json, dict):
-            return trace_json
-        return json.loads(trace_json)
-    except json.JSONDecodeError:
-        return None
 
 
 def compute_latency_statistics(trace_ids: list[str], project_id: str | None = None) -> dict[str, Any]:
@@ -194,7 +172,7 @@ def detect_latency_anomalies(
         stdev = baseline_stats["stdev"]
 
         # Get target duration
-        target_data = _fetch_trace_data(target_trace_id, project_id)
+        target_data = fetch_trace_data(target_trace_id, project_id)
         if not target_data:
              return {"error": "Target trace not found or invalid"}
 
@@ -284,7 +262,7 @@ def analyze_critical_path(trace_id: str, project_id: str | None = None) -> dict[
         project_id: The Google Cloud Project ID.
     """
     with tracer.start_as_current_span("analyze_critical_path"):
-        trace_data = _fetch_trace_data(trace_id, project_id)
+        trace_data = fetch_trace_data(trace_id, project_id)
         if not trace_data:
             return {"error": "Trace not found or invalid"}
 
@@ -438,32 +416,24 @@ def analyze_critical_path(trace_id: str, project_id: str | None = None) -> dict[
         }
 
 
+@adk_tool
 def perform_causal_analysis(
     baseline_trace_id: str,
     target_trace_id: str,
     project_id: str | None = None
-) -> dict[str, Any]:
+) -> dict[str, Any] | str:
     """
     Enhanced root cause analysis using span-ID-level precision.
-
-    This improved algorithm:
-    - Calculates per-span-ID timing differences
-    - Uses actual span IDs from critical path (no approximation)
-    - Considers span hierarchy and self-time contributions
-    - Provides confidence scores based on multiple factors
-
-    Args:
-        baseline_trace_id: The reference trace ID.
-        target_trace_id: The abnormal trace ID to analyze.
-        project_id: The Google Cloud Project ID.
     """
-    baseline_data = _fetch_trace_data(baseline_trace_id, project_id)
-    if not baseline_data:
-        return json.dumps({"error": "Invalid baseline_trace ID provided."})
+    baseline_data = fetch_trace_data(baseline_trace_id, project_id)
+    if not baseline_data or "error" in baseline_data:
+        msg = "Invalid baseline_trace JSON" if isinstance(baseline_trace_id, str) and baseline_trace_id.strip().startswith("{") else "Invalid baseline_trace ID provided."
+        return json.dumps({"error": msg})
 
-    target_data = _fetch_trace_data(target_trace_id, project_id)
-    if not target_data:
-        return json.dumps({"error": "Invalid target_trace ID provided."})
+    target_data = fetch_trace_data(target_trace_id, project_id)
+    if not target_data or "error" in target_data:
+        msg = "Invalid target_trace JSON" if isinstance(target_trace_id, str) and target_trace_id.strip().startswith("{") else "Invalid target_trace ID provided."
+        return json.dumps({"error": msg})
 
     # 1. Build span name mappings for both traces
     baseline_spans_by_name = defaultdict(list)
