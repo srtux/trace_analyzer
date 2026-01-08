@@ -91,20 +91,6 @@ class TestMCPIntegration(unittest.TestCase):
         self.assertEqual(result1, mock_toolset_1)
         self.assertEqual(result2, mock_toolset_2)
 
-    def test_create_bigquery_mcp_toolset_deprecated_function(self):
-        """Test that deprecated create_bigquery_mcp_toolset works but assumes factory behavior."""
-        mock_toolset = MagicMock()
-        self.mock_registry_cls.return_value.get_toolset.return_value = mock_toolset
-
-        from trace_analyzer.agent import (
-            create_bigquery_mcp_toolset,
-        )
-
-        # Test: deprecated function works
-        result = create_bigquery_mcp_toolset("any-project-id")
-        self.assertIsNotNone(result)
-        self.mock_registry_cls.assert_called()
-
     def test_singleton_handles_missing_project_gracefully(self):
         """Test that module-level singleton creation handles missing project ID."""
         # Setup: mock auth to return no project
