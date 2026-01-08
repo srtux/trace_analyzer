@@ -22,45 +22,50 @@ The agent is built using the Google Agent Development Kit (ADK) and follows a hi
 
 ```mermaid
 sequenceDiagram
+    %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'arial', 'fontSize': '14px', 'actorBorder': '#1A73E8', 'actorBkg': '#E8F0FE', 'signalColor': '#1A73E8', 'activationBorderColor': '#1A73E8', 'activationBkgColor': '#E8F0FE', 'noteBkgColor': '#FFF8E1', 'noteBorderColor': '#FFC107'}}}%%
+    
     autonumber
     actor User as 👤 User
     participant Root as 🕵️ Trace Detective
-    participant Tools as 🛠️ Discovery Tools
-    participant S1 as 🚦 Triage Squad
-    participant S2 as 🔍 Deep Dive Squad
+    
+    box "🛠️ The Toolbox" #F1F3F4
+        participant Tools as Discovery Tools
+    end
+    
+    box "🚨 The Squads" #FEF7E0
+        participant S1 as Triage Squad
+        participant S2 as Deep Dive Squad
+    end
 
     User->>Root: "Analyze these traces..."
     
-    %% Phase 1: Discovery
-    rect rgb(240, 248, 255)
-        Note over Root, Tools: Phase 1: Secure Evidence
-        Root->>Tools: Fetch Trace Data (Baseline vs Target)
-        Tools-->>Root: Trace Data
-    end
+    Note over User, S2: ─── PHASE 1: EVIDENCE GATHERING ───
+    
+    Root->>Tools: Fetch Trace Data (Baseline vs Target)
+    activate Tools
+    Tools-->>Root: Trace Data
+    deactivate Tools
 
-    %% Phase 2: Triage
-    rect rgb(255, 243, 224)
-        Note over Root, S1: Phase 2: Identification
-        Root->>S1: run_triage_analysis()
-        activate S1
-        S1->>S1: Parallel Analysis<br/>(Latency, Error, Structure, Stats)
-        S1-->>Root: Triage Report (Suspects Found)
-        deactivate S1
-        
-        Root->>User: "I found latency spikes in Service X..."
-    end
+    Note over User, S2: ─── PHASE 2: IDENTIFICATION (Interactive) ───
+    
+    Root->>S1: run_triage_analysis()
+    activate S1
+    S1->>S1: Parallel Analysis<br/>(Latency, Error, Structure, Stats)
+    S1-->>Root: Triage Report (Suspects Found)
+    deactivate S1
+    
+    Root->>User: "I found latency spikes in Service X..."
 
-    %% Phase 3: Deep Dive
-    rect rgb(243, 229, 245)
-        Note over Root, S2: Phase 3: Root Cause
-        Root->>S2: run_deep_dive_analysis()
-        activate S2
-        S2->>S2: Causal & Impact Analysis
-        S2-->>Root: Deep Dive Report (Root Cause)
-        deactivate S2
-    end
+    Note over User, S2: ─── PHASE 3: ROOT CAUSE (On Demand) ───
+    
+    Root->>S2: run_deep_dive_analysis()
+    activate S2
+    S2->>S2: Causal & Impact Analysis
+    S2-->>Root: Deep Dive Report (Root Cause)
+    deactivate S2
 
-    %% Phase 4: Verdict
+    Note over User, S2: ─── PHASE 4: VERDICT ───
+    
     Root->>User: 📂 FINAL CASE FILE (Root Cause + Fixes)
 ```
 
