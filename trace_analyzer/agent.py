@@ -115,11 +115,6 @@ stage2_deep_dive_squad = ParallelAgent(
 )
 
 
-
-
-
-
-
 class LazyMcpRegistryToolset(BaseToolset):
     """Lazily initializes the ApiRegistry and McpToolset to ensure session creation happens in the correct event loop."""
     def __init__(self, project_id: str, mcp_server_name: str, tool_filter: list[str]):
@@ -128,20 +123,24 @@ class LazyMcpRegistryToolset(BaseToolset):
         self.tool_filter = tool_filter
         self.tool_name_prefix = None
         self._inner_toolset = None
+        # Leaking toolsets intentionally to avoid 'anyio' RuntimeError during GC/cleanup
+        # when accessed across different asyncio Tasks (FastAPI requests).
+        self._leaked_toolsets = []
 
     async def get_tools(self, readonly_context=None):
-        # Initialize ApiRegistry lazily in the running event loop
-        # We generally do not cache the toolset here because the underlying MCP session
-        # might be terminated (e.g. timeout, network issue). Re-initializing ensures
-        # we get a fresh session if the agent requests tools again.
-        # Note: If the LlmAgent caches the tools internally, this might not help for
-        # long-running agents unless they re-fetch tools.
+        # Move current toolset to leaked list to prevent GC cleanup from crashing anyio
+        if self._inner_toolset:
+            self._leaked_toolsets.append(self._inner_toolset)
+            # Cap the leak to avoid OOM in very long runs, though each session is smallish
+            if len(self._leaked_toolsets) > 20:
+                self._leaked_toolsets.pop(0)
+
         api_registry = ApiRegistry(self.project_id)
-        inner_toolset = api_registry.get_toolset(
+        self._inner_toolset = api_registry.get_toolset(
             mcp_server_name=self.mcp_server_name,
             tool_filter=self.tool_filter
         )
-        return await inner_toolset.get_tools()
+        return await self._inner_toolset.get_tools()
 
 def load_mcp_tools():
     """Loads tools from configured MCP endpoints."""
@@ -325,6 +324,16 @@ base_tools = [
 
 # Load MCP tools
 mcp_tools = load_mcp_tools()
+
+# Inject MCP tools into the Aggregate Analyzer sub-agent
+# This is necessary because the sub-agent needs access to 'execute_sql'
+# but we can't easily import mcp_tools in the sub-agent module due to circular deps/context.
+if mcp_tools:
+    print(f"Injecting {len(mcp_tools)} MCP tools into stage0_aggregate_analyzer")
+    # LlmAgent.tools is a list, we can extend it.
+    # Note: This modifies the agent instance in-place.
+    current_tools = stage0_aggregate_analyzer.tools or []
+    stage0_aggregate_analyzer.tools = current_tools + mcp_tools
 
 
 # Detect Project ID for instruction

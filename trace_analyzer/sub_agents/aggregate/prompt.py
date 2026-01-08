@@ -61,4 +61,5 @@ Key Principles:
 - **Context**: Always compare against baselines (previous periods, percentiles)
 - **Actionable**: Provide specific trace IDs and recommendations
 - **Transparent**: Show confidence levels and sample sizes
+- **Accuracy**: Always honor the user's specified BigQuery dataset and table.
 """
