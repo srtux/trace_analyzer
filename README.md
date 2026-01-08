@@ -18,69 +18,138 @@ A Google ADK-based agent that performs deep diff analysis on distributed traces 
 
 ## Architecture
 
-The agent is built using the Google Agent Development Kit (ADK) and follows a hierarchical orchestration pattern:
+The agent is built using the Google Agent Development Kit (ADK). It uses a hierarchical orchestration pattern where a lead **Trace Detective** coordinates two specialized squads.
+
+### System Architecture
 
 ```mermaid
-sequenceDiagram
-    %% 'neutral' theme adapts best to dark/light modes. 
-    %% wrap: true helps text fitting.
-    %%{init: {
-        'theme': 'neutral', 
-        'themeVariables': { 
-            'fontFamily': 'arial',
-            'fontSize': '14px'
-        }
-    }}%%
-    
-    autonumber
-    
-    box "📢 Request Origin"
-        actor User as 👤 User
-        participant Agent as 🕵️ Trace Detective
-    end
-    
-    box "🛠️ The Toolbox"
-        participant Tools as Discovery<br/>Tools
-    end
-    
-    box "🚨 The Squads"
-        participant S1 as Triage<br/>Squad
-        participant S2 as Deep Dive<br/>Squad
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'fontFamily': 'arial',
+    'fontSize': '16px',
+    'lineColor': '#333333',
+    'primaryTextColor': '#000000',
+    'tertiaryColor': '#ffffff',
+    'clusterBkg': '#fafafa',
+    'clusterBorder': '#999999'
+  }
+}}%%
+flowchart TB
+    %% --- TOP ROW: USER -> AGENT -> GEMINI ---
+    %% We define these in a dedicated horizontal subgraph to ensure the Agent is central
+    subgraph ControlRow [ ]
+        direction LR
+        User([👤 User])
+        Agent["🕵️ <b>Trace Analyzer Agent</b><br/>(Root Controller)"]
+        Gemini{{"🧠 <b>Gemini Model</b>"}}
+        
+        User <==> Agent
+        Agent <==> Gemini
     end
 
-    User->>Agent: "Analyze these traces..."
+    %% --- MIDDLE ROW: SQUADS ---
+    subgraph Squads [ ]
+        direction LR
+        
+        subgraph Triage [🚦 Triage Squad]
+            direction TB
+            L["⏱️ Latency<br/>Sub-Agent"]
+            E["💥 Error<br/>Sub-Agent"]
+            S["🏗️ Structure<br/>Sub-Agent"]
+            ST["📊 Stats<br/>Sub-Agent"]
+            
+            %% Using invisible links to maintain vertical alignment without lines
+            L ~~~ E
+            S ~~~ ST
+        end
+        
+        subgraph DeepDive [🔍 Deep Dive Squad]
+            direction TB
+            C["🔗 Causality<br/>Sub-Agent"]
+            SI["🌊 Impact<br/>Sub-Agent"]
+            
+            C ~~~ SI
+        end
+    end
+
+    %% --- BOTTOM ROW: TOOLS ---
+    subgraph ToolLayer [Integrated Tools]
+        direction LR
+        TraceAPI["☁️ Trace API"]
+        BQ["🗄️ BigQuery MCP"]
+        TQB["🛠️ Query Builder"]
+    end
+
+    %% --- CONNECTIONS (Explicitly from the Agent node) ---
+    %% Connecting to the subgraph names directly ensures the arrows point to the headers
+    Agent ==> Triage
+    Agent ==> DeepDive
+
+    %% Usage Flow (Dotted)
+    Agent -.-> ToolLayer
+    Triage -.-> ToolLayer
+    DeepDive -.-> ToolLayer
+
+    %% --- STYLING ---
+    style ControlRow fill:none,stroke:none
+    style Squads fill:none,stroke:none
     
-    %% Using <br/> and shorter dividers reduces width significantly
-    Note over User, S2: ── PHASE 1: EVIDENCE GATHERING ──
-    
-    Agent->>Tools: Fetch Trace Data<br/>(Baseline vs Target)
+    classDef userNode fill:#ffffff,stroke:#000000,stroke-width:2px;
+    classDef agentNode fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef brainNode fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef squadNode fill:#fff8e1,stroke:#fbc02d,stroke-width:1px;
+    classDef toolNode fill:#f5f5f5,stroke:#616161,stroke-width:1px;
+
+    class User userNode;
+    class Agent agentNode;
+    class Gemini brainNode;
+    class L,E,S,ST,C,SI squadNode;
+    class TraceAPI,BQ,TQB toolNode;
+```
+
+### Interaction Workflow
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': false, 'background': '#ffffff', 'mainBkg': '#ffffff', 'fontFamily': 'arial', 'fontSize': '16px', 'textColor': '#000000', 'primaryTextColor': '#000000', 'secondaryColor': '#f1f3f4', 'tertiaryColor': '#ffffff'}}}%%
+sequenceDiagram
+    actor User
+    participant Det as 🕵️ Detective
+    participant Tools as 🛠️ Tools
+    participant S1 as 🚨 Triage
+    participant S2 as 🤿 Deep Dive
+
+    Note over User, S2: 🔎 PHASE 1: EVIDENCE GATHERING
+
+    User->>Det: 1. "Analyze these traces..."
+    Det->>Tools: 2. Fetch Trace Data
     activate Tools
-    Tools-->>Agent: Trace Data
+    Tools-->>Det: 3. Trace Data
     deactivate Tools
 
-    Note over User, S2: ── PHASE 2: IDENTIFICATION ──
-    
-    Agent->>S1: run_triage_analysis()
+    Note over User, S2: ⚡ PHASE 2: IDENTIFICATION
+
+    Det->>S1: 4. Run Analysis
     activate S1
-    S1->>S1: Parallel Analysis<br/>(Latency, Error, Structure)
-    S1-->>Agent: Triage Report<br/>(Suspects Found)
+    S1->>S1: 5. Check Latency/Errors
+    S1-->>Det: 6. Suspects Found
     deactivate S1
     
-    Agent->>User: "I found latency spikes in Service X..."
+    Det->>User: 7. "I found latency spikes..."
 
-    Note over User, S2: ── PHASE 3: ROOT CAUSE ──
+    Note over User, S2: 🕵️ PHASE 3: ROOT CAUSE
+
+    User->>Det: 8. "Dig deeper"
     
-    User->>Agent: "Dig deeper into Service X"
-    
-    Agent->>S2: run_deep_dive_analysis()
+    Det->>S2: 9. Deep Dive
     activate S2
-    S2->>S2: Causal & Impact Analysis
-    S2-->>Agent: Deep Dive Report<br/>(Root Cause)
+    S2->>S2: 10. Causal Analysis
+    S2-->>Det: 11. Root Cause
     deactivate S2
 
-    Note over User, S2: ── PHASE 4: VERDICT ──
+    Note over User, S2: 📝 PHASE 4: VERDICT
     
-    Agent->>User: 📂 FINAL CASE FILE<br/>(Root Cause + Fixes)
+    Det->>User: 12. 📂 FINAL CASE FILE
 ```
 
 ### Core Components
