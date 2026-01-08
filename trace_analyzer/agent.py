@@ -28,6 +28,7 @@ The root agent orchestrates all three stages:
 3. Deep Dive Analysis → determine root cause and impact
 """
 
+import functools
 import json
 import logging
 import os
@@ -78,6 +79,7 @@ from .tools.trace_filter import (
 logger = logging.getLogger(__name__)
 
 
+@functools.lru_cache(maxsize=1)
 def _create_bigquery_mcp_toolset(project_id: str | None = None):
     """
     Creates a new instance of the BigQuery MCP toolset.

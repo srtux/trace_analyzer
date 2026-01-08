@@ -65,31 +65,29 @@ class TestMCPIntegration(unittest.TestCase):
             ):
                 del sys.modules[mod]
 
-    def test_factory_creates_new_instance(self):
-        """Test that get_bigquery_mcp_toolset creates a NEW instance each time."""
+    def test_factory_is_singleton(self):
+        """Test that get_bigquery_mcp_toolset acts as a singleton factory."""
         # Setup registry mock
-        fresh_mock_instance = MagicMock()
-        mock_toolset_1 = MagicMock()
-        mock_toolset_2 = MagicMock()
-        fresh_mock_instance.get_toolset.side_effect = [mock_toolset_1, mock_toolset_2]
-        self.mock_registry_cls.return_value = fresh_mock_instance
+        mock_api_registry = MagicMock()
+        mock_toolset = MagicMock()
+        mock_api_registry.get_toolset.return_value = mock_toolset
+        self.mock_registry_cls.return_value = mock_api_registry
 
-        # Import triggers module load
+        # Import triggers module load and singleton creation
         import trace_analyzer.agent
 
         # Call the getter
         result1 = trace_analyzer.agent.get_bigquery_mcp_toolset()
-        
+
         # Call it again
         result2 = trace_analyzer.agent.get_bigquery_mcp_toolset()
 
-        # Should verify multiple calls to create toolsets
-        self.assertEqual(fresh_mock_instance.get_toolset.call_count, 2)
-        
-        # Results should be DIFFERENT instances
-        self.assertIsNot(result1, result2)
-        self.assertEqual(result1, mock_toolset_1)
-        self.assertEqual(result2, mock_toolset_2)
+        # Should only be called ONCE
+        mock_api_registry.get_toolset.assert_called_once()
+
+        # Results should be the SAME instance
+        self.assertIs(result1, result2)
+        self.assertEqual(result1, mock_toolset)
 
     def test_singleton_handles_missing_project_gracefully(self):
         """Test that module-level singleton creation handles missing project ID."""
