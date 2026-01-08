@@ -28,6 +28,7 @@ The root agent orchestrates all three stages:
 3. Deep Dive Analysis → determine root cause and impact
 """
 
+import functools
 import json
 import logging
 import os
@@ -78,6 +79,7 @@ from .tools.trace_filter import (
 logger = logging.getLogger(__name__)
 
 
+@functools.lru_cache(maxsize=1)
 def _create_bigquery_mcp_toolset(project_id: str | None = None):
     """
     Creates a new instance of the BigQuery MCP toolset.
@@ -140,11 +142,22 @@ def get_bigquery_mcp_toolset():
 
 
 
+# Detect Project ID for instruction enrichment
+project_id = None
+try:
+    _, project_id = google.auth.default()
+    project_id = project_id or os.environ.get("GOOGLE_CLOUD_PROJECT")
+except Exception:
+    pass
+
+
 # =============================================================================
 # Stage 0: Aggregate Analysis - BigQuery-powered broad analysis
 # =============================================================================
 # This is a single agent (not parallel) that uses BigQuery to analyze at scale
 stage0_aggregate_analyzer = aggregate_analyzer
+if project_id:
+    stage0_aggregate_analyzer.instruction += f"\n\nCurrent Project ID: {project_id}\nUse this for 'projectId' arguments in BigQuery tools."
 
 # =============================================================================
 # Stage 1: Triage Squad - Quick identification of differences
@@ -213,87 +226,18 @@ async def run_aggregate_analysis(
         "service_name": service_name,
     }
 
-    # Detect Project ID for instruction enrichment
-    project_id = None
-    try:
-        _, project_id = google.auth.default()
-        project_id = project_id or os.environ.get("GOOGLE_CLOUD_PROJECT")
-    except Exception:
-        pass
+    aggregate_tool = AgentTool(stage0_aggregate_analyzer)
 
-    # Retry loop to handle flaky MCP sessions
-    max_retries = 3
-    last_error = None
-
-    for attempt in range(max_retries):
-        mcp_toolset = None
-        try:
-            # Create a fresh MCP toolset for this execution
-            mcp_toolset = get_bigquery_mcp_toolset()
-
-            instruction = stage0_aggregate_analyzer.instruction
-            if project_id:
-                instruction += f"\n\nCurrent Project ID: {project_id}\nUse this for 'projectId' arguments in BigQuery tools."
-
-            # Create a fresh agent instance with merged tools
-            original_tools = list(stage0_aggregate_analyzer.tools or [])
-
-            if mcp_toolset:
-                original_tools.append(mcp_toolset)
-
-            fresh_aggregate_analyzer = LlmAgent(
-                name=stage0_aggregate_analyzer.name,
-                model=stage0_aggregate_analyzer.model,
-                description=stage0_aggregate_analyzer.description,
-                instruction=instruction,
-                tools=original_tools,
+    return await aggregate_tool.run_async(
+        args={
+            "request": (
+                f"Context: {json.dumps(stage0_input)}\n"
+                "Instruction: Perform aggregate analysis of trace data using BigQuery. "
+                "Identify problem areas, detect trends, and select exemplar traces for investigation."
             )
-
-            aggregate_tool = AgentTool(fresh_aggregate_analyzer)
-
-            logger.info(f"Starting aggregate analysis (attempt {attempt + 1}/{max_retries})")
-            
-            return await aggregate_tool.run_async(
-                args={
-                    "request": (
-                        f"Context: {json.dumps(stage0_input)}\n"
-                        "Instruction: Perform aggregate analysis of trace data using BigQuery. "
-                        "Identify problem areas, detect trends, and select exemplar traces for investigation."
-                    )
-                },
-                tool_context=tool_context,
-            )
-
-        except Exception as e:
-            # Check for McpError: Session terminated
-            # We check string representation to handle both imported McpError and potential wrapping
-            is_session_error = "Session terminated" in str(e)
-            
-            if is_session_error and attempt < max_retries - 1:
-                logger.warning(
-                    f"MCP Session terminated during attempt {attempt + 1}. Retrying...",
-                    exc_info=True
-                )
-                last_error = e
-                # Proceed to next iteration (which will create new toolset)
-            else:
-                # Not a retryable error or max retries reached
-                raise
-
-        finally:
-            # Ensure we close the MCP toolset for this attempt
-            if mcp_toolset:
-                try:
-                    if hasattr(mcp_toolset, "aclose"):
-                        await mcp_toolset.aclose()
-                    elif hasattr(mcp_toolset, "close"):
-                        import inspect
-                        if inspect.iscoroutinefunction(mcp_toolset.close):
-                            await mcp_toolset.close()
-                        else:
-                            mcp_toolset.close()
-                except Exception as close_err:
-                    logger.warning(f"Error closing MCP toolset: {close_err}")
+        },
+        tool_context=tool_context,
+    )
 
 
 
@@ -410,10 +354,11 @@ base_tools = [
 #
 # The singleton pattern avoids MCP session timeout issues that occurred with
 # per-request toolset creation (where sessions would terminate during LLM calls).
-
-# Detect Project ID for instruction
-# Detect Project ID for instruction
-project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+mcp_toolset = get_bigquery_mcp_toolset()
+if mcp_toolset:
+    base_tools.append(mcp_toolset)
+    # Also add to the stage0 aggregate analyzer
+    stage0_aggregate_analyzer.tools.append(mcp_toolset)
 
 final_instruction = prompt.ROOT_AGENT_PROMPT
 if project_id:
