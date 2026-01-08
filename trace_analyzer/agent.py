@@ -90,6 +90,37 @@ _bigquery_mcp_toolset = None
 _mcp_toolset_initialized = False
 
 
+
+class SharedToolset:
+    """
+    Wrapper for a toolset that prevents it from being closed.
+
+    This is used for the singleton MCP toolset to ensure that individual
+    agent executions (which might close their tools) don't terminate
+    the shared session.
+    """
+
+    def __init__(self, toolset):
+        self._toolset = toolset
+
+    def __getattr__(self, name):
+        return getattr(self._toolset, name)
+
+    def __iter__(self):
+        return iter(self._toolset)
+
+    def __dir__(self):
+        return dir(self._toolset)
+
+    def close(self):
+        logger.debug("Ignoring close() call on shared MCP toolset")
+        pass
+
+    async def aclose(self):
+        logger.debug("Ignoring aclose() call on shared MCP toolset")
+        pass
+
+
 def _create_module_level_mcp_toolset():
     """
     Internal helper to create the BigQuery MCP toolset.
@@ -131,8 +162,11 @@ def _create_module_level_mcp_toolset():
             ],
         )
 
+        # Wrap it to prevent closing (Session terminated error fix)
+        shared_wrapper = SharedToolset(mcp_toolset)
+
         logger.info("Successfully created module-level BigQuery MCP toolset")
-        return mcp_toolset
+        return shared_wrapper
 
     except Exception as e:
         logger.error(
