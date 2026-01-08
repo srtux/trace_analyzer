@@ -138,12 +138,6 @@ def get_bigquery_mcp_toolset():
     return _create_bigquery_mcp_toolset()
 
 
-# Deprecated: Keep for backwards compatibility with tests
-def create_bigquery_mcp_toolset(project_id: str):
-    """
-    DEPRECATED: Use get_bigquery_mcp_toolset() instead.
-    """
-    return get_bigquery_mcp_toolset()
 
 
 # =============================================================================
