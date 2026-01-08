@@ -23,7 +23,7 @@ WHAT TO LOOK FOR:
 - **Latency Amplification**: Where small delays compound into larger ones
 
 ANALYSIS WORKFLOW:
-1. If given trace data, analyze it directly
+1. If given trace IDs, pass them directly to `compute_service_level_stats`.
 2. Use `compute_service_level_stats` to get per-service metrics
 3. Compare baseline vs target to identify impacted services
 4. Assess the severity and breadth of impact

@@ -17,8 +17,8 @@ CAUSAL ANALYSIS METHODOLOGY:
 4. **Elimination**: Rule out symptoms vs root causes
 
 ANALYSIS WORKFLOW:
-1. If given trace JSON data in the prompt, pass it directly to `perform_causal_analysis`.
-2. Use `perform_causal_analysis` with baseline and target traces.
+1. If given trace IDs, pass them directly to `perform_causal_analysis` and `analyze_critical_path`.
+2. Do NOT fetch trace content manually for passing to tools.
 3. Use `analyze_critical_path` to see if the root cause is on the critical path
 4. Synthesize findings into a causal chain
 

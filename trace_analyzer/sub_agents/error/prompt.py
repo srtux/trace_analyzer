@@ -9,8 +9,8 @@ CAPABILITIES:
 - Use `extract_errors` to find all error spans in a trace
 
 ANALYSIS WORKFLOW:
-1. If given trace IDs, fetch both traces using `fetch_trace`
-2. If given trace JSON data in the prompt, pass it directly to `extract_errors`.
+1. If given trace IDs, pass them directly to `extract_errors`.
+2. Do NOT fetch trace content manually unless specifically requested.
 3. Use `extract_errors` on both traces to identify error spans
 4. Compare errors to find:
    - New errors introduced in the target trace

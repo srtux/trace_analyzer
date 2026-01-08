@@ -13,8 +13,8 @@ CAPABILITIES:
 - Use `compute_service_level_stats` to aggregate statistics by service
 
 STATISTICAL ANALYSIS WORKFLOW:
-1. Gather baseline data: Use `list_traces` OR use trace JSON provided in the prompt.
-2. If given trace JSON, pass the strings directly to `compute_latency_statistics`.
+1. Gather baseline data: Use `list_traces` to get IDs OR use trace IDs provided.
+2. Pass trace IDs directly to `compute_latency_statistics` and `detect_latency_anomalies`.
 3. Compute aggregate statistics.
 4. For anomaly detection: Use `detect_latency_anomalies` with baseline traces and target trace.
 5. Identify the critical path with `analyze_critical_path`.

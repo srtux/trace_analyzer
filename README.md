@@ -1,10 +1,15 @@
 # Cloud Trace Analyzer Agent
 
+[![Status](https://img.shields.io/badge/Status-Active-success)]()
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)]()
+[![Framework](https://img.shields.io/badge/Framework-Google%20ADK-red)]()
+
+
 A Google ADK-based agent that performs deep diff analysis on distributed traces from Cloud Trace. It compares baseline (normal) traces to abnormal traces to identify performance regressions, errors, and behavioral changes using a "squad" of specialized analysis sub-agents.
 
 ## Features
 
-- **Parallel Analysis Squad**: Uses 5 specialized agents (Latency, Error, Structure, Statistics, and Causality) to analyze traces concurrently.
+- **Parallel Analysis Squads**: Uses **6 specialized agents** divided into Triage (Latency, Error, Structure, Statistics) and Deep Dive (Causality, Service Impact) squads to analyze traces concurrently.
 - **Hybrid BigQuery Integration**: Leverages BigQuery via MCP (Model Context Protocol) for statistical analysis over large datasets and long time ranges.
 - **Automatic Trace Discovery**: Intelligently identifies representative baseline (P50) and anomaly (P95 or error) traces for comparison.
 - **Advanced Trace Filtering**: Supports complex filters including service names, HTTP status codes, min/max latency, and custom attribute matching.
@@ -17,12 +22,21 @@ The agent is built using the Google Agent Development Kit (ADK) and follows a hi
 
 ```mermaid
 graph TD
-    Root[Trace Analyzer Agent] --> Squad[Parallel Analysis Squad]
-    Squad --> L[Latency Analyzer]
-    Squad --> E[Error Analyzer]
-    Squad --> S[Structure Analyzer]
-    Squad --> ST[Statistics Analyzer]
-    Squad --> C[Causality Analyzer]
+    User[User] --> Root[Trace Detective (Root Agent)]
+    
+    subgraph "Stage 1: Triage (Identification)"
+        Root --> |Parallel Exec| S1[Triage Squad]
+        S1 --> L[Latency Analyzer]
+        S1 --> E[Error Analyzer]
+        S1 --> S[Structure Analyzer]
+        S1 --> ST[Statistics Analyzer]
+    end
+    
+    subgraph "Stage 2: Deep Dive (Root Cause)"
+        Root --> |Sequential Exec| S2[Deep Dive Squad]
+        S2 --> C[Causality Analyzer]
+        S2 --> SI[Service Impact Analyzer]
+    end
     
     Root --> Tools[Tool Suite]
     Tools --> TraceAPI[Cloud Trace API]
@@ -31,9 +45,11 @@ graph TD
 ```
 
 ### Core Components
-- **Root Agent**: Orchestrates the discovery and high-level analysis.
-- **Specialist Squad**: Five parallel agents that dive deep into specific aspects of the trace diff.
-- **Dynamic MCP Integration**: Uses `ApiRegistry` to lazily load BigQuery tools, ensuring cross-platform stability and direct access to enterprise data.
+### Core Components
+- **Trace Detective (Root)**: The orchestrator with a "Detective" persona that synthesizes findings into a "Case File".
+- **Triage Squad (Stage 1)**: Rapidly identifies *what* is wrong (Latency, Errors, Structure, Stats).
+- **Deep Dive Squad (Stage 2)**: Investigates *why* it happened (Causality) and *who* else is affected (Service Impact).
+- **Dynamic MCP Integration**: Uses `ApiRegistry` to lazily load BigQuery tools, ensuring cross-platform stability.
 
 ## Setup
 
@@ -131,24 +147,43 @@ uv run adk web
 ```
 trace_analyzer/
 ├── trace_analyzer/
-│   ├── agent.py          # Root orchestrator & MCP tool loading
-│   ├── sub_agents/       # Specialized analysis agents (Latency, Error, etc.)
+│   ├── agent.py          # Root orchestrator ("Trace Detective")
+│   ├── sub_agents/       # Specialized analysis agents
+│   │   ├── latency/      # Latency Analyzer
+│   │   ├── error/        # Error Analyzer
+│   │   ├── structure/    # Structure Analyzer
+│   │   ├── statistics/   # Statistics Analyzer
+│   │   ├── causality/    # Causality Analyzer
+│   │   └── service_impact/ # Service Impact Analyzer
 │   ├── tools/
 │   │   ├── trace_client.py   # Cloud Trace API wrapper
 │   │   ├── trace_filter.py   # Advanced TraceQueryBuilder
-│   │   ├── trace_analysis.py # Core analysis logic
-│   │   └── statistical_analysis.py # Statistical & Causal algorithms
+│   │   └── ...
 │   └── prompt.py         # Advanced multi-turn prompting logic
 ├── tests/                # Comprehensive test suite
+├── deployment/           # Deployment scripts
+├── AGENTS.md             # Developer & Contributor guide
 ├── pyproject.toml        # uv-based build configuration
 └── README.md
 ```
 
 ## Reliability & Performance
 
+## Reliability & Performance
+
 - **Lazy MCP Loading**: Implements `LazyMcpRegistryToolset` to prevent session conflicts in ASGI/uvicorn environments, ensuring stable deployment.
 - **Observability**: Fully instrumented with OpenTelemetry for tracking tool execution and agent performance.
 - **Truncation & Noise Reduction**: Advanced logging patterns ensure that large trace datasets don't overwhelm LLM context windows.
+
+## Troubleshooting
+
+- **`ValueError: stale session`**: This usually happens if the local database state gets out of sync with the running agent. Try clearing the `.adk` directory or restarting the server.
+- **Permission Errors**: Ensure you have run `gcloud auth application-default login` and that your user has `roles/cloudtrace.user` and `roles/bigquery.dataViewer`.
+- **ASGI Errors**: If you see "ASGI callable returned without completing response", ensure you are using the latest version of the ADK and that `LazyMcpRegistryToolset` is being used for MCP tools.
+
+## Contributing
+
+See [AGENTS.md](./AGENTS.md) for detailed developer workflows, testing instructions, and PR guidelines.
 
 ## License
 

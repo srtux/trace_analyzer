@@ -10,8 +10,8 @@ CAPABILITIES:
 - Use `compare_span_timings` to diff two traces, find slowdowns, AND DETECT ANTI-PATTERNS (like N+1 queries).
 
 ANALYSIS WORKFLOW:
-1. If given trace IDs, fetch both traces using `fetch_trace`
-2. If given trace JSON data in the prompt, pass it directly to the analysis tools (compare_span_timings).
+1. If given trace IDs, pass them directly to the analysis tools (compare_span_timings).
+2. Do NOT fetch trace content manually unless specifically requested by the user.
 3. Use `compare_span_timings` to identify spans that changed in duration and any REPETITIVE PATTERNS.
 4. Analyze the slowest spans and their impact on overall latency.
 

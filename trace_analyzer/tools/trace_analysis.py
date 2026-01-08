@@ -8,6 +8,7 @@ from typing import Any
 
 from ..decorators import adk_tool
 from ..telemetry import get_meter, get_tracer, log_tool_call
+from .trace_client import fetch_trace, _get_project_id
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +49,29 @@ TraceData = dict[str, Any]
 SpanData = dict[str, Any]
 
 
+
+def _fetch_trace_data(trace_id: str, project_id: str | None = None) -> dict[str, Any]:
+    """Helper to fetch trace data by ID."""
+    if not project_id:
+        try:
+            project_id = _get_project_id()
+        except ValueError:
+             pass
+
+    if not project_id:
+         return {"error": "Project ID required to fetch trace."}
+
+    trace_json = fetch_trace(project_id, trace_id)
+    try:
+        if isinstance(trace_json, dict):
+            return trace_json
+        return json.loads(trace_json)
+    except json.JSONDecodeError:
+        return {"error": "Invalid trace JSON"}
+
+
 @adk_tool
-def calculate_span_durations(trace: str) -> list[SpanData]:
+def calculate_span_durations(trace_id: str, project_id: str | None = None) -> list[SpanData]:
     """
     Extracts timing information for each span in a trace.
 
@@ -71,17 +93,14 @@ def calculate_span_durations(trace: str) -> list[SpanData]:
     with tracer.start_as_current_span("calculate_span_durations") as span:
         span.set_attribute("code.function", "calculate_span_durations")
 
-        log_tool_call(logger, "calculate_span_durations", trace="<trace_data_truncated>")
+        log_tool_call(logger, "calculate_span_durations", trace_id=trace_id)
 
         try:
-            if isinstance(trace, str):
-                try:
-                    trace = json.loads(trace)
-                except json.JSONDecodeError as e:
-                    return [{"error": f"Failed to parse trace JSON: {e!s}"}]
-
-            if not isinstance(trace, dict):
-                return [{"error": f"Trace data must be a dictionary, but got {type(trace).__name__}"}]
+            trace = _fetch_trace_data(trace_id, project_id)
+            if "error" in trace:
+                span.set_attribute("error", True)
+                span.set_status(trace.get("error"))
+                return [{"error": trace["error"]}]
 
             if "error" in trace:
                 span.set_attribute("error", True)
@@ -134,12 +153,13 @@ def calculate_span_durations(trace: str) -> list[SpanData]:
 
 
 @adk_tool
-def extract_errors(trace: str) -> list[dict[str, Any]]:
+def extract_errors(trace_id: str, project_id: str | None = None) -> list[dict[str, Any]]:
     """
     Finds all spans that contain errors or error-related information.
 
     Args:
-        trace: A trace dictionary containing spans.
+        trace_id: The unique trace ID.
+        project_id: The Google Cloud Project ID.
 
     Returns:
         A list of error dictionaries with:
@@ -156,17 +176,12 @@ def extract_errors(trace: str) -> list[dict[str, Any]]:
     with tracer.start_as_current_span("extract_errors") as span:
         span.set_attribute("code.function", "extract_errors")
 
-        log_tool_call(logger, "extract_errors", trace="<trace_data_truncated>")
+        log_tool_call(logger, "extract_errors", trace_id=trace_id)
 
         try:
-            if isinstance(trace, str):
-                try:
-                    trace = json.loads(trace)
-                except json.JSONDecodeError as e:
-                    return [{"error": f"Failed to parse trace JSON: {e!s}"}]
-
-            if not isinstance(trace, dict):
-                return [{"error": f"Trace data must be a dictionary, but got {type(trace).__name__}"}]
+            trace = _fetch_trace_data(trace_id, project_id)
+            if "error" in trace:
+                return [{"error": trace["error"]}]
 
             if "error" in trace:
                 return [{"error": trace["error"]}]
@@ -252,7 +267,7 @@ def extract_errors(trace: str) -> list[dict[str, Any]]:
 
 
 @adk_tool
-def validate_trace_quality(trace_json: str) -> dict[str, Any]:
+def validate_trace_quality(trace_id: str, project_id: str | None = None) -> dict[str, Any]:
     """
     Validate trace data quality and detect issues.
 
@@ -263,15 +278,15 @@ def validate_trace_quality(trace_json: str) -> dict[str, Any]:
     - Timestamp parsing errors
 
     Args:
-        trace_json: JSON string of the trace data.
+        trace_id: The unique trace ID.
+        project_id: The Google Cloud Project ID.
 
     Returns:
         Dictionary with 'valid' boolean, 'issue_count', and list of 'issues'.
     """
-    try:
-        trace = json.loads(trace_json)
-    except json.JSONDecodeError as e:
-        return {"valid": False, "issue_count": 1, "issues": [{"type": "json_error", "message": str(e)}]}
+    trace = _fetch_trace_data(trace_id, project_id)
+    if "error" in trace:
+        return {"valid": False, "issue_count": 1, "issues": [{"type": "fetch_error", "message": trace["error"]}]}
 
     spans = trace.get("spans", [])
     issues = []
@@ -343,7 +358,7 @@ def validate_trace_quality(trace_json: str) -> dict[str, Any]:
 
 
 @adk_tool
-def build_call_graph(trace: str) -> dict[str, Any]:
+def build_call_graph(trace_id: str, project_id: str | None = None) -> dict[str, Any]:
     """
     Builds a hierarchical call graph from the trace spans.
 
@@ -351,7 +366,8 @@ def build_call_graph(trace: str) -> dict[str, Any]:
     structure, which is useful for structural analysis and visualization.
 
     Args:
-        trace: A trace dictionary containing spans.
+        trace_id: The unique trace ID.
+        project_id: The Google Cloud Project ID.
 
     Returns:
         A dictionary representing the call graph:
@@ -366,17 +382,12 @@ def build_call_graph(trace: str) -> dict[str, Any]:
     with tracer.start_as_current_span("build_call_graph") as span:
         span.set_attribute("code.function", "build_call_graph")
 
-        log_tool_call(logger, "build_call_graph", trace="<trace_data_truncated>")
+        log_tool_call(logger, "build_call_graph", trace_id=trace_id)
 
         try:
-            if isinstance(trace, str):
-                try:
-                    trace = json.loads(trace)
-                except json.JSONDecodeError as e:
-                    return {"error": f"Failed to parse trace JSON: {e!s}"}
-
-            if not isinstance(trace, dict):
-                return {"error": f"Trace data must be a dictionary, but got {type(trace).__name__}"}
+            trace = _fetch_trace_data(trace_id, project_id)
+            if "error" in trace:
+                return {"error": trace["error"]}
 
             if "error" in trace:
                 return {"error": trace["error"]}
@@ -453,15 +464,17 @@ def build_call_graph(trace: str) -> dict[str, Any]:
 
 @adk_tool
 def compare_span_timings(
-    baseline_trace: str,
-    target_trace: str,
+    baseline_trace_id: str,
+    target_trace_id: str,
+    project_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Compares timing between spans in two traces and detects performance anti-patterns.
 
     Args:
-        baseline_trace: The reference/normal trace to compare against.
-        target_trace: The trace being analyzed (potentially slow/abnormal).
+        baseline_trace_id: The ID of the reference/normal trace.
+        target_trace_id: The ID of the trace being analyzed.
+        project_id: The Google Cloud Project ID.
 
     Returns:
         A comparison report with:
@@ -478,12 +491,12 @@ def compare_span_timings(
     with tracer.start_as_current_span("compare_span_timings") as span:
         span.set_attribute("code.function", "compare_span_timings")
 
-        log_tool_call(logger, "compare_span_timings", baseline_trace="<trace_data_truncated>", target_trace="<trace_data_truncated>")
+        log_tool_call(logger, "compare_span_timings", baseline_trace_id=baseline_trace_id, target_trace_id=target_trace_id)
 
         try:
-            # calculate_span_durations handles string parsing
-            baseline_timings = calculate_span_durations(baseline_trace)
-            target_timings = calculate_span_durations(target_trace)
+            # calculate_span_durations handles fetching
+            baseline_timings = calculate_span_durations(baseline_trace_id, project_id)
+            target_timings = calculate_span_durations(target_trace_id, project_id)
 
             if baseline_timings and isinstance(baseline_timings[0], dict) and "error" in baseline_timings[0]:
                 return {"error": f"Baseline trace error: {baseline_timings[0]['error']}"}
@@ -707,20 +720,20 @@ def compare_span_timings(
 
 
 @adk_tool
-def summarize_trace(trace_data: str) -> dict[str, Any]:
+def summarize_trace(trace_id: str, project_id: str | None = None) -> dict[str, Any]:
     """
     Creates a summary of a trace to save context window tokens.
     Extracts high-level stats, top 5 slowest spans, and error spans.
 
     Args:
-        trace_data: The trace data to summarize as a JSON string (from fetch_trace).
+        trace_id: The unique trace ID.
+        project_id: The Google Cloud Project ID.
     """
-    log_tool_call(logger, "summarize_trace", trace_data="<trace_data_truncated>")
-    if isinstance(trace_data, str):
-        try:
-            trace_data = json.loads(trace_data)
-        except json.JSONDecodeError:
-            return {"error": "Invalid JSON"}
+    log_tool_call(logger, "summarize_trace", trace_id=trace_id)
+    
+    trace_data = _fetch_trace_data(trace_id, project_id)
+    if "error" in trace_data:
+        return trace_data
 
     if "error" in trace_data:
         return trace_data
@@ -741,7 +754,7 @@ def summarize_trace(trace_data: str) -> dict[str, Any]:
                 s.get("labels", {}).get("error") == "true":
                  errors.append({"span_name": s.get("name"), "error": "Detected"})
     else:
-        errors = extract_errors(trace_data) # Fallback to full tool
+        errors = extract_errors(trace_id, project_id) # Fallback to full tool
 
     # Extract slow spans
     # Sort spans by duration if available, else calc
@@ -774,15 +787,17 @@ def summarize_trace(trace_data: str) -> dict[str, Any]:
 
 @adk_tool
 def find_structural_differences(
-    baseline_trace: str,
-    target_trace: str,
+    baseline_trace_id: str,
+    target_trace_id: str,
+    project_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Compares the call graph structure between two traces.
 
     Args:
-        baseline_trace: The reference/normal trace.
-        target_trace: The trace being analyzed.
+        baseline_trace_id: The ID of the reference/normal trace.
+        target_trace_id: The ID of the trace being analyzed.
+        project_id: The Google Cloud Project ID.
 
     Returns:
         A structural comparison with:
@@ -797,12 +812,12 @@ def find_structural_differences(
     with tracer.start_as_current_span("find_structural_differences") as span:
         span.set_attribute("code.function", "find_structural_differences")
 
-        log_tool_call(logger, "find_structural_differences", baseline_trace="<trace_data_truncated>", target_trace="<trace_data_truncated>")
+        log_tool_call(logger, "find_structural_differences", baseline_trace_id=baseline_trace_id, target_trace_id=target_trace_id)
 
         try:
-            # build_call_graph handles string parsing
-            baseline_graph = build_call_graph(baseline_trace)
-            target_graph = build_call_graph(target_trace)
+            # build_call_graph handles fetching
+            baseline_graph = build_call_graph(baseline_trace_id, project_id)
+            target_graph = build_call_graph(target_trace_id, project_id)
 
             if "error" in baseline_graph:
                 return {"error": f"Baseline trace error: {baseline_graph['error']}"}

@@ -8,18 +8,72 @@ from typing import Any
 
 from ..decorators import adk_tool
 from ..telemetry import get_meter, get_tracer
+from .trace_client import fetch_trace, _get_project_id
+
+# Telemetry setup
+from ..telemetry import get_meter, get_tracer
+from .trace_client import fetch_trace, _get_project_id
+import concurrent.futures
 
 # Telemetry setup
 tracer = get_tracer(__name__)
 meter = get_meter(__name__)
 
+MAX_WORKERS = 10  # Max concurrent fetches
 
-def compute_latency_statistics(traces: list[str]) -> dict[str, Any]:
+def _fetch_traces_parallel(trace_ids: list[str], project_id: str | None = None, max_traces: int = 50) -> list[dict[str, Any]]:
+    """Fetches multiple traces in parallel."""
+    # Cap the number of traces to avoid overwhelming the API
+    target_ids = trace_ids[:max_traces]
+    
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        # Submit all tasks
+        future_to_tid = {
+            executor.submit(_fetch_trace_data, tid, project_id): tid 
+            for tid in target_ids
+        }
+        
+        for future in concurrent.futures.as_completed(future_to_tid):
+            tid = future_to_tid[future]
+            try:
+                data = future.result()
+                if data and "error" not in data:
+                    results.append(data)
+            except Exception:
+                pass
+                
+    return results
+
+
+
+def _fetch_trace_data(trace_id: str, project_id: str | None = None) -> dict[str, Any] | None:
+    """Helper to fetch trace data by ID."""
+    if not project_id:
+        try:
+            project_id = _get_project_id()
+        except ValueError:
+             pass
+
+    if not project_id:
+         return None
+
+    trace_json = fetch_trace(project_id, trace_id)
+    try:
+        if isinstance(trace_json, dict):
+            return trace_json
+        return json.loads(trace_json)
+    except json.JSONDecodeError:
+        return None
+
+
+def compute_latency_statistics(trace_ids: list[str], project_id: str | None = None) -> dict[str, Any]:
     """
     Computes aggregate latency statistics for a list of traces.
 
     Args:
-        traces: List of trace JSON strings.
+        trace_ids: List of trace IDs.
+        project_id: The Google Cloud Project ID.
 
     Returns:
         Dictionary containing statistical metrics.
@@ -31,14 +85,10 @@ def compute_latency_statistics(traces: list[str]) -> dict[str, Any]:
         # Track stats per span name
         span_durations = defaultdict(list)
 
-        for t in traces:
-            trace_data = t
-            if isinstance(t, str):
-                try:
-                    trace_data = json.loads(t)
-                except json.JSONDecodeError:
-                    continue
+        # Fetch traces in parallel
+        valid_trace_data = _fetch_traces_parallel(trace_ids, project_id)
 
+        for trace_data in valid_trace_data:
             if isinstance(trace_data, dict):
                 # Calculate total duration if not present
                 duration = trace_data.get("duration_ms")
@@ -116,25 +166,27 @@ def compute_latency_statistics(traces: list[str]) -> dict[str, Any]:
 
 
 def detect_latency_anomalies(
-    baseline_traces: list[str],
-    target_trace: str,
-    threshold_sigma: float = 2.0
+    baseline_trace_ids: list[str],
+    target_trace_id: str,
+    threshold_sigma: float = 2.0,
+    project_id: str | None = None
 ) -> dict[str, Any]:
     """
     Detects if the target trace is anomalous compared to baseline distribution using Z-score.
     Also checks individual spans for anomalies if baseline data allows.
 
     Args:
-        baseline_traces: List of normal traces as JSON strings.
-        target_trace: The trace to check as a JSON string.
+        baseline_trace_ids: List of normal trace IDs.
+        target_trace_id: The trace ID to check.
         threshold_sigma: Number of standard deviations to consider anomalous.
+        project_id: The Google Cloud Project ID.
 
     Returns:
         Anomaly report.
     """
     with tracer.start_as_current_span("detect_latency_anomalies"):
         # Compute baseline stats
-        baseline_stats = compute_latency_statistics(baseline_traces)
+        baseline_stats = compute_latency_statistics(baseline_trace_ids, project_id)
         if "error" in baseline_stats:
             return baseline_stats
 
@@ -142,12 +194,9 @@ def detect_latency_anomalies(
         stdev = baseline_stats["stdev"]
 
         # Get target duration
-        target_data = target_trace
-        if isinstance(target_trace, str):
-            try:
-                target_data = json.loads(target_trace)
-            except json.JSONDecodeError:
-                return {"error": "Invalid target trace JSON"}
+        target_data = _fetch_trace_data(target_trace_id, project_id)
+        if not target_data:
+             return {"error": "Target trace not found or invalid"}
 
         target_duration = target_data.get("duration_ms")
         if target_duration is None:
@@ -224,22 +273,20 @@ def detect_latency_anomalies(
         }
 
 
-def analyze_critical_path(trace: str) -> dict[str, Any]:
+def analyze_critical_path(trace_id: str, project_id: str | None = None) -> dict[str, Any]:
     """
     Identifies the critical path of spans in a trace.
 
     The critical path is calculated by finding the longest path through the span dependency graph.
 
     Args:
-        trace: The trace data to analyze as a JSON string.
+        trace_id: The trace ID to analyze.
+        project_id: The Google Cloud Project ID.
     """
     with tracer.start_as_current_span("analyze_critical_path"):
-        trace_data = trace
-        if isinstance(trace, str):
-            try:
-                trace_data = json.loads(trace)
-            except json.JSONDecodeError:
-                return {"error": "Invalid trace JSON"}
+        trace_data = _fetch_trace_data(trace_id, project_id)
+        if not trace_data:
+            return {"error": "Trace not found or invalid"}
 
         spans = trace_data.get("spans", [])
         if not spans:
@@ -392,8 +439,9 @@ def analyze_critical_path(trace: str) -> dict[str, Any]:
 
 
 def perform_causal_analysis(
-    baseline_trace: Any,
-    target_trace: Any
+    baseline_trace_id: str,
+    target_trace_id: str,
+    project_id: str | None = None
 ) -> dict[str, Any]:
     """
     Enhanced root cause analysis using span-ID-level precision.
@@ -405,18 +453,17 @@ def perform_causal_analysis(
     - Provides confidence scores based on multiple factors
 
     Args:
-        baseline_trace: The reference trace data.
-        target_trace: The abnormal trace data to analyze.
+        baseline_trace_id: The reference trace ID.
+        target_trace_id: The abnormal trace ID to analyze.
+        project_id: The Google Cloud Project ID.
     """
-    try:
-        baseline_data = baseline_trace if isinstance(baseline_trace, dict) else json.loads(baseline_trace)
-    except json.JSONDecodeError:
-        return json.dumps({"error": "Invalid baseline_trace JSON provided."})
+    baseline_data = _fetch_trace_data(baseline_trace_id, project_id)
+    if not baseline_data:
+        return json.dumps({"error": "Invalid baseline_trace ID provided."})
 
-    try:
-        target_data = target_trace if isinstance(target_trace, dict) else json.loads(target_trace)
-    except json.JSONDecodeError:
-        return json.dumps({"error": "Invalid target_trace JSON provided."})
+    target_data = _fetch_trace_data(target_trace_id, project_id)
+    if not target_data:
+        return json.dumps({"error": "Invalid target_trace ID provided."})
 
     # 1. Build span name mappings for both traces
     baseline_spans_by_name = defaultdict(list)
@@ -429,7 +476,7 @@ def perform_causal_analysis(
         target_spans_by_name[s.get("name")].append(s)
 
     # 2. Analyze Critical Path of target trace to get actual span IDs
-    cp_report = analyze_critical_path(target_data)
+    cp_report = analyze_critical_path(target_trace_id, project_id)
     critical_path = cp_report.get("critical_path", [])
     critical_path_ids = {s["span_id"] for s in critical_path}
 
@@ -438,7 +485,7 @@ def perform_causal_analysis(
 
     # 3. Build call graph to get depth information
     from .trace_analysis import build_call_graph
-    target_graph = build_call_graph(target_data)
+    target_graph = build_call_graph(target_trace_id, project_id)
 
     # Flatten tree to map span_id -> depth
     depth_map = {}
@@ -549,7 +596,7 @@ def perform_causal_analysis(
     }
 
 @adk_tool
-def analyze_trace_patterns(traces: list[str], lookback_window_minutes: int = 60) -> dict[str, Any]:
+def analyze_trace_patterns(trace_ids: list[str], lookback_window_minutes: int = 60, project_id: str | None = None) -> dict[str, Any]:
     """
     Analyzes patterns across multiple traces to detect trends and recurring issues.
 
@@ -560,22 +607,19 @@ def analyze_trace_patterns(traces: list[str], lookback_window_minutes: int = 60)
     - Correlation patterns (spans that slow down together)
 
     Args:
-        traces: List of trace JSON strings to analyze.
+        trace_ids: List of trace IDs to analyze.
         lookback_window_minutes: Time window to consider for trend analysis.
+        project_id: The Google Cloud Project ID.
 
     Returns:
         Dictionary containing pattern analysis results.
     """
     with tracer.start_as_current_span("analyze_trace_patterns"):
-        if len(traces) < 3:
+        if len(trace_ids) < 3:
             return {"error": "Need at least 3 traces for pattern analysis"}
 
-        # Parse all traces
-        parsed_traces = []
-        for t in traces:
-            trace_data = t if isinstance(t, dict) else json.loads(t) if isinstance(t, str) else None
-            if trace_data and isinstance(trace_data, dict):
-                parsed_traces.append(trace_data)
+        # Fetch traces in parallel
+        parsed_traces = _fetch_traces_parallel(trace_ids, project_id)
 
         if len(parsed_traces) < 3:
             return {"error": "Not enough valid traces for pattern analysis"}
@@ -711,23 +755,20 @@ def analyze_trace_patterns(traces: list[str], lookback_window_minutes: int = 60)
         }
 
 
-def compute_service_level_stats(traces: list[str]) -> dict[str, Any]:
+def compute_service_level_stats(trace_ids: list[str], project_id: str | None = None) -> dict[str, Any]:
     """
     Computes stats aggregated by service name (if available in labels).
 
     Args:
-        traces: List of trace JSON strings.
+        trace_ids: List of trace IDs.
+        project_id: The Google Cloud Project ID.
     """
     service_stats = defaultdict(lambda: {"count": 0, "errors": 0, "total_duration": 0})
 
-    for t in traces:
-        t_data = t
-        if isinstance(t, str):
-            try:
-                t_data = json.loads(t)
-            except Exception:
-                continue
+    # Fetch traces in parallel
+    traces_data = _fetch_traces_parallel(trace_ids, project_id)
 
+    for t_data in traces_data:
         for s in t_data.get("spans", []):
             # Try to find service name in labels, or default to "unknown"
             # Common conventions: service.name, app, component
