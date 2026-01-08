@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write # Required for authentication to Google Cloud
 
 jobs:
   build:
@@ -28,8 +29,19 @@ jobs:
     - name: Set up Python 3.10
       run: uv python install 3.10
 
+    - name: Authenticate to Google Cloud
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        # Note: You will need to create a Workload Identity Pool and Provider in GCP and a
+        # service account with the "Artifact Registry Reader" role.
+        # Replace the following with your own values, or use GitHub secrets.
+        workload_identity_provider: 'projects/YOUR_PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+        service_account: 'gcp-sa-ci@YOUR_PROJECT_ID.iam.gserviceaccount.com'
+
     - name: Install dependencies
       run: |
+        uv pip install keyrings.google-artifactregistry-auth
         uv sync --group dev
 
     - name: Lint with flake8
