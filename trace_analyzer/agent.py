@@ -85,23 +85,16 @@ from .tools.trace_filter import (
 # This avoids session timeout issues that occur with per-request creation.
 # =============================================================================
 
+
+
+
+# Global singleton variable (initially None)
+_bigquery_mcp_toolset = None
+_mcp_toolset_initialized = False
+
 def _create_module_level_mcp_toolset():
     """
-    Creates BigQuery MCP toolset at module level (singleton pattern).
-
-    This follows the Google Cloud blog pattern:
-    https://cloud.google.com/blog/products/data-analytics/using-the-fully-managed-remote-bigquery-mcp-server-to-build-data-ai-agents/
-
-    Key insight: Creating toolset per-request causes session timeout issues because:
-    1. MCP session is created when toolset is created
-    2. LLM calls can take 5-10+ seconds
-    3. MCP session times out during LLM call
-    4. When agent tries to use MCP tool, session is already terminated
-
-    By creating at module level:
-    - Session persists across requests
-    - ADK framework manages lifecycle
-    - No async context scope issues
+    Internal helper to create the BigQuery MCP toolset.
     """
     project_id = None
     try:
@@ -140,9 +133,52 @@ def _create_module_level_mcp_toolset():
         return None
 
 
-# Create the module-level MCP toolset (singleton)
-# This is created once when the module is imported, session persists for app lifetime
-_bigquery_mcp_toolset = _create_module_level_mcp_toolset()
+def get_bigquery_mcp_toolset():
+    """
+    Returns the module-level BigQuery MCP toolset (singleton), initializing it if necessary.
+
+    This follows the Google Cloud blog pattern where the toolset is created once
+    and reused. We use lazy initialization here to avoid side effects (auth calls)
+    at module import time, which can break tests.
+
+    Returns:
+        The shared MCP toolset instance, or None if not available
+    """
+    global _bigquery_mcp_toolset, _mcp_toolset_initialized
+    
+    if not _mcp_toolset_initialized:
+        _bigquery_mcp_toolset = _create_module_level_mcp_toolset()
+        _mcp_toolset_initialized = True
+        
+    return _bigquery_mcp_toolset
+
+
+# Deprecated: Keep for backwards compatibility with tests
+def create_bigquery_mcp_toolset(project_id: str):
+    """
+    DEPRECATED: Use get_bigquery_mcp_toolset() instead.
+
+    This function now returns the module-level singleton toolset.
+    The project_id parameter is ignored - the toolset uses the project
+    detected at module load time.
+
+    Per-request toolset creation caused MCP session timeout issues because:
+    1. MCP session is created when toolset is created
+    2. LLM calls can take 5-10+ seconds
+    3. MCP session times out during LLM call
+    4. When agent tries to use MCP tool, session is already terminated
+
+    Args:
+        project_id: Ignored (kept for API compatibility)
+
+    Returns:
+        The shared module-level MCP toolset instance
+    """
+    logger.debug("create_bigquery_mcp_toolset() is deprecated; returning module-level singleton")
+    return get_bigquery_mcp_toolset()
+
+
+
 
 
 # =============================================================================
@@ -185,47 +221,6 @@ stage2_deep_dive_squad = ParallelAgent(
         "Stage 1 to understand WHY differences occurred and their blast radius."
     ),
 )
-
-
-def get_bigquery_mcp_toolset():
-    """
-    Returns the module-level BigQuery MCP toolset (singleton).
-
-    This follows the Google Cloud blog pattern where the toolset is created once
-    at module level and reused across all requests. This avoids session timeout
-    issues that occur with per-request toolset creation.
-
-    Returns:
-        The shared MCP toolset instance, or None if not available
-    """
-    return _bigquery_mcp_toolset
-
-
-# Deprecated: Keep for backwards compatibility with tests
-def create_bigquery_mcp_toolset(project_id: str):
-    """
-    DEPRECATED: Use get_bigquery_mcp_toolset() instead.
-
-    This function now returns the module-level singleton toolset.
-    The project_id parameter is ignored - the toolset uses the project
-    detected at module load time.
-
-    Per-request toolset creation caused MCP session timeout issues because:
-    1. MCP session is created when toolset is created
-    2. LLM calls can take 5-10+ seconds
-    3. MCP session times out during LLM call
-    4. When agent tries to use MCP tool, session is already terminated
-
-    Args:
-        project_id: Ignored (kept for API compatibility)
-
-    Returns:
-        The shared module-level MCP toolset instance
-    """
-    logger.debug("create_bigquery_mcp_toolset() is deprecated; returning module-level singleton")
-    return _bigquery_mcp_toolset
-
-
 
 
 @adk_tool
@@ -418,11 +413,8 @@ base_tools = [
 # per-request toolset creation (where sessions would terminate during LLM calls).
 
 # Detect Project ID for instruction
-try:
-    _, project_id = google.auth.default()
-    project_id = project_id or os.environ.get("GOOGLE_CLOUD_PROJECT")
-except Exception:
-    project_id = None
+# Detect Project ID for instruction
+project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
 
 final_instruction = prompt.ROOT_AGENT_PROMPT
 if project_id:

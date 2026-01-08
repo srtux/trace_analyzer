@@ -37,9 +37,11 @@ def list_log_entries(project_id: str, filter_str: str, limit: int = 10) -> str:
         client = LoggingServiceV2Client()
         resource_names = [f"projects/{project_id}"]
         entries = client.list_log_entries(
-            resource_names=resource_names,
-            filter=filter_str,
-            page_size=limit,
+            request={
+                "resource_names": resource_names,
+                "filter": filter_str,
+                "page_size": limit,
+            }
         )
         results = []
         for entry in entries:

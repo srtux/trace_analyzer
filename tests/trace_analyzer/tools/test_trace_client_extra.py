@@ -31,9 +31,11 @@ def test_list_log_entries(mock_logging_client_cls):
     assert len(result) == 1
     assert result[0]["payload"] == "log_payload"
     mock_client.list_log_entries.assert_called_with(
-        resource_names=["projects/p1"],
-        filter="filter",
-        page_size=1
+        request={
+            "resource_names": ["projects/p1"],
+            "filter": "filter",
+            "page_size": 1
+        }
     )
 
 @mock.patch("trace_analyzer.tools.trace_client.monitoring_v3.MetricServiceClient")

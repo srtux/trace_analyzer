@@ -65,13 +65,7 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-root = ""
 
-[tool.uv.sources]
-google-adk = { index = "ah-3p-staging" }
 
-[[tool.uv.index]]
-name = "ah-3p-staging"
-url = "https://us-python.pkg.dev/artifact-foundry-prod/ah-3p-staging-python/simple/"
-explicit = true
 
 [[tool.uv.index]]
 name = "pypi"
