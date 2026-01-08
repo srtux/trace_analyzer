@@ -118,88 +118,58 @@ stage2_deep_dive_squad = ParallelAgent(
 )
 
 
-async def create_mcp_tools(project_id: str):
+def create_bigquery_mcp_toolset(project_id: str):
     """
-    Creates MCP tools directly in the current async context.
+    Creates BigQuery MCP toolset following the pattern from Google Cloud blog post:
+    https://cloud.google.com/blog/products/data-analytics/using-the-fully-managed-remote-bigquery-mcp-server-to-build-data-ai-agents/
 
-    SIMPLIFIED APPROACH (fixes async cancel scope errors):
+    SIMPLIFIED APPROACH (following official Google Cloud guidance):
 
-    Previous Implementation:
-    - Used LazyMcpRegistryToolset wrapper with deferred initialization
-    - Session created in get_tools() (called by ADK in different task)
-    - Cleanup attempted in finally block (different task context)
-    - Result: "Attempted to exit cancel scope in a different task" errors
+    Key Principles:
+    1. Create toolset ONCE (not per-request)
+    2. Pass toolset directly to agent (not extracted tools)
+    3. Let ADK framework handle lifecycle (no manual cleanup)
+    4. Toolset is stateful and reusable across agent invocations
 
-    Current Implementation:
-    - Creates MCP session immediately when called (no lazy loading)
-    - Returns both tools and cleanup function
-    - Caller ensures creation and cleanup happen in same task
-    - Result: Proper resource management, no task scope errors
+    This avoids the async task scope errors by:
+    - Not manually calling get_tools() or close()
+    - Letting the agent framework manage the toolset lifecycle
+    - Toolset creation is synchronous (no async context issues)
 
-    Best Practice (per ADK docs):
-    - MCP sessions must be created and closed in the same asyncio task
-    - Avoid lazy initialization that defers to framework callbacks
-    - Use try/finally pattern with explicit cleanup in same function
+    Args:
+        project_id: Google Cloud project ID for BigQuery access
 
     Returns:
-        tuple: (tools_list, cleanup_function)
-            - tools_list: List of tool functions to pass to the agent
-            - cleanup_function: Async function to call for cleanup
+        Toolset instance to pass directly to agent's tools list
     """
-    tools = []
-    toolsets_to_close = []
+    if not project_id:
+        logger.warning("No Project ID provided; cannot create BigQuery MCP toolset")
+        return None
 
     try:
-        if project_id:
-            logger.info(f"Creating BigQuery MCP tools for project: {project_id}")
+        logger.info(f"Creating BigQuery MCP toolset for project: {project_id}")
 
-            # Pattern: projects/{project}/locations/global/mcpServers/{server_id}
-            mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/google-bigquery.googleapis.com-mcp"
+        # Pattern: projects/{project}/locations/global/mcpServers/{server_id}
+        mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/google-bigquery.googleapis.com-mcp"
 
-            # Create ApiRegistry with explicit quota project header
-            api_registry = ApiRegistry(
-                project_id,
-                header_provider=lambda _: {"x-goog-user-project": project_id}
-            )
+        # Create ApiRegistry with explicit quota project header
+        api_registry = ApiRegistry(
+            project_id,
+            header_provider=lambda _: {"x-goog-user-project": project_id}
+        )
 
-            # Get the MCP toolset
-            mcp_toolset = api_registry.get_toolset(
-                mcp_server_name=mcp_server_name,
-                tool_filter=["execute_sql", "list_dataset_ids", "list_table_ids", "get_table_info"]
-            )
+        # Get the MCP toolset (this is synchronous, returns a toolset object)
+        mcp_toolset = api_registry.get_toolset(
+            mcp_server_name=mcp_server_name,
+            tool_filter=["execute_sql", "list_dataset_ids", "list_table_ids", "get_table_info"]
+        )
 
-            # Store for cleanup
-            toolsets_to_close.append(mcp_toolset)
-
-            # Get tools immediately (not lazily) in the current task context
-            mcp_tools = await mcp_toolset.get_tools()
-            tools.extend(mcp_tools)
-
-            logger.info(f"Successfully created {len(mcp_tools)} MCP tools")
-        else:
-            logger.warning("No Project ID detected; skipping BigQuery MCP tools.")
+        logger.info("Successfully created BigQuery MCP toolset")
+        return mcp_toolset
 
     except Exception as e:
-        logger.error(f"Failed to create BigQuery MCP tools: {e}", exc_info=True)
-        # Clean up any partially created toolsets
-        for toolset in toolsets_to_close:
-            try:
-                await toolset.close()
-            except Exception as cleanup_error:
-                logger.warning(f"Error during emergency cleanup: {cleanup_error}")
-        raise
-
-    # Return tools and a cleanup function
-    async def cleanup():
-        """Cleanup function to close all MCP sessions."""
-        for toolset in toolsets_to_close:
-            try:
-                await toolset.close()
-                logger.debug("Successfully closed MCP toolset")
-            except Exception as e:
-                logger.warning(f"Error closing MCP toolset: {e}")
-
-    return tools, cleanup
+        logger.error(f"Failed to create BigQuery MCP toolset: {e}", exc_info=True)
+        return None
 
 
 
@@ -243,8 +213,8 @@ async def run_aggregate_analysis(
     except:
         pass
 
-    # Create MCP tools in the current task context
-    mcp_tools, mcp_cleanup = await create_mcp_tools(project_id)
+    # Create MCP toolset (following blog post pattern: create once, pass directly)
+    mcp_toolset = create_bigquery_mcp_toolset(project_id)
 
     instruction = stage0_aggregate_analyzer.instruction
     if project_id:
@@ -252,30 +222,34 @@ async def run_aggregate_analysis(
 
     # Create a fresh agent instance with merged tools
     original_tools = stage0_aggregate_analyzer.tools or []
+
+    # Build tools list: add toolset if available (ADK will call get_tools() internally)
+    agent_tools = original_tools.copy()
+    if mcp_toolset:
+        agent_tools.append(mcp_toolset)
+
     fresh_aggregate_analyzer = LlmAgent(
         name=stage0_aggregate_analyzer.name,
         model=stage0_aggregate_analyzer.model,
         description=stage0_aggregate_analyzer.description,
         instruction=instruction,
-        # Merge the original python tools with the fresh MCP tools
-        tools=original_tools + mcp_tools
+        # Pass toolset directly - ADK framework handles lifecycle
+        tools=agent_tools
     )
 
     aggregate_tool = AgentTool(fresh_aggregate_analyzer)
-    try:
-        return await aggregate_tool.run_async(
-            args={
-                "request": (
-                    f"Context: {json.dumps(stage0_input)}\n"
-                    "Instruction: Perform aggregate analysis of trace data using BigQuery. "
-                    "Identify problem areas, detect trends, and select exemplar traces for investigation."
-                )
-            },
-            tool_context=tool_context
-        )
-    finally:
-        # Clean up MCP sessions in the same task that created them
-        await mcp_cleanup()
+
+    # No try/finally needed - ADK framework manages toolset lifecycle
+    return await aggregate_tool.run_async(
+        args={
+            "request": (
+                f"Context: {json.dumps(stage0_input)}\n"
+                "Instruction: Perform aggregate analysis of trace data using BigQuery. "
+                "Identify problem areas, detect trends, and select exemplar traces for investigation."
+            )
+        },
+        tool_context=tool_context
+    )
 
 
 @adk_tool
@@ -381,8 +355,9 @@ base_tools = [
     get_logs_for_trace,
 ]
 
-# Note: MCP tools are created on-demand in run_aggregate_analysis() to ensure
-# proper lifecycle management (creation and cleanup in the same asyncio task).
+# Note: MCP toolsets are created per-request in run_aggregate_analysis() and passed
+# directly to the agent (following Google Cloud blog post pattern). The ADK framework
+# handles toolset lifecycle automatically - no manual cleanup needed.
 # This avoids "cancel scope in different task" errors.
 
 # Detect Project ID for instruction

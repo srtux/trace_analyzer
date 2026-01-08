@@ -36,8 +36,8 @@ google.auth = mock_auth
 
 class TestMCPIntegration(unittest.TestCase):
 
-    def test_create_mcp_tools_simple(self):
-        """Test that create_mcp_tools creates tools directly without lazy loading."""
+    def test_create_bigquery_mcp_toolset_simple(self):
+        """Test that create_bigquery_mcp_toolset creates toolset following blog post pattern."""
         # We'll use the mock we injected into sys.modules
         mock_registry_module = sys.modules["google.adk.tools.api_registry"]
         mock_registry_cls = mock_registry_module.ApiRegistry
@@ -48,57 +48,58 @@ class TestMCPIntegration(unittest.TestCase):
         # Reload agent to ensure it picks up the mocks and runs clean
         if "trace_analyzer.agent" in sys.modules:
             del sys.modules["trace_analyzer.agent"]
-        from trace_analyzer.agent import create_mcp_tools
+        from trace_analyzer.agent import create_bigquery_mcp_toolset
 
         # Setup registry mock instance interactions
         mock_registry_instance = mock_registry_cls.return_value
         mock_toolset = MagicMock()
-        mock_toolset.get_tools = AsyncMock(return_value=["tool1", "tool2"])
-        mock_toolset.close = AsyncMock()
         mock_registry_instance.get_toolset.return_value = mock_toolset
 
-        # Run the async function
-        async def run_test():
-            tools, cleanup = await create_mcp_tools("test-project")
+        # Test: create toolset (synchronous, no await)
+        toolset = create_bigquery_mcp_toolset("test-project")
 
-            # Verify tools were created immediately (not lazily)
-            self.assertEqual(tools, ["tool1", "tool2"])
+        # Verify toolset was returned (not tools)
+        self.assertIsNotNone(toolset)
+        self.assertEqual(toolset, mock_toolset)
 
-            # Verify get_tools was called
-            mock_toolset.get_tools.assert_called_once()
+        # Verify get_toolset was called
+        mock_registry_instance.get_toolset.assert_called_once()
 
-            # Test cleanup
-            await cleanup()
-            mock_toolset.close.assert_called_once()
+        # Verify get_tools() was NOT called (ADK framework will call it)
+        self.assertFalse(hasattr(mock_toolset.get_tools, 'call_count') or mock_toolset.get_tools.call_count == 0)
 
-        asyncio.run(run_test())
+    def test_create_bigquery_mcp_toolset_no_project(self):
+        """Test that create_bigquery_mcp_toolset handles missing project ID gracefully."""
+        # Reload agent
+        if "trace_analyzer.agent" in sys.modules:
+            del sys.modules["trace_analyzer.agent"]
+        from trace_analyzer.agent import create_bigquery_mcp_toolset
 
-    def test_create_mcp_tools_error_handling(self):
-        """Test that create_mcp_tools handles errors and cleans up properly."""
+        # Test with None project_id
+        toolset = create_bigquery_mcp_toolset(None)
+        self.assertIsNone(toolset)
+
+        # Test with empty string
+        toolset = create_bigquery_mcp_toolset("")
+        self.assertIsNone(toolset)
+
+    def test_create_bigquery_mcp_toolset_error_handling(self):
+        """Test that create_bigquery_mcp_toolset handles errors gracefully."""
         mock_registry_module = sys.modules["google.adk.tools.api_registry"]
         mock_registry_cls = mock_registry_module.ApiRegistry
 
         # Reload agent
         if "trace_analyzer.agent" in sys.modules:
             del sys.modules["trace_analyzer.agent"]
-        from trace_analyzer.agent import create_mcp_tools
+        from trace_analyzer.agent import create_bigquery_mcp_toolset
 
-        # Setup mock to raise error during get_tools
+        # Setup mock to raise error during get_toolset
         mock_registry_instance = mock_registry_cls.return_value
-        mock_toolset = MagicMock()
-        mock_toolset.get_tools = AsyncMock(side_effect=Exception("Connection error"))
-        mock_toolset.close = AsyncMock()
-        mock_registry_instance.get_toolset.return_value = mock_toolset
+        mock_registry_instance.get_toolset.side_effect = Exception("Connection error")
 
-        async def run_test():
-            with self.assertRaises(Exception) as context:
-                await create_mcp_tools("test-project")
-
-            self.assertIn("Connection error", str(context.exception))
-            # Verify cleanup was attempted even on error
-            mock_toolset.close.assert_called_once()
-
-        asyncio.run(run_test())
+        # Test: should return None on error (not raise)
+        toolset = create_bigquery_mcp_toolset("test-project")
+        self.assertIsNone(toolset)
 
 
 if __name__ == "__main__":
