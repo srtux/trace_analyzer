@@ -26,6 +26,18 @@ The root agent orchestrates all three stages:
 1. Aggregate Analysis (BigQuery) → identify patterns and select exemplars
 2. Triage Analysis (Trace API) → compare specific traces
 3. Deep Dive Analysis → determine root cause and impact
+
+GCP MCP Tools Architecture:
+    This module provides generic MCP tools for interacting with GCP observability services:
+    - BigQuery: run_aggregate_analysis → google-bigquery.googleapis.com-mcp
+    - Cloud Logging: run_logging_query → logging.googleapis.com-mcp
+    - Cloud Monitoring: run_monitoring_query → monitoring.googleapis.com-mcp
+    - Cloud Trace: Uses direct API client (no MCP server available)
+
+    MCP server URLs can be overridden via environment variables:
+    - BIGQUERY_MCP_SERVER (default: google-bigquery.googleapis.com-mcp)
+    - LOGGING_MCP_SERVER (default: logging.googleapis.com-mcp)
+    - MONITORING_MCP_SERVER (default: monitoring.googleapis.com-mcp)
 """
 
 import asyncio
@@ -79,6 +91,17 @@ from .tools.trace_filter import (
 logger = logging.getLogger(__name__)
 
 
+def _get_project_id_with_fallback() -> str | None:
+    """Get project ID from environment or default credentials."""
+    project_id = None
+    try:
+        _, project_id = google.auth.default()
+        project_id = project_id or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    except Exception:
+        pass
+    return project_id
+
+
 def _create_bigquery_mcp_toolset(project_id: str | None = None):
     """
     Creates a new instance of the BigQuery MCP toolset.
@@ -89,11 +112,7 @@ def _create_bigquery_mcp_toolset(project_id: str | None = None):
     different task" errors because anyio cancel scopes cannot cross task boundaries.
     """
     if not project_id:
-        try:
-            _, project_id = google.auth.default()
-            project_id = project_id or os.environ.get("GOOGLE_CLOUD_PROJECT")
-        except Exception:
-            pass
+        project_id = _get_project_id_with_fallback()
 
     if not project_id:
         logger.warning(
@@ -107,7 +126,10 @@ def _create_bigquery_mcp_toolset(project_id: str | None = None):
         )
 
         # Pattern: projects/{project}/locations/global/mcpServers/{server_id}
-        mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/google-bigquery.googleapis.com-mcp"
+        # Allow override via environment variable
+        default_server = "google-bigquery.googleapis.com-mcp"
+        mcp_server = os.environ.get("BIGQUERY_MCP_SERVER", default_server)
+        mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
 
         # Create ApiRegistry with explicit quota project header
         api_registry = ApiRegistry(
@@ -130,6 +152,112 @@ def _create_bigquery_mcp_toolset(project_id: str | None = None):
     except Exception as e:
         logger.error(
             f"Failed to create BigQuery MCP toolset: {e}", exc_info=True
+        )
+        return None
+
+
+def _create_logging_mcp_toolset(project_id: str | None = None):
+    """
+    Creates a new instance of the Cloud Logging MCP toolset.
+
+    NOTE: This function should be called in an async context (within an async
+    function) to ensure proper MCP session lifecycle management.
+
+    Environment variable override:
+        LOGGING_MCP_SERVER: Override the default MCP server (default: logging.googleapis.com-mcp)
+    """
+    if not project_id:
+        project_id = _get_project_id_with_fallback()
+
+    if not project_id:
+        logger.warning(
+            "No Project ID detected; Cloud Logging MCP toolset will not be available"
+        )
+        return None
+
+    try:
+        logger.info(
+            f"Creating Cloud Logging MCP toolset for project: {project_id}"
+        )
+
+        # Allow override via environment variable
+        default_server = "logging.googleapis.com-mcp"
+        mcp_server = os.environ.get("LOGGING_MCP_SERVER", default_server)
+        mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
+
+        # Create ApiRegistry with explicit quota project header
+        api_registry = ApiRegistry(
+            project_id, header_provider=lambda _: {"x-goog-user-project": project_id}
+        )
+
+        # Get the MCP toolset - this creates a new session
+        mcp_toolset = api_registry.get_toolset(
+            mcp_server_name=mcp_server_name,
+            tool_filter=[
+                "list_log_entries",
+                "list_logs",
+                "list_resource_descriptors",
+            ],
+        )
+
+        return mcp_toolset
+
+    except Exception as e:
+        logger.error(
+            f"Failed to create Cloud Logging MCP toolset: {e}", exc_info=True
+        )
+        return None
+
+
+def _create_monitoring_mcp_toolset(project_id: str | None = None):
+    """
+    Creates a new instance of the Cloud Monitoring MCP toolset.
+
+    NOTE: This function should be called in an async context (within an async
+    function) to ensure proper MCP session lifecycle management.
+
+    Environment variable override:
+        MONITORING_MCP_SERVER: Override the default MCP server (default: monitoring.googleapis.com-mcp)
+    """
+    if not project_id:
+        project_id = _get_project_id_with_fallback()
+
+    if not project_id:
+        logger.warning(
+            "No Project ID detected; Cloud Monitoring MCP toolset will not be available"
+        )
+        return None
+
+    try:
+        logger.info(
+            f"Creating Cloud Monitoring MCP toolset for project: {project_id}"
+        )
+
+        # Allow override via environment variable
+        default_server = "monitoring.googleapis.com-mcp"
+        mcp_server = os.environ.get("MONITORING_MCP_SERVER", default_server)
+        mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
+
+        # Create ApiRegistry with explicit quota project header
+        api_registry = ApiRegistry(
+            project_id, header_provider=lambda _: {"x-goog-user-project": project_id}
+        )
+
+        # Get the MCP toolset - this creates a new session
+        mcp_toolset = api_registry.get_toolset(
+            mcp_server_name=mcp_server_name,
+            tool_filter=[
+                "list_time_series",
+                "list_metric_descriptors",
+                "list_monitored_resource_descriptors",
+            ],
+        )
+
+        return mcp_toolset
+
+    except Exception as e:
+        logger.error(
+            f"Failed to create Cloud Monitoring MCP toolset: {e}", exc_info=True
         )
         return None
 
@@ -364,6 +492,194 @@ async def run_deep_dive_analysis(
     )
 
 
+@adk_tool
+async def run_logging_query(
+    filter_str: str,
+    project_id: str | None = None,
+    limit: int = 100,
+    tool_context: ToolContext = None,
+) -> dict:
+    """
+    Queries Cloud Logging using the remote MCP server.
+
+    This tool uses the Cloud Logging MCP server (logging.googleapis.com/mcp) to
+    query log entries. The MCP server URL can be overridden via the LOGGING_MCP_SERVER
+    environment variable.
+
+    Args:
+        filter_str: Cloud Logging filter string (e.g., 'severity>=ERROR AND resource.type="k8s_container"').
+        project_id: The Google Cloud Project ID. If not provided, uses default credentials.
+        limit: Maximum number of log entries to return (default 100).
+        tool_context: The tool context provided by the ADK.
+
+    Returns:
+        Query results from Cloud Logging including matching log entries.
+
+    Example filters:
+        - 'severity>=ERROR' - All errors and higher severity
+        - 'resource.type="gce_instance"' - Logs from Compute Engine instances
+        - 'trace="projects/PROJECT_ID/traces/TRACE_ID"' - Logs correlated with a trace
+        - 'timestamp>="2024-01-01T00:00:00Z"' - Time-bounded queries
+    """
+    if tool_context is None:
+        raise ValueError("tool_context is required for running MCP tools")
+
+    if not project_id:
+        project_id = _get_project_id_with_fallback()
+
+    if not project_id:
+        return {"error": "No project ID available. Set GOOGLE_CLOUD_PROJECT environment variable."}
+
+    max_retries = 3
+    base_delay = 1.0
+
+    for attempt in range(max_retries):
+        try:
+            mcp_toolset = _create_logging_mcp_toolset(project_id)
+
+            if not mcp_toolset:
+                # Fallback to direct API client if MCP is unavailable
+                logger.warning("Cloud Logging MCP unavailable, falling back to direct API")
+                from .tools.o11y_clients import list_log_entries as direct_list_logs
+                result = direct_list_logs(project_id, filter_str, limit)
+                return {"source": "direct_api", "result": json.loads(result) if isinstance(result, str) else result}
+
+            # Get the tools from the toolset
+            tools = await mcp_toolset.get_tools()
+
+            # Find and call list_log_entries
+            for tool in tools:
+                if tool.name == "list_log_entries":
+                    result = await tool.run_async(
+                        args={
+                            "filter": filter_str,
+                            "page_size": limit,
+                            "resource_names": [f"projects/{project_id}"],
+                        },
+                        tool_context=tool_context,
+                    )
+                    return {"source": "mcp", "result": result}
+
+            return {"error": "list_log_entries tool not found in MCP toolset"}
+
+        except Exception as e:
+            error_str = str(e)
+            is_session_error = (
+                "Session terminated" in error_str
+                or "session" in error_str.lower() and "error" in error_str.lower()
+            )
+
+            if is_session_error and attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(
+                    f"MCP session error during logging query attempt {attempt + 1}/{max_retries}: {e}. "
+                    f"Retrying in {delay}s..."
+                )
+                await asyncio.sleep(delay)
+            else:
+                if attempt >= max_retries - 1:
+                    logger.error(f"Logging query failed after {max_retries} attempts: {e}")
+                raise
+
+
+@adk_tool
+async def run_monitoring_query(
+    filter_str: str,
+    project_id: str | None = None,
+    minutes_ago: int = 60,
+    tool_context: ToolContext = None,
+) -> dict:
+    """
+    Queries Cloud Monitoring using the remote MCP server.
+
+    This tool uses the Cloud Monitoring MCP server (monitoring.googleapis.com/mcp) to
+    query time series metrics. The MCP server URL can be overridden via the
+    MONITORING_MCP_SERVER environment variable.
+
+    Args:
+        filter_str: Cloud Monitoring filter string for metrics.
+        project_id: The Google Cloud Project ID. If not provided, uses default credentials.
+        minutes_ago: How many minutes back to query (default 60).
+        tool_context: The tool context provided by the ADK.
+
+    Returns:
+        Query results from Cloud Monitoring including time series data.
+
+    Example filters:
+        - 'metric.type="compute.googleapis.com/instance/cpu/utilization"' - CPU utilization
+        - 'metric.type="loadbalancing.googleapis.com/https/request_count"' - Load balancer requests
+        - 'resource.labels.instance_id="12345"' - Filter by instance ID
+    """
+    if tool_context is None:
+        raise ValueError("tool_context is required for running MCP tools")
+
+    if not project_id:
+        project_id = _get_project_id_with_fallback()
+
+    if not project_id:
+        return {"error": "No project ID available. Set GOOGLE_CLOUD_PROJECT environment variable."}
+
+    max_retries = 3
+    base_delay = 1.0
+    import time as time_module
+
+    for attempt in range(max_retries):
+        try:
+            mcp_toolset = _create_monitoring_mcp_toolset(project_id)
+
+            if not mcp_toolset:
+                # Fallback to direct API client if MCP is unavailable
+                logger.warning("Cloud Monitoring MCP unavailable, falling back to direct API")
+                from .tools.o11y_clients import list_time_series as direct_list_metrics
+                result = direct_list_metrics(project_id, filter_str, minutes_ago)
+                return {"source": "direct_api", "result": json.loads(result) if isinstance(result, str) else result}
+
+            # Get the tools from the toolset
+            tools = await mcp_toolset.get_tools()
+
+            # Calculate time interval
+            now = time_module.time()
+            end_seconds = int(now)
+            start_seconds = int(now) - (minutes_ago * 60)
+
+            # Find and call list_time_series
+            for tool in tools:
+                if tool.name == "list_time_series":
+                    result = await tool.run_async(
+                        args={
+                            "name": f"projects/{project_id}",
+                            "filter": filter_str,
+                            "interval": {
+                                "end_time": {"seconds": end_seconds},
+                                "start_time": {"seconds": start_seconds},
+                            },
+                        },
+                        tool_context=tool_context,
+                    )
+                    return {"source": "mcp", "result": result}
+
+            return {"error": "list_time_series tool not found in MCP toolset"}
+
+        except Exception as e:
+            error_str = str(e)
+            is_session_error = (
+                "Session terminated" in error_str
+                or "session" in error_str.lower() and "error" in error_str.lower()
+            )
+
+            if is_session_error and attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(
+                    f"MCP session error during monitoring query attempt {attempt + 1}/{max_retries}: {e}. "
+                    f"Retrying in {delay}s..."
+                )
+                await asyncio.sleep(delay)
+            else:
+                if attempt >= max_retries - 1:
+                    logger.error(f"Monitoring query failed after {max_retries} attempts: {e}")
+                raise
+
+
 # Initialize base tools
 base_tools = [
     # Three-stage analysis architecture
@@ -390,19 +706,34 @@ base_tools = [
     validate_trace_quality,
     analyze_trace_patterns,
     get_current_time,
+    # GCP MCP tools - Cloud Logging and Cloud Monitoring
+    # These use remote MCP servers with fallback to direct API clients
+    run_logging_query,  # MCP: logging.googleapis.com/mcp
+    run_monitoring_query,  # MCP: monitoring.googleapis.com/mcp
+    # Direct API client tools (used as fallback or for simple queries)
     list_log_entries,
     list_time_series,
     list_error_events,
     get_logs_for_trace,
 ]
 
-# Note: MCP toolset is NOT created at module level to avoid async context issues.
+# Note: MCP toolsets are NOT created at module level to avoid async context issues.
 # Creating MCP sessions at module import time causes "Attempted to exit cancel scope
 # in a different task" errors because anyio cancel scopes cannot cross task boundaries.
 #
-# Instead, MCP toolsets are created lazily within async functions (like run_aggregate_analysis)
-# where they are needed. This ensures the session is created and managed in the correct
-# async context.
+# Instead, MCP toolsets are created lazily within async functions where they are needed.
+# This ensures the session is created and managed in the correct async context.
+#
+# GCP MCP Tools Architecture:
+# - BigQuery: run_aggregate_analysis -> _create_bigquery_mcp_toolset() -> google-bigquery.googleapis.com-mcp
+# - Logging: run_logging_query -> _create_logging_mcp_toolset() -> logging.googleapis.com-mcp
+# - Monitoring: run_monitoring_query -> _create_monitoring_mcp_toolset() -> monitoring.googleapis.com-mcp
+# - Trace: Uses direct Cloud Trace API client (no MCP server available)
+#
+# MCP server URLs can be overridden via environment variables:
+# - BIGQUERY_MCP_SERVER (default: google-bigquery.googleapis.com-mcp)
+# - LOGGING_MCP_SERVER (default: logging.googleapis.com-mcp)
+# - MONITORING_MCP_SERVER (default: monitoring.googleapis.com-mcp)
 
 final_instruction = prompt.ROOT_AGENT_PROMPT
 if project_id:
