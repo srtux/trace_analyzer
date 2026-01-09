@@ -1,0 +1,51 @@
+{
+  "trace_id": "cascading_timeout_trace_001",
+  "project_id": "mock-project",
+  "spans": [
+    {
+      "span_id": "gateway_timeout",
+      "name": "APIGateway",
+      "start_time": "2023-01-01T10:00:00.000Z",
+      "end_time": "2023-01-01T10:00:30.000Z",
+      "labels": {
+        "/http/method": "GET",
+        "/http/status_code": "504",
+        "error": "GatewayTimeout"
+      }
+    },
+    {
+      "span_id": "backend_timeout",
+      "name": "BackendService_timeout",
+      "parent_span_id": "gateway_timeout",
+      "start_time": "2023-01-01T10:00:00.100Z",
+      "end_time": "2023-01-01T10:00:29.900Z",
+      "labels": {
+        "error": "deadline exceeded",
+        "error.type": "timeout"
+      }
+    },
+    {
+      "span_id": "db_timeout",
+      "name": "DatabaseCall_timeout",
+      "parent_span_id": "backend_timeout",
+      "start_time": "2023-01-01T10:00:00.200Z",
+      "end_time": "2023-01-01T10:00:29.800Z",
+      "labels": {
+        "error": "context deadline exceeded",
+        "error.type": "timeout"
+      }
+    },
+    {
+      "span_id": "external_timeout",
+      "name": "ExternalAPI_timeout",
+      "parent_span_id": "db_timeout",
+      "start_time": "2023-01-01T10:00:00.300Z",
+      "end_time": "2023-01-01T10:00:29.700Z",
+      "labels": {
+        "error": "read timeout",
+        "error.type": "timeout"
+      }
+    }
+  ],
+  "duration_ms": 30000
+}

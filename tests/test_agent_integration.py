@@ -25,12 +25,12 @@ async def test_agent_initialization(mock_env):
     assert isinstance(root_agent, LlmAgent)
     assert root_agent.name == "trace_analyzer_agent"
 
-    # Check if the analysis tool is present
+    # Check if the analysis tool is present (updated for simplified architecture)
     analysis_tool = next(
         (
             t
             for t in root_agent.tools
-            if getattr(t, "name", getattr(t, "__name__", "")) == "run_triage_analysis"
+            if getattr(t, "name", getattr(t, "__name__", "")) == "run_investigation"
         ),
         None,
     )

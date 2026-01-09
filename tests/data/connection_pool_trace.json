@@ -1,0 +1,55 @@
+{
+  "trace_id": "connection_pool_trace_001",
+  "project_id": "mock-project",
+  "spans": [
+    {
+      "span_id": "root_pool",
+      "name": "APIHandler",
+      "start_time": "2023-01-01T10:00:00.000Z",
+      "end_time": "2023-01-01T10:00:02.500Z",
+      "labels": {
+        "/http/method": "GET",
+        "/http/status_code": "200"
+      }
+    },
+    {
+      "span_id": "pool_acquire_1",
+      "name": "connection_pool_acquire",
+      "parent_span_id": "root_pool",
+      "start_time": "2023-01-01T10:00:00.050Z",
+      "end_time": "2023-01-01T10:00:00.800Z",
+      "labels": {
+        "pool.size": "10",
+        "pool.active": "10",
+        "pool.waiting": "5"
+      }
+    },
+    {
+      "span_id": "db_query_1",
+      "name": "DatabaseQuery",
+      "parent_span_id": "root_pool",
+      "start_time": "2023-01-01T10:00:00.850Z",
+      "end_time": "2023-01-01T10:00:01.100Z"
+    },
+    {
+      "span_id": "pool_acquire_2",
+      "name": "connection_pool_checkout",
+      "parent_span_id": "root_pool",
+      "start_time": "2023-01-01T10:00:01.150Z",
+      "end_time": "2023-01-01T10:00:01.900Z",
+      "labels": {
+        "pool.size": "10",
+        "pool.active": "10",
+        "pool.waiting": "8"
+      }
+    },
+    {
+      "span_id": "db_query_2",
+      "name": "DatabaseQuery",
+      "parent_span_id": "root_pool",
+      "start_time": "2023-01-01T10:00:01.950Z",
+      "end_time": "2023-01-01T10:00:02.450Z"
+    }
+  ],
+  "duration_ms": 2500
+}

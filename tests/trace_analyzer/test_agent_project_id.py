@@ -3,12 +3,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from google.adk.tools import ToolContext
 
-from trace_analyzer.agent import run_deep_dive_analysis, run_triage_analysis
+from trace_analyzer.agent import run_investigation, run_root_cause_analysis
 
 
 @pytest.mark.asyncio
-async def test_run_triage_analysis_accepts_project_id():
-    """Test that run_triage_analysis accepts project_id and passes it to sub-agents."""
+async def test_run_investigation_accepts_project_id():
+    """Test that run_investigation accepts project_id and passes it to sub-agents."""
 
     # Mock tool context
     mock_context = MagicMock(spec=ToolContext)
@@ -19,15 +19,15 @@ async def test_run_triage_analysis_accepts_project_id():
         mock_tool_instance.run_async.return_value = "Mock Report"
         MockAgentTool.return_value = mock_tool_instance
 
-        # Run triage analysis
-        await run_triage_analysis(
+        # Run investigation (formerly triage analysis)
+        await run_investigation(
             baseline_trace_id="base",
             target_trace_id="target",
             project_id="test-project-id",
             tool_context=mock_context,
         )
 
-        # Verify it ran the triage agent
+        # Verify it ran the investigator agent
         assert MockAgentTool.call_count == 1
 
         # Verify project_id was passed
@@ -40,8 +40,8 @@ async def test_run_triage_analysis_accepts_project_id():
 
 
 @pytest.mark.asyncio
-async def test_run_deep_dive_analysis_accepts_project_id():
-    """Test that run_deep_dive_analysis accepts project_id and passes it to sub-agents."""
+async def test_run_root_cause_analysis_accepts_project_id():
+    """Test that run_root_cause_analysis accepts project_id and passes it to sub-agents."""
 
     # Mock tool context
     mock_context = MagicMock(spec=ToolContext)
@@ -52,16 +52,16 @@ async def test_run_deep_dive_analysis_accepts_project_id():
         mock_tool_instance.run_async.return_value = "Mock Report"
         MockAgentTool.return_value = mock_tool_instance
 
-        # Run deep dive analysis
-        await run_deep_dive_analysis(
+        # Run root cause analysis (formerly deep dive analysis)
+        await run_root_cause_analysis(
             baseline_trace_id="base",
             target_trace_id="target",
-            stage1_report="Report",
+            investigation_report="Report",
             project_id="test-project-id",
             tool_context=mock_context,
         )
 
-        # Verify it ran the deep dive agent
+        # Verify it ran the root cause agent
         assert MockAgentTool.call_count == 1
 
         # Verify project_id was passed

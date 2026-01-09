@@ -11,18 +11,22 @@ A Google ADK-based SRE assistant that performs sophisticated analysis on distrib
 
 - **Three-Stage Analysis Pipeline**:
   - **Stage 0 (Aggregate)**: BigQuery-powered analysis of thousands of traces to identify patterns and trends
-  - **Stage 1 (Triage)**: Parallel comparison of specific traces to identify differences
-  - **Stage 2 (Deep Dive)**: Root cause analysis with log correlation
+  - **Stage 1 (Investigation)**: Comprehensive trace comparison analyzing latency, errors, structure, and statistics
+  - **Stage 2 (Root Cause)**: Root cause analysis with service impact assessment
 - **BigQuery OpenTelemetry Integration**: Native support for OpenTelemetry schema in BigQuery, enabling:
   - Aggregate metrics analysis (error rates, latency percentiles by service)
   - Trend detection (when did performance degrade?)
   - Time period comparison (before vs after)
   - Exemplar trace selection (find representative baseline and outlier traces)
   - Log correlation (find related logs for root cause analysis)
-- **Parallel Analysis Squads**: Uses **7 specialized agents**:
+- **Streamlined Agent Architecture**: Uses **3 focused agents** (simplified from 7):
   - **Aggregate Analyzer**: BigQuery-powered data analyst
-  - **Triage Squad**: Latency, Error, Structure, Statistics analyzers
-  - **Deep Dive Squad**: Causality and Service Impact analyzers
+  - **Trace Investigator**: Comprehensive analysis of latency, errors, structure, and statistics
+  - **Root Cause Analyzer**: Causality analysis and service impact assessment
+- **SRE Pattern Detection**: Automatic detection of common distributed systems issues:
+  - Retry storms (excessive retries indicating downstream issues)
+  - Cascading timeouts (timeout propagation through service chains)
+  - Connection pool exhaustion (long waits for connections)
 - **Automatic Trace Discovery**: Intelligently identifies representative baseline (P50) and anomaly (P95 or error) traces
 - **Advanced Trace Filtering**: Supports complex filters including service names, HTTP status codes, min/max latency, and custom attribute matching
 - **Root Cause Synthesis**: Automatically identifies the critical path and performs causal analysis
@@ -30,7 +34,7 @@ A Google ADK-based SRE assistant that performs sophisticated analysis on distrib
 
 ## Architecture
 
-The agent is built using the Google Agent Development Kit (ADK). It uses a three-stage hierarchical orchestration pattern where a lead **SRE Detective** coordinates aggregate analysis, trace comparison, and deep-dive investigation.
+The agent is built using the Google Agent Development Kit (ADK). It uses a streamlined three-stage orchestration pattern where an **SRE Assistant** coordinates aggregate analysis, trace investigation, and root cause analysis.
 
 ### Analysis Workflow
 
@@ -44,16 +48,17 @@ The agent is built using the Google Agent Development Kit (ADK). It uses a three
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│  Stage 1: Triage (Trace API)                                   │
+│  Stage 1: Investigation (Trace Investigator)                   │
 │  • Compare baseline vs anomaly traces                          │
-│  • Identify latency, error, structure differences             │
-│  • Statistical analysis of outliers                            │
+│  • Analyze latency, errors, structure, statistics              │
+│  • Detect anti-patterns (N+1, serial chains, retry storms)     │
+│  • Identify critical path bottlenecks                          │
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│  Stage 2: Deep Dive (Root Cause)                               │
+│  Stage 2: Root Cause (Root Cause Analyzer)                     │
 │  • Causal analysis on critical path                            │
-│  • Service impact assessment                                   │
+│  • Service impact and blast radius assessment                  │
 │  • Log correlation for root cause evidence                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -79,35 +84,25 @@ flowchart TB
     subgraph ControlRow [ ]
         direction LR
         User([👤 User])
-        Agent["🕵️ <b>Trace Analyzer Agent</b><br/>(Root Controller)"]
+        Agent["🔧 <b>Trace Analyzer Agent</b><br/>(SRE Assistant)"]
         Gemini{{"🧠 <b>Gemini Model</b>"}}
-        
+
         User <==> Agent
         Agent <==> Gemini
     end
 
-    %% --- MIDDLE ROW: SQUADS ---
-    subgraph Squads [ ]
+    %% --- MIDDLE ROW: SIMPLIFIED AGENTS ---
+    subgraph Agents [ ]
         direction LR
-        
-        subgraph Triage [🚦 Triage Squad]
+
+        subgraph Stage1 [🔍 Investigation]
             direction TB
-            L["⏱️ Latency<br/>Sub-Agent"]
-            E["💥 Error<br/>Sub-Agent"]
-            S["🏗️ Structure<br/>Sub-Agent"]
-            ST["📊 Stats<br/>Sub-Agent"]
-            
-            %% Using invisible links to maintain vertical alignment without lines
-            L ~~~ E
-            S ~~~ ST
+            TI["📊 <b>Trace Investigator</b><br/>Latency • Errors • Structure • Stats"]
         end
-        
-        subgraph DeepDive [🔍 Deep Dive Squad]
+
+        subgraph Stage2 [🎯 Root Cause]
             direction TB
-            C["🔗 Causality<br/>Sub-Agent"]
-            SI["🌊 Impact<br/>Sub-Agent"]
-            
-            C ~~~ SI
+            RC["🔗 <b>Root Cause Analyzer</b><br/>Causality • Service Impact"]
         end
     end
 
@@ -116,22 +111,22 @@ flowchart TB
         direction LR
         TraceAPI["☁️ Trace API"]
         BQ["🗄️ BigQuery MCP"]
-        TQB["🛠️ Query Builder"]
+        SRE["⚠️ SRE Patterns"]
     end
 
     %% --- CONNECTIONS ---
-    Agent ==> Triage
-    Agent ==> DeepDive
+    Agent ==> Stage1
+    Agent ==> Stage2
 
     %% Usage Flow (Dotted)
     Agent -.-> ToolLayer
-    Triage -.-> ToolLayer
-    DeepDive -.-> ToolLayer
+    Stage1 -.-> ToolLayer
+    Stage2 -.-> ToolLayer
 
     %% --- STYLING ---
     style ControlRow fill:none,stroke:none
-    style Squads fill:none,stroke:none
-    
+    style Agents fill:none,stroke:none
+
     classDef userNode fill:#FFFFFF,stroke:#3C4043,stroke-width:2px,color:#3C4043;
     classDef agentNode fill:#1A73E8,stroke:#174EA6,stroke-width:2px,color:#FFFFFF;
     classDef brainNode fill:#F3E8FF,stroke:#9333EA,stroke-width:2px,stroke-dasharray: 5 5,color:#7E22CE;
@@ -141,8 +136,8 @@ flowchart TB
     class User userNode;
     class Agent agentNode;
     class Gemini brainNode;
-    class L,E,S,ST,C,SI squadNode;
-    class TraceAPI,BQ,TQB toolNode;
+    class TI,RC squadNode;
+    class TraceAPI,BQ,SRE toolNode;
 ```
 
 ### Interaction Workflow
@@ -166,49 +161,50 @@ flowchart TB
 }}%%
 sequenceDiagram
     actor User
-    participant Det as 🕵️ Detective
+    participant Agent as 🔧 SRE Assistant
     participant Tools as 🛠️ Tools
-    participant S1 as 🚨 Triage
-    participant S2 as 🤿 Deep Dive
+    participant Inv as 🔍 Investigator
+    participant RC as 🎯 Root Cause
 
-    Note over User, S2: 🔎 PHASE 1: EVIDENCE GATHERING
+    Note over User, RC: 📊 PHASE 1: DATA GATHERING
 
-    User->>Det: 1. "Analyze these traces..."
-    Det->>Tools: 2. Fetch Trace Data
+    User->>Agent: 1. "Analyze these traces..."
+    Agent->>Tools: 2. Fetch Trace Data
     activate Tools
-    Tools-->>Det: 3. Trace Data
+    Tools-->>Agent: 3. Trace Data
     deactivate Tools
 
-    Note over User, S2: ⚡ PHASE 2: IDENTIFICATION
+    Note over User, RC: 🔍 PHASE 2: INVESTIGATION
 
-    Det->>S1: 4. Run Analysis
-    activate S1
-    S1->>S1: 5. Check Latency/Errors
-    S1-->>Det: 6. Suspects Found
-    deactivate S1
-    
-    Det->>User: 7. "I found latency spikes..."
+    Agent->>Inv: 4. Run Investigation
+    activate Inv
+    Inv->>Inv: 5. Analyze Latency/Errors/Structure
+    Inv-->>Agent: 6. Investigation Report
+    deactivate Inv
 
-    Note over User, S2: 🕵️ PHASE 3: ROOT CAUSE
+    Agent->>User: 7. "Found performance issues..."
 
-    User->>Det: 8. "Dig deeper"
-    
-    Det->>S2: 9. Deep Dive
-    activate S2
-    S2->>S2: 10. Causal Analysis
-    S2-->>Det: 11. Root Cause
-    deactivate S2
+    Note over User, RC: 🎯 PHASE 3: ROOT CAUSE
 
-    Note over User, S2: 📝 PHASE 4: VERDICT
-    
-    Det->>User: 12. 📂 FINAL CASE FILE
+    User->>Agent: 8. "Find the root cause"
+
+    Agent->>RC: 9. Root Cause Analysis
+    activate RC
+    RC->>RC: 10. Causal Chain + Impact
+    RC-->>Agent: 11. Root Cause Report
+    deactivate RC
+
+    Note over User, RC: 📝 PHASE 4: REPORT
+
+    Agent->>User: 12. 📋 Analysis Report
 ```
 
 ### Core Components
-- **SRE Detective (Root)**: The orchestrator with an "SRE Detective" persona that synthesizes findings into a "Case File". It uses a three-stage workflow optimized for production investigations.
+- **SRE Assistant (Root)**: The orchestrator that coordinates analysis and synthesizes findings into actionable reports. Uses a streamlined three-stage workflow optimized for SRE troubleshooting.
 - **Aggregate Analyzer (Stage 0)**: Uses BigQuery to analyze OpenTelemetry trace data at scale, identifying patterns, trends, and selecting exemplar traces.
-- **Triage Squad (Stage 1)**: Rapidly identifies *what* is wrong (Latency, Errors, Structure, Stats) by comparing specific traces.
-- **Deep Dive Squad (Stage 2)**: Investigates *why* it happened (Causality) and *who* else is affected (Service Impact), with log correlation.
+- **Trace Investigator (Stage 1)**: Comprehensive analysis that identifies *what* is wrong by examining latency, errors, structure, and statistical patterns. Detects anti-patterns like N+1 queries, serial chains, and retry storms.
+- **Root Cause Analyzer (Stage 2)**: Investigates *why* it happened (causality analysis) and *who* else is affected (service impact and blast radius assessment).
+- **SRE Pattern Detection**: Automatic detection of common distributed systems issues including retry storms, cascading timeouts, and connection pool exhaustion.
 - **Dynamic MCP Integration**: Uses `ApiRegistry` to lazily load BigQuery tools, ensuring cross-platform stability.
 
 ### OpenTelemetry BigQuery Schema Support
@@ -340,24 +336,22 @@ uv run adk web
 ```
 trace_analyzer/
 ├── trace_analyzer/
-│   ├── agent.py          # Root orchestrator ("SRE Detective")
+│   ├── agent.py          # Root orchestrator (SRE Assistant)
+│   ├── prompt_v2.py      # Streamlined SRE-focused prompts
 │   ├── sub_agents/       # Specialized analysis agents
-│   │   ├── aggregate/    # Aggregate Analyzer (BigQuery)
-│   │   ├── latency/      # Latency Analyzer
-│   │   ├── error/        # Error Analyzer
-│   │   ├── structure/    # Structure Analyzer
-│   │   ├── statistics/   # Statistics Analyzer
-│   │   ├── causality/    # Causality Analyzer
-│   │   └── service_impact/ # Service Impact Analyzer
+│   │   ├── aggregate/    # Stage 0: Aggregate Analyzer (BigQuery)
+│   │   ├── investigator/ # Stage 1: Trace Investigator (consolidated)
+│   │   └── root_cause/   # Stage 2: Root Cause Analyzer (consolidated)
 │   ├── tools/
-│   │   ├── bigquery_otel.py    # BigQuery OpenTelemetry analysis tools
-│   │   ├── o11y_clients.py     # Shared Observability (Trace/Log/Error) Client
-│   │   ├── trace_filter.py     # Advanced TraceQueryBuilder
+│   │   ├── bigquery_otel.py      # BigQuery OpenTelemetry analysis tools
+│   │   ├── o11y_clients.py       # Shared Observability (Trace/Log/Error) Client
+│   │   ├── trace_analysis.py     # Trace comparison and diffing tools
 │   │   ├── statistical_analysis.py  # Statistical analysis tools
-│   │   └── ...
-│   └── prompt.py         # Advanced multi-turn prompting logic
+│   │   ├── sre_patterns.py       # SRE pattern detection (retry storms, timeouts, etc.)
+│   │   └── trace_filter.py       # Advanced TraceQueryBuilder
+│   └── schema.py         # Pydantic schemas for structured outputs
 ├── tests/                # Comprehensive test suite
-├── deployment/           # Deployment scripts
+├── deploy/               # Deployment scripts
 ├── AGENTS.md             # Developer & Contributor guide
 ├── pyproject.toml        # uv-based build configuration
 └── README.md
@@ -365,11 +359,12 @@ trace_analyzer/
 
 ## Reliability & Performance
 
-- **Lazy MCP Loading**: Implements `LazyMcpRegistryToolset` to prevent session conflicts in ASGI/uvicorn environments, ensuring stable deployment.
+- **Simplified Architecture**: Streamlined from 7 to 3 agents, reducing coordination overhead and improving execution speed.
+- **Singleton MCP Pattern**: Uses `lru_cache` to prevent MCP session timeout issues in ASGI/uvicorn environments.
 - **Observability**: Fully instrumented with OpenTelemetry for tracking tool execution and agent performance.
 - **Truncation & Noise Reduction**: Advanced logging patterns ensure that large trace datasets don't overwhelm LLM context windows.
 - **Scalable Analysis**: BigQuery integration allows analyzing millions of traces without overwhelming the Trace API.
-- **Parallel Processing**: Triage and Deep Dive squads run analyzers in parallel for faster insights.
+- **SRE Pattern Detection**: Automatic detection of common issues (retry storms, cascading timeouts, pool exhaustion) for faster troubleshooting.
 
 ## BigQuery Setup (Optional but Recommended)
 

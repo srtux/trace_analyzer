@@ -1,0 +1,72 @@
+{
+  "trace_id": "retry_storm_trace_001",
+  "project_id": "mock-project",
+  "spans": [
+    {
+      "span_id": "root_retry",
+      "name": "APIHandler",
+      "start_time": "2023-01-01T10:00:00.000Z",
+      "end_time": "2023-01-01T10:00:03.000Z",
+      "labels": {
+        "/http/method": "POST",
+        "/http/status_code": "503"
+      }
+    },
+    {
+      "span_id": "db_retry_1",
+      "name": "DatabaseQuery",
+      "parent_span_id": "root_retry",
+      "start_time": "2023-01-01T10:00:00.050Z",
+      "end_time": "2023-01-01T10:00:00.150Z",
+      "labels": {
+        "error": "ConnectionRefused",
+        "retry.attempt": "1"
+      }
+    },
+    {
+      "span_id": "db_retry_2",
+      "name": "DatabaseQuery",
+      "parent_span_id": "root_retry",
+      "start_time": "2023-01-01T10:00:00.200Z",
+      "end_time": "2023-01-01T10:00:00.400Z",
+      "labels": {
+        "error": "ConnectionRefused",
+        "retry.attempt": "2"
+      }
+    },
+    {
+      "span_id": "db_retry_3",
+      "name": "DatabaseQuery",
+      "parent_span_id": "root_retry",
+      "start_time": "2023-01-01T10:00:00.500Z",
+      "end_time": "2023-01-01T10:00:00.900Z",
+      "labels": {
+        "error": "ConnectionRefused",
+        "retry.attempt": "3"
+      }
+    },
+    {
+      "span_id": "db_retry_4",
+      "name": "DatabaseQuery",
+      "parent_span_id": "root_retry",
+      "start_time": "2023-01-01T10:00:01.000Z",
+      "end_time": "2023-01-01T10:00:01.800Z",
+      "labels": {
+        "error": "ConnectionRefused",
+        "retry.attempt": "4"
+      }
+    },
+    {
+      "span_id": "db_retry_5",
+      "name": "DatabaseQuery",
+      "parent_span_id": "root_retry",
+      "start_time": "2023-01-01T10:00:02.000Z",
+      "end_time": "2023-01-01T10:00:02.900Z",
+      "labels": {
+        "error": "ConnectionRefused",
+        "retry.attempt": "5"
+      }
+    }
+  ],
+  "duration_ms": 3000
+}
