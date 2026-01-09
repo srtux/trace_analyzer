@@ -28,6 +28,7 @@ The root agent orchestrates all three stages:
 3. Deep Dive Analysis → determine root cause and impact
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -219,38 +220,72 @@ async def run_aggregate_analysis(
         "service_name": service_name,
     }
 
-    # Create MCP toolset lazily in async context to avoid session lifecycle issues.
-    # Creating at module import time causes "Attempted to exit cancel scope in a
-    # different task" errors because the session cleanup happens in a different
-    # async task than where it was created.
-    mcp_toolset = _create_bigquery_mcp_toolset()
+    # Retry loop to handle MCP session timeouts.
+    # MCP sessions can terminate during long-running LLM calls (~6+ seconds).
+    # When this happens, we create a fresh MCP toolset and retry.
+    max_retries = 3
+    base_delay = 1.0  # Exponential backoff: 1s, 2s, 4s
 
-    # Create a fresh agent instance with MCP tools for this request.
-    # This ensures the MCP session is created in the correct async context.
-    tools = list(stage0_aggregate_analyzer.tools)
-    if mcp_toolset:
-        tools.append(mcp_toolset)
+    for attempt in range(max_retries):
+        try:
+            # Create MCP toolset lazily in async context to avoid session lifecycle issues.
+            # Creating at module import time causes "Attempted to exit cancel scope in a
+            # different task" errors because the session cleanup happens in a different
+            # async task than where it was created.
+            mcp_toolset = _create_bigquery_mcp_toolset()
 
-    fresh_analyzer = LlmAgent(
-        name=stage0_aggregate_analyzer.name,
-        model=stage0_aggregate_analyzer.model,
-        description=stage0_aggregate_analyzer.description,
-        instruction=stage0_aggregate_analyzer.instruction,
-        tools=tools,
-    )
+            # Create a fresh agent instance with MCP tools for this request.
+            # This ensures the MCP session is created in the correct async context.
+            tools = list(stage0_aggregate_analyzer.tools)
+            if mcp_toolset:
+                tools.append(mcp_toolset)
 
-    aggregate_tool = AgentTool(fresh_analyzer)
-
-    return await aggregate_tool.run_async(
-        args={
-            "request": (
-                f"Context: {json.dumps(stage0_input)}\n"
-                "Instruction: Perform aggregate analysis of trace data using BigQuery. "
-                "Identify problem areas, detect trends, and select exemplar traces for investigation."
+            fresh_analyzer = LlmAgent(
+                name=stage0_aggregate_analyzer.name,
+                model=stage0_aggregate_analyzer.model,
+                description=stage0_aggregate_analyzer.description,
+                instruction=stage0_aggregate_analyzer.instruction,
+                tools=tools,
             )
-        },
-        tool_context=tool_context,
-    )
+
+            aggregate_tool = AgentTool(fresh_analyzer)
+
+            logger.info(f"Starting aggregate analysis (attempt {attempt + 1}/{max_retries})")
+
+            return await aggregate_tool.run_async(
+                args={
+                    "request": (
+                        f"Context: {json.dumps(stage0_input)}\n"
+                        "Instruction: Perform aggregate analysis of trace data using BigQuery. "
+                        "Identify problem areas, detect trends, and select exemplar traces for investigation."
+                    )
+                },
+                tool_context=tool_context,
+            )
+
+        except Exception as e:
+            # Check for MCP session errors (Session terminated, connection errors, etc.)
+            error_str = str(e)
+            is_session_error = (
+                "Session terminated" in error_str
+                or "session" in error_str.lower() and "error" in error_str.lower()
+            )
+
+            if is_session_error and attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(
+                    f"MCP session error during attempt {attempt + 1}/{max_retries}: {e}. "
+                    f"Retrying in {delay}s with fresh MCP toolset..."
+                )
+                await asyncio.sleep(delay)
+                # Continue to next iteration which creates a new MCP toolset
+            else:
+                # Not a retryable error or max retries reached
+                if attempt >= max_retries - 1:
+                    logger.error(
+                        f"Aggregate analysis failed after {max_retries} attempts: {e}"
+                    )
+                raise
 
 
 
