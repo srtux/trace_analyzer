@@ -28,7 +28,6 @@ The root agent orchestrates all three stages:
 3. Deep Dive Analysis → determine root cause and impact
 """
 
-import functools
 import json
 import logging
 import os
@@ -79,10 +78,14 @@ from .tools.trace_filter import (
 logger = logging.getLogger(__name__)
 
 
-@functools.lru_cache(maxsize=1)
 def _create_bigquery_mcp_toolset(project_id: str | None = None):
     """
     Creates a new instance of the BigQuery MCP toolset.
+
+    NOTE: This function should be called in an async context (within an async
+    function) to ensure proper MCP session lifecycle management. Creating the
+    toolset at module import time causes "Attempted to exit cancel scope in a
+    different task" errors because anyio cancel scopes cannot cross task boundaries.
     """
     if not project_id:
         try:
@@ -128,16 +131,6 @@ def _create_bigquery_mcp_toolset(project_id: str | None = None):
             f"Failed to create BigQuery MCP toolset: {e}", exc_info=True
         )
         return None
-
-
-def get_bigquery_mcp_toolset():
-    """
-    Factory function for BigQuery MCP toolset.
-
-    Returns:
-        A new MCP toolset instance, or None if not available.
-    """
-    return _create_bigquery_mcp_toolset()
 
 
 
@@ -226,7 +219,27 @@ async def run_aggregate_analysis(
         "service_name": service_name,
     }
 
-    aggregate_tool = AgentTool(stage0_aggregate_analyzer)
+    # Create MCP toolset lazily in async context to avoid session lifecycle issues.
+    # Creating at module import time causes "Attempted to exit cancel scope in a
+    # different task" errors because the session cleanup happens in a different
+    # async task than where it was created.
+    mcp_toolset = _create_bigquery_mcp_toolset()
+
+    # Create a fresh agent instance with MCP tools for this request.
+    # This ensures the MCP session is created in the correct async context.
+    tools = list(stage0_aggregate_analyzer.tools)
+    if mcp_toolset:
+        tools.append(mcp_toolset)
+
+    fresh_analyzer = LlmAgent(
+        name=stage0_aggregate_analyzer.name,
+        model=stage0_aggregate_analyzer.model,
+        description=stage0_aggregate_analyzer.description,
+        instruction=stage0_aggregate_analyzer.instruction,
+        tools=tools,
+    )
+
+    aggregate_tool = AgentTool(fresh_analyzer)
 
     return await aggregate_tool.run_async(
         args={
@@ -348,17 +361,13 @@ base_tools = [
     get_logs_for_trace,
 ]
 
-# Note: MCP toolset is created ONCE at module level (singleton pattern) and reused
-# across all requests. This follows the Google Cloud blog post pattern:
-# https://cloud.google.com/blog/products/data-analytics/using-the-fully-managed-remote-bigquery-mcp-server-to-build-data-ai-agents/
+# Note: MCP toolset is NOT created at module level to avoid async context issues.
+# Creating MCP sessions at module import time causes "Attempted to exit cancel scope
+# in a different task" errors because anyio cancel scopes cannot cross task boundaries.
 #
-# The singleton pattern avoids MCP session timeout issues that occurred with
-# per-request toolset creation (where sessions would terminate during LLM calls).
-mcp_toolset = get_bigquery_mcp_toolset()
-if mcp_toolset:
-    base_tools.append(mcp_toolset)
-    # Also add to the stage0 aggregate analyzer
-    stage0_aggregate_analyzer.tools.append(mcp_toolset)
+# Instead, MCP toolsets are created lazily within async functions (like run_aggregate_analysis)
+# where they are needed. This ensures the session is created and managed in the correct
+# async context.
 
 final_instruction = prompt.ROOT_AGENT_PROMPT
 if project_id:

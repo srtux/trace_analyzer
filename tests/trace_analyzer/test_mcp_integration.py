@@ -65,32 +65,47 @@ class TestMCPIntegration(unittest.TestCase):
             ):
                 del sys.modules[mod]
 
-    def test_factory_is_singleton(self):
-        """Test that get_bigquery_mcp_toolset acts as a singleton factory."""
+    def test_create_bigquery_mcp_toolset_returns_toolset(self):
+        """Test that _create_bigquery_mcp_toolset creates a toolset when project is available."""
         # Setup registry mock
         mock_api_registry = MagicMock()
         mock_toolset = MagicMock()
         mock_api_registry.get_toolset.return_value = mock_toolset
         self.mock_registry_cls.return_value = mock_api_registry
 
-        # Import triggers module load and singleton creation
-        import trace_analyzer.agent
+        # Import the function
+        from trace_analyzer.agent import _create_bigquery_mcp_toolset
 
-        # Call the getter
-        result1 = trace_analyzer.agent.get_bigquery_mcp_toolset()
+        # Call the function
+        result = _create_bigquery_mcp_toolset()
 
-        # Call it again
-        result2 = trace_analyzer.agent.get_bigquery_mcp_toolset()
-
-        # Should only be called ONCE
+        # Should return the toolset
+        self.assertEqual(result, mock_toolset)
         mock_api_registry.get_toolset.assert_called_once()
 
-        # Results should be the SAME instance
-        self.assertIs(result1, result2)
-        self.assertEqual(result1, mock_toolset)
+    def test_create_bigquery_mcp_toolset_creates_new_instance_each_call(self):
+        """Test that _create_bigquery_mcp_toolset creates new toolsets (no caching)."""
+        # Setup registry mock
+        mock_api_registry = MagicMock()
+        mock_toolset1 = MagicMock()
+        mock_toolset2 = MagicMock()
+        mock_api_registry.get_toolset.side_effect = [mock_toolset1, mock_toolset2]
+        self.mock_registry_cls.return_value = mock_api_registry
 
-    def test_singleton_handles_missing_project_gracefully(self):
-        """Test that module-level singleton creation handles missing project ID."""
+        from trace_analyzer.agent import _create_bigquery_mcp_toolset
+
+        # Call twice
+        result1 = _create_bigquery_mcp_toolset()
+        result2 = _create_bigquery_mcp_toolset()
+
+        # Should return different instances (not cached)
+        self.assertEqual(result1, mock_toolset1)
+        self.assertEqual(result2, mock_toolset2)
+        # get_toolset should be called twice
+        self.assertEqual(mock_api_registry.get_toolset.call_count, 2)
+
+    def test_create_bigquery_mcp_toolset_handles_missing_project_gracefully(self):
+        """Test that _create_bigquery_mcp_toolset handles missing project ID."""
         # Setup: mock auth to return no project
         self.mock_auth.default.return_value = (MagicMock(), None)
 
@@ -100,27 +115,42 @@ class TestMCPIntegration(unittest.TestCase):
             del os.environ["GOOGLE_CLOUD_PROJECT"]
 
         try:
-            from trace_analyzer.agent import get_bigquery_mcp_toolset
+            from trace_analyzer.agent import _create_bigquery_mcp_toolset
 
             # Should return None when no project is available
-            result = get_bigquery_mcp_toolset()
+            result = _create_bigquery_mcp_toolset()
             self.assertIsNone(result)
         finally:
             if old_env:
                 os.environ["GOOGLE_CLOUD_PROJECT"] = old_env
 
-    def test_singleton_handles_creation_error_gracefully(self):
-        """Test that module-level singleton creation handles errors gracefully."""
+    def test_create_bigquery_mcp_toolset_handles_creation_error_gracefully(self):
+        """Test that _create_bigquery_mcp_toolset handles errors gracefully."""
         # Setup mock to raise error during get_toolset
         self.mock_registry_cls.return_value.get_toolset.side_effect = Exception(
             "Connection error"
         )
 
-        from trace_analyzer.agent import get_bigquery_mcp_toolset
+        from trace_analyzer.agent import _create_bigquery_mcp_toolset
 
         # Should return None on error (not raise)
-        result = get_bigquery_mcp_toolset()
+        result = _create_bigquery_mcp_toolset()
         self.assertIsNone(result)
+
+    def test_mcp_toolset_not_created_at_module_import(self):
+        """Test that MCP toolset is NOT created at module import time."""
+        # Setup registry mock
+        mock_api_registry = MagicMock()
+        mock_toolset = MagicMock()
+        mock_api_registry.get_toolset.return_value = mock_toolset
+        self.mock_registry_cls.return_value = mock_api_registry
+
+        # Import the module
+        import trace_analyzer.agent
+
+        # get_toolset should NOT have been called during import
+        # (MCP toolset is created lazily in async context, not at module level)
+        mock_api_registry.get_toolset.assert_not_called()
 
 
 if __name__ == "__main__":
