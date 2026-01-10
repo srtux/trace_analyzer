@@ -478,7 +478,7 @@ Required roles for the service account:
 ## CI/CD Pipeline
 
 The project uses **GitHub Actions** for automated testing and deployment.
-See [.github/README.md](.github/README.md) for detailed configuration and secret requirements.
+See [.github/CICD.md](.github/CICD.md) for detailed configuration and secret requirements.
 
 ## License
 
