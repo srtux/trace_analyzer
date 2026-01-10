@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from google.adk.tools import ToolContext
 
-from trace_analyzer.agent import run_deep_dive_analysis, run_triage_analysis
+from gcp_observability.agent import run_deep_dive_analysis, run_triage_analysis
 
 
 @pytest.mark.asyncio
@@ -13,7 +13,7 @@ async def test_run_triage_analysis_flow():
     mock_tool_context = MagicMock(spec=ToolContext)
 
     # Mock AgentTool to intercept run_async calls
-    with patch("trace_analyzer.agent.AgentTool") as MockAgentTool:
+    with patch("gcp_observability.agent.AgentTool") as MockAgentTool:
         mock_tool_instance = AsyncMock()
         MockAgentTool.return_value = mock_tool_instance
 
@@ -24,17 +24,17 @@ async def test_run_triage_analysis_flow():
             baseline_trace_id="b1", target_trace_id="t1", tool_context=mock_tool_context
         )
 
-        # Verify AgentTool instantiation
-        assert MockAgentTool.call_count == 1
+        # Verify AgentTool instantiation (4 sub-agents)
+        assert MockAgentTool.call_count == 4
 
-        # Verify run_async call
-        mock_tool_instance.run_async.assert_called_once()
-        call_args = mock_tool_instance.run_async.call_args
-        args = call_args.kwargs["args"]
-        assert "Context:" in args["request"]
-        assert "b1" in args["request"]
-
-        assert result == "Stage 1 Report Content"
+        # Verify run_async calls
+        assert mock_tool_instance.run_async.call_count == 4
+        
+        # Verify result structure
+        assert result["stage"] == "triage"
+        assert result["baseline_trace_id"] == "b1"
+        assert result["target_trace_id"] == "t1"
+        assert result["results"]["latency"]["result"] == "Stage 1 Report Content"
 
 
 @pytest.mark.asyncio
@@ -42,7 +42,7 @@ async def test_run_deep_dive_analysis_flow():
     """Test run_deep_dive_analysis runs Stage 2 squad."""
     mock_tool_context = MagicMock(spec=ToolContext)
 
-    with patch("trace_analyzer.agent.AgentTool") as MockAgentTool:
+    with patch("gcp_observability.agent.AgentTool") as MockAgentTool:
         mock_tool_instance = AsyncMock()
         MockAgentTool.return_value = mock_tool_instance
         mock_tool_instance.run_async.return_value = "Stage 2 Report Content"
@@ -50,16 +50,14 @@ async def test_run_deep_dive_analysis_flow():
         result = await run_deep_dive_analysis(
             baseline_trace_id="b1",
             target_trace_id="t1",
-            stage1_report="Stage 1 Findings",
+            triage_findings={"findings": "Stage 1 Findings"},
             tool_context=mock_tool_context,
         )
 
-        assert MockAgentTool.call_count == 1
-        mock_tool_instance.run_async.assert_called_once()
-        args = mock_tool_instance.run_async.call_args.kwargs["args"]
-        assert "Stage 1 Findings" in args["request"]
-
-        assert result == "Stage 2 Report Content"
+        assert MockAgentTool.call_count == 2
+        assert mock_tool_instance.run_async.call_count == 2
+        assert result["stage"] == "deep_dive"
+        assert result["results"]["causality"]["result"] == "Stage 2 Report Content"
 
 
 @pytest.mark.asyncio
@@ -69,4 +67,4 @@ async def test_tools_require_context():
         await run_triage_analysis("b1", "t1", tool_context=None)
 
     with pytest.raises(ValueError, match="tool_context is required"):
-        await run_deep_dive_analysis("b1", "t1", stage1_report="foo", tool_context=None)
+        await run_deep_dive_analysis("b1", "t1", triage_findings={}, tool_context=None)

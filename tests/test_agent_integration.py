@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from google.adk.agents import LlmAgent
 
-from trace_analyzer.agent import root_agent
+from gcp_observability.agent import root_agent
 
 
 @pytest.fixture
@@ -23,27 +23,26 @@ def mock_env():
 async def test_agent_initialization(mock_env):
     """Test that the agent initializes correctly with the parallel squad."""
     assert isinstance(root_agent, LlmAgent)
-    assert root_agent.name == "trace_analyzer_agent"
+    assert root_agent.name == "gcp_observability_agent"
 
-    # Check if the analysis tool is present
-    analysis_tool = next(
-        (
-            t
-            for t in root_agent.tools
-            if getattr(t, "name", getattr(t, "__name__", "")) == "run_triage_analysis"
-        ),
-        None,
-    )
-    assert analysis_tool is not None
+    # Check if the analysis tools are present
+    tool_names = [getattr(t, "name", getattr(t, "__name__", str(t))) for t in root_agent.tools]
+    
+    assert "run_triage_analysis" in tool_names
+    assert "run_deep_dive_analysis" in tool_names
+    
+    # Check for selection tools
+    assert "select_traces_from_error_reports" in tool_names
+    assert "select_traces_manually" in tool_names
 
 
-@patch("trace_analyzer.tools.o11y_clients.trace_v1.TraceServiceClient")
-def test_list_traces_mock(mock_client_cls):
-    """Test list_traces with mocked client to verify filter construction."""
-    from trace_analyzer.tools.o11y_clients import list_traces
+@patch("gcp_observability.tools.clients.trace.trace_v1.TraceServiceClient")
+def test_agent_finds_logs_for_trace(mock_trace_client):
+    """Test that agent can find logs for a specific trace."""
+    from gcp_observability.tools.clients.trace import list_traces
 
     mock_client = MagicMock()
-    mock_client_cls.return_value = mock_client
+    mock_trace_client.return_value = mock_client
 
     # Setup mock response with datetime objects for timestamps (simulating proto-plus behavior)
     from datetime import datetime

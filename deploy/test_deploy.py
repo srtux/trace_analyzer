@@ -1,4 +1,4 @@
-"""Test deployment of Trace Analyzer Agent to Agent Engine."""
+"""Test deployment of SRE Agent to Agent Engine."""
 
 import os
 

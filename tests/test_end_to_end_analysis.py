@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
-from trace_analyzer.tools.statistical_analysis import analyze_trace_patterns
-from trace_analyzer.tools.trace_analysis import compare_span_timings
+from gcp_observability.tools.analysis.trace.statistical_analysis import analyze_trace_patterns
+from gcp_observability.tools.analysis.trace.comparison import compare_span_timings
 
 # Load fake data
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -33,8 +33,8 @@ def mock_fetch_trace():
     """
     import json
     with (
-        patch("trace_analyzer.tools.trace_analysis.fetch_trace_data") as mock_a,
-        patch("trace_analyzer.tools.statistical_analysis.fetch_trace_data") as mock_b,
+        patch("gcp_observability.tools.analysis.trace.analysis.fetch_trace_data") as mock_a,
+        patch("gcp_observability.tools.analysis.trace.statistical_analysis.fetch_trace_data") as mock_b,
     ):
 
         def side_effect(trace_id, project_id=None):

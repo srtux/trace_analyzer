@@ -8,7 +8,7 @@ An ADK-based agent for analyzing telemetry data from Google Cloud Observability:
 
 ## Architecture
 
-The agent is built using the Google Agent Development Kit (ADK). It uses a hierarchical orchestration pattern where the main **SRE Agent** coordinates specialized analysis squads.
+The agent is built using the Google Agent Development Kit (ADK). It uses a **"Council of Experts"** orchestration pattern where the main **SRE Agent** coordinates specialized analysis through high-level orchestration tools.
 
 ### System Architecture
 
@@ -36,29 +36,29 @@ flowchart TB
         Agent <==> Gemini
     end
 
-    subgraph Squads [ ]
+    subgraph Orchestration [Orchestrator Tools]
+        direction LR
+        TRIAGE["🛡️ Triage<br/>Analysis"]
+        DEEP["🕵️ Deep Dive<br/>Analysis"]
+        AGG_TOOL["📊 Aggregate<br/>Analysis"]
+    end
+
+    subgraph Specialists [Specialists]
         direction LR
 
-        subgraph TraceSquad [📊 Trace Analysis Squad]
+        subgraph TraceExperts [📊 Trace Specialists]
             direction TB
-            subgraph Stage0 [Stage 0: Aggregate]
-                AGG["📈 Aggregate<br/>Analyzer"]
-            end
-            subgraph Stage1 [Stage 1: Triage]
-                L["⏱️ Latency"]
-                E["💥 Error"]
-                S["🏗️ Structure"]
-                ST["📉 Stats"]
-            end
-            subgraph Stage2 [Stage 2: Deep Dive]
-                C["🔗 Causality"]
-                SI["🌊 Impact"]
-            end
+            L["⏱️ Latency"]
+            E["💥 Error"]
+            S["🏗️ Structure"]
+            ST["📉 Stats"]
+            C["🔗 Causality"]
+            SI["🌊 Impact"]
         end
 
-        subgraph LogSquad [📝 Log Analysis Squad]
+        subgraph LogExperts [📝 Log Specialists]
             direction TB
-            LP["🔍 Log Pattern<br/>Extractor<br/>(Drain3)"]
+            LP["🔍 Log Pattern<br/>Extractor"]
         end
     end
 
@@ -70,11 +70,11 @@ flowchart TB
         BQ["🗄️ BigQuery"]
     end
 
-    Agent ==> TraceSquad
-    Agent ==> LogSquad
+    Agent ==> Orchestration
+    Orchestration ==> Specialists
     Agent -.-> ToolLayer
-    TraceSquad -.-> ToolLayer
-    LogSquad -.-> ToolLayer
+    Specialists -.-> ToolLayer
+    Orchestration -.-> ToolLayer
 
     style ControlRow fill:none,stroke:none
     style Squads fill:none,stroke:none
@@ -101,47 +101,44 @@ flowchart TB
 sequenceDiagram
     actor User
     participant SRE as 🔧 SRE Agent
-    participant Tools as 🛠️ Tools
-    participant Trace as 📊 Trace Squad
-    participant Logs as 📝 Log Squad
+    participant Orch as 🛡️ Orchestrator Tools
+    participant Expert as 📊 Specialist Experts
+    participant Tools as 🛠️ GCP Infrastructure
 
-    Note over User, Logs: 🔎 PHASE 1: EVIDENCE GATHERING
+    Note over User, Tools: 🔎 PHASE 1: EVIDENCE GATHERING
 
     User->>SRE: 1. "Investigate high latency..."
-    SRE->>Tools: 2. Aggregate Analysis (BigQuery)
-    activate Tools
-    Tools-->>SRE: 3. Health metrics + exemplar traces
-    deactivate Tools
+    SRE->>Orch: 2. run_aggregate_analysis()
+    Orch->>Tools: 3. Query BigQuery / Trace API
+    Tools-->>Orch: 4. Health metrics + exemplar traces
+    Orch-->>SRE: 5. Aggregate Findings
 
-    Note over User, Logs: ⚡ PHASE 2: PARALLEL TRIAGE
+    Note over User, Tools: ⚡ PHASE 2: PARALLEL TRIAGE
 
-    par Trace Analysis
-        SRE->>Trace: 4a. Compare traces
-        activate Trace
-        Trace->>Trace: Latency/Error/Structure
-        Trace-->>SRE: Trace findings
-        deactivate Trace
-    and Log Analysis
-        SRE->>Logs: 4b. Extract patterns
-        activate Logs
-        Logs->>Logs: Drain3 clustering
-        Logs-->>SRE: NEW error patterns!
-        deactivate Logs
+    SRE->>Orch: 6. run_triage_analysis()
+    activate Orch
+    par Parallel Investigation
+        Orch->>Expert: 7a. Latency Expert
+        Orch->>Expert: 7b. Error Expert
+        Orch->>Expert: 7c. Structure Expert
     end
+    Expert-->>Orch: 8. Specialist insights
+    Orch-->>SRE: 9. Unified Triage Report
+    deactivate Orch
 
-    SRE->>User: 5. "Found 3 new error patterns..."
+    SRE->>User: 10. "Found 3 new error patterns..."
 
-    Note over User, Logs: 🕵️ PHASE 3: ROOT CAUSE
+    Note over User, Tools: 🕵️ PHASE 3: ROOT CAUSE
 
-    User->>SRE: 6. "What's the root cause?"
-    SRE->>Trace: 7. Deep Dive (Causality + Impact)
-    activate Trace
-    Trace-->>SRE: 8. Root cause identified
-    deactivate Trace
+    User->>SRE: 11. "What's the root cause?"
+    SRE->>Orch: 12. run_deep_dive_analysis()
+    Orch->>Expert: 13. Causality + Impact Experts
+    Expert-->>Orch: 14. Root cause identified
+    Orch-->>SRE: 15. Deep Dive Findings
 
-    Note over User, Logs: 📝 PHASE 4: REPORT
+    Note over User, Tools: 📝 PHASE 4: REPORT
 
-    SRE->>User: 9. 📂 Investigation Summary
+    SRE->>User: 16. 📂 Investigation Summary
 ```
 
 ## Features
@@ -197,33 +194,22 @@ sequenceDiagram
 ## Project Structure
 
 ```
-sre_agent/
-├── agent.py              # Main SRE Agent definition
-├── prompt.py             # Agent prompts and instructions
-├── schema.py             # Pydantic schemas for structured outputs
-├── tools/
-│   ├── common/           # Shared utilities
-│   │   ├── decorators.py # @adk_tool with OTel instrumentation
-│   │   ├── telemetry.py  # Telemetry helpers
-│   │   └── cache.py      # Thread-safe caching
-│   ├── gcp/              # GCP service tools
-│   │   ├── mcp.py        # MCP toolset integration
-│   │   └── clients.py    # Direct API clients
-│   ├── trace/            # Trace analysis tools
-│   │   ├── clients.py    # Cloud Trace API
-│   │   ├── analysis.py   # Span analysis utilities
-│   │   ├── comparison.py # Trace comparison
-│   │   └── filters.py    # Query builders
-│   ├── logs/             # Log analysis tools (NEW!)
-│   │   ├── patterns.py   # Drain3 pattern extraction
-│   │   └── extraction.py # Smart message extraction
-│   └── bigquery/         # BigQuery analysis tools
-│       └── otel.py       # OpenTelemetry schema queries
-└── sub_agents/
-    ├── trace_analysis/   # Specialized trace sub-agents
-    │   └── agents.py     # 7 sub-agents for multi-stage analysis
-    └── log_analysis/     # Log analysis sub-agents (NEW!)
-        └── agents.py     # Log pattern extractor
+trace_analyzer/
+├── gcp_observability/    # Main package
+│   ├── agent.py          # SRE Agent & Orchestrator Tools
+│   ├── prompt.py         # Agent instructions
+│   ├── schema.py         # Pydantic structured output schemas
+│   ├── tools/            # Modular tools for GCP & Analysis
+│   │   ├── clients/      # Direct API Clients (Logging, Trace, Monitoring)
+│   │   ├── mcp/          # MCP Integration (BigQuery, Logging, etc.)
+│   │   ├── analysis/     # Analysis Logic (Trace, Logs, BigQuery)
+│   │   └── common/       # Telemetry & Caching
+│   └── sub_agents/       # Specialist Specialists
+│       ├── trace.py      # Latency, Error, Structure experts
+│       └── logs.py       # Log pattern extractor
+├── tests/                # Comprehensive test suite
+├── deploy/               # Deployment scripts for Agent Engine
+└── pyproject.toml        # Project dependencies and ADK config
 ```
 
 ## Quick Start
@@ -262,14 +248,11 @@ GOOGLE_CLOUD_LOCATION=us-central1
 ### Running the Agent
 
 ```bash
-# Interactive terminal (new SRE Agent)
-uv run adk run sre_agent
+# Interactive terminal
+uv run adk run gcp_observability_agent
 
 # Web interface
-uv run adk web sre_agent
-
-# Legacy trace_analyzer (still available)
-uv run adk run trace_analyzer
+uv run adk web gcp_observability_agent
 ```
 
 ## Usage Examples
@@ -315,8 +298,8 @@ uv run adk run trace_analyzer
 # Query metrics
 "Show CPU utilization for the frontend service"
 
-# PromQL queries
-"What's the rate of HTTP 5xx errors?"
+# PromQL queries (NEW!)
+"Query PromQL: rate(http_requests_total[5m])"
 ```
 
 ## Available Tools
@@ -366,13 +349,16 @@ uv run adk run trace_analyzer
 | `mcp_list_timeseries` | Query metrics via MCP |
 | `mcp_query_range` | Execute PromQL queries via MCP |
 | `list_time_series` | Query metrics via direct API |
+| `query_promql` | Execute PromQL queries via direct API |
 | `get_current_time` | Utility to get current ISO timestamp |
 
 
 
-## Sub-Agents
+## GCP Observability SRE Agent
 
-The SRE Agent coordinates several specialized sub-agents to perform complex analyses.
+An Agentic AI system for analyzing Google Cloud Observability data (Traces, Logs, Metrics) to identify root causes of production issues.
+
+**New Architecture**: Consolidates `trace_analyzer` and `sre_agent` into a single `gcp_observability` library.
 
 ### Trace Analysis Squad
 | Sub-Agent | Stage | Role |
@@ -402,7 +388,7 @@ uv run pytest -v
 ### Code Quality
 
 ```bash
-uv run flake8 sre_agent/
+uv run ruff check gcp_observability/
 ```
 
 ## IAM Permissions
