@@ -281,7 +281,9 @@ ORDER BY selection_reason, duration_ms
             {"error": f"Unknown selection_strategy: {selection_strategy}"}
         )
 
-    logger.info(f"Generated Exemplar Selection SQL ({selection_strategy}):\n{query.strip()}")
+    logger.info(
+        f"Generated Exemplar Selection SQL ({selection_strategy}):\n{query.strip()}"
+    )
 
     return json.dumps(
         {
@@ -532,14 +534,18 @@ def detect_trend_changes(
         metric_calc = "ROUND(APPROX_QUANTILES(duration_nano / 1000000, 100)[OFFSET(99)], 2) as metric_value"
         metric_name = "p99_latency_ms"
     elif metric == "error_rate":
-        metric_calc = "ROUND(COUNTIF(status.code = 2) / COUNT(*) * 100, 2) as metric_value"
+        metric_calc = (
+            "ROUND(COUNTIF(status.code = 2) / COUNT(*) * 100, 2) as metric_value"
+        )
         metric_name = "error_rate_pct"
     elif metric == "throughput":
         metric_calc = "COUNT(*) as metric_value"
         metric_name = "request_count"
     else:
         return json.dumps(
-            {"error": f"Unknown metric: {metric}. Use p95, p99, error_rate, or throughput"}
+            {
+                "error": f"Unknown metric: {metric}. Use p95, p99, error_rate, or throughput"
+            }
         )
 
     query = f"""

@@ -102,7 +102,7 @@ def compute_latency_statistics(
         latencies.sort()
         count = len(latencies)
 
-        stats = {
+        stats: dict[str, Any] = {
             "count": count,
             "min": latencies[0],
             "max": latencies[-1],
@@ -121,7 +121,7 @@ def compute_latency_statistics(
             stats["variance"] = 0
 
         # Calculate per-span stats with Z-score support
-        per_span_stats = {}
+        per_span_stats: dict[str, Any] = {}
         for name, durs in span_durations.items():
             if not durs:
                 continue
@@ -387,7 +387,7 @@ def analyze_critical_path(
 
             # Find critical child (the one with longest blocking path)
             max_child_path = None
-            max_child_blocking = 0
+            max_child_blocking: float = 0.0
 
             for child_id in node["children"]:
                 child_path, child_blocking = calculate_critical_path_recursive(child_id)
@@ -669,7 +669,7 @@ def analyze_trace_patterns(
             return {"error": "Not enough valid traces for pattern analysis"}
 
         # Track span performance across traces
-        span_performance = defaultdict(
+        span_performance: dict[str, dict[str, Any]] = defaultdict(
             lambda: {
                 "occurrences": 0,
                 "durations": [],
@@ -725,7 +725,7 @@ def analyze_trace_patterns(
             if perf["occurrences"] < 2:
                 continue
 
-            durations = perf["durations"]
+            durations: list[float] = perf["durations"]  # type: ignore
             mean_dur = statistics.mean(durations)
 
             if len(durations) > 1:
@@ -739,6 +739,7 @@ def analyze_trace_patterns(
 
             # Recurring slowdown: consistently slow (low variance, high duration)
             if mean_dur > 100 and cv < 0.3:
+                # Find min/max safely
                 recurring_slowdowns.append(
                     {
                         "span_name": span_name,
@@ -835,7 +836,9 @@ def compute_service_level_stats(
         trace_ids: List of trace IDs.
         project_id: The Google Cloud Project ID.
     """
-    service_stats = defaultdict(lambda: {"count": 0, "errors": 0, "total_duration": 0})
+    service_stats: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"count": 0, "errors": 0, "total_duration": 0}
+    )
 
     # Fetch traces in parallel
     traces_data = _fetch_traces_parallel(trace_ids, project_id)
@@ -852,7 +855,7 @@ def compute_service_level_stats(
                 or "unknown"
             )
 
-            dur = 0
+            dur: float = 0.0
             if s.get("start_time") and s.get("end_time"):
                 try:
                     start = datetime.fromisoformat(

@@ -127,29 +127,35 @@ FROM trace_spans
         for metric in metrics_to_check:
             # Request latency histogram (with exemplars!)
             if "duration" in metric or "latency" in metric:
-                promql_queries.append({
-                    "metric": metric,
-                    "query": f'histogram_quantile(0.95, sum(rate({metric}_bucket{{{service_filter}}}[5m])) by (le, service))',
-                    "purpose": "Check P95 latency during trace execution",
-                    "exemplar_query": f'{metric}_bucket{{{service_filter}}}',
-                    "has_exemplars": True,
-                })
+                promql_queries.append(
+                    {
+                        "metric": metric,
+                        "query": f"histogram_quantile(0.95, sum(rate({metric}_bucket{{{service_filter}}}[5m])) by (le, service))",
+                        "purpose": "Check P95 latency during trace execution",
+                        "exemplar_query": f"{metric}_bucket{{{service_filter}}}",
+                        "has_exemplars": True,
+                    }
+                )
             # Counter metrics (request rate, errors)
             elif "total" in metric:
-                promql_queries.append({
-                    "metric": metric,
-                    "query": f'sum(rate({metric}{{{service_filter}}}[1m])) by (service, code)',
-                    "purpose": "Check request/error rate during trace execution",
-                    "has_exemplars": False,
-                })
+                promql_queries.append(
+                    {
+                        "metric": metric,
+                        "query": f"sum(rate({metric}{{{service_filter}}}[1m])) by (service, code)",
+                        "purpose": "Check request/error rate during trace execution",
+                        "has_exemplars": False,
+                    }
+                )
             # Gauge metrics (CPU, memory, connections)
             else:
-                promql_queries.append({
-                    "metric": metric,
-                    "query": f'{metric}{{{service_filter}}}',
-                    "purpose": "Check resource utilization during trace execution",
-                    "has_exemplars": False,
-                })
+                promql_queries.append(
+                    {
+                        "metric": metric,
+                        "query": f"{metric}{{{service_filter}}}",
+                        "purpose": "Check resource utilization during trace execution",
+                        "has_exemplars": False,
+                    }
+                )
 
         result = {
             "analysis_type": "trace_metrics_correlation",
@@ -213,7 +219,9 @@ def correlate_metrics_with_traces_via_exemplars(
     Returns:
         JSON with SQL to find exemplar-like traces and PromQL for histogram analysis
     """
-    with tracer.start_as_current_span("correlate_metrics_with_traces_via_exemplars") as span:
+    with tracer.start_as_current_span(
+        "correlate_metrics_with_traces_via_exemplars"
+    ) as span:
         span.set_attribute("metric_name", metric_name)
         span.set_attribute("service_name", service_name)
         correlation_operations.add(1, {"type": "exemplar_correlation"})
@@ -346,7 +354,9 @@ ORDER BY duration_ms DESC
             ],
         }
 
-        logger.info(f"Generated exemplar correlation for {metric_name} on {service_name}")
+        logger.info(
+            f"Generated exemplar correlation for {metric_name} on {service_name}"
+        )
         return json.dumps(result)
 
 

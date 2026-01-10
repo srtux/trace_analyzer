@@ -34,7 +34,6 @@ flags.DEFINE_bool("verify", True, "Verify agent import before creation.")
 flags.mark_bool_flags_as_mutual_exclusive(["create", "delete"])
 
 
-
 def get_requirements() -> list[str]:
     """Reads requirements from pyproject.toml with robust merging."""
     pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
@@ -58,6 +57,7 @@ def get_requirements() -> list[str]:
     def add_req(req_str: str):
         # Extract package name for comparison (e.g., 'google-adk>=1.0' -> 'google-adk')
         import re
+
         name = re.split(r"[>=<~!\[]", req_str)[0].lower().strip()
         req_map[name] = req_str
 
@@ -79,6 +79,7 @@ def verify_local_import():
     print("Checking if agent is importable locally...")
     try:
         from sre_agent.agent import root_agent
+
         print(f"✅ Successfully imported agent: {root_agent.name}")
         return True
     except ImportError as e:
@@ -100,7 +101,7 @@ def create(env_vars: dict[str, str] | None = None) -> None:
     print(f"Deploying with requirements: {requirements}")
 
     remote_agent = agent_engines.create(
-        adk_app,
+        adk_app,  # type: ignore
         display_name=FLAGS.display_name if FLAGS.display_name else root_agent.name,
         description=FLAGS.description if FLAGS.description else root_agent.description,
         requirements=requirements,
@@ -171,7 +172,7 @@ def main(argv: list[str]) -> None:
     if FLAGS.list:
         list_agents()
     elif FLAGS.create:
-        env_vars = {}
+        env_vars: dict[str, str] = {}
 
         if FLAGS.verify:
             if not verify_local_import():

@@ -282,12 +282,14 @@ def extract_messages_from_entries(
         message = extract_log_message(entry)
 
         if include_metadata:
-            results.append({
-                "message": message,
-                "timestamp": entry.get("timestamp", ""),
-                "severity": entry.get("severity", ""),
-                "resource": entry.get("resource", {}).get("type", "unknown"),
-            })
+            results.append(
+                {
+                    "message": message,
+                    "timestamp": entry.get("timestamp", ""),
+                    "severity": entry.get("severity", ""),
+                    "resource": entry.get("resource", {}).get("type", "unknown"),
+                }
+            )
         else:
             results.append({"message": message})
 

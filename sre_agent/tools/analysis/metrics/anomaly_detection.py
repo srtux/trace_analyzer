@@ -8,6 +8,7 @@ from .statistics import calculate_series_stats
 
 logger = logging.getLogger(__name__)
 
+
 @adk_tool
 def detect_metric_anomalies(
     data_points: list[float] | list[dict[str, Any]],
@@ -27,11 +28,11 @@ def detect_metric_anomalies(
         Dictionary with anomaly analysis.
     """
     values = []
-    original_data_map = {} # Map index to original data for reconstruction
+    original_data_map = {}  # Map index to original data for reconstruction
 
     for _i, item in enumerate(data_points):
         val = None
-        if isinstance(item, (int, float)):
+        if isinstance(item, int | float):
             val = float(item)
         elif isinstance(item, dict):
             val = float(item.get(value_key, 0.0))
@@ -53,13 +54,15 @@ def detect_metric_anomalies(
         for i, val in enumerate(values):
             z_score = (val - mean) / stdev
             if abs(z_score) > threshold_sigma:
-                anomalies.append({
-                    "index": i,
-                    "value": val,
-                    "z_score": round(z_score, 2),
-                    "original_data": original_data_map.get(i),
-                    "type": "high" if z_score > 0 else "low"
-                })
+                anomalies.append(
+                    {
+                        "index": i,
+                        "value": val,
+                        "z_score": round(z_score, 2),
+                        "original_data": original_data_map.get(i),
+                        "type": "high" if z_score > 0 else "low",
+                    }
+                )
 
     return {
         "is_anomaly_detected": len(anomalies) > 0,
@@ -68,10 +71,11 @@ def detect_metric_anomalies(
         "params": {
             "threshold_sigma": threshold_sigma,
             "mean": round(mean, 2),
-            "stdev": round(stdev, 2)
+            "stdev": round(stdev, 2),
         },
-        "anomalies": anomalies
+        "anomalies": anomalies,
     }
+
 
 @adk_tool
 def compare_metric_windows(
@@ -106,6 +110,7 @@ def compare_metric_windows(
         "comparison": {
             "mean_shift": round(mean_shift, 4),
             "mean_shift_pct": round(mean_shift_pct, 2),
-            "is_significant_shift": abs(mean_shift_pct) > 10.0 # 10% arbitrary threshold
-        }
+            "is_significant_shift": abs(mean_shift_pct)
+            > 10.0,  # 10% arbitrary threshold
+        },
     }

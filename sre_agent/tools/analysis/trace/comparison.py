@@ -110,7 +110,7 @@ def compare_span_timings(
                 )
 
                 if sorted_spans:
-                    current_run = []
+                    current_run: list[SpanData] = []
                     for s in sorted_spans:
                         if not current_run:
                             current_run.append(s)
@@ -130,7 +130,9 @@ def compare_span_timings(
                                                 "span_name": current_run[0].get("name"),
                                                 "count": len(current_run),
                                                 "total_duration_ms": duration_sum,
-                                                "impact": "high" if duration_sum > 200 else "medium",
+                                                "impact": "high"
+                                                if duration_sum > 200
+                                                else "medium",
                                             }
                                         )
                                 current_run = [s]
@@ -148,14 +150,16 @@ def compare_span_timings(
                                     "span_name": current_run[0].get("name"),
                                     "count": len(current_run),
                                     "total_duration_ms": duration_sum,
-                                    "impact": "high" if duration_sum > 200 else "medium",
+                                    "impact": "high"
+                                    if duration_sum > 200
+                                    else "medium",
                                 }
                             )
 
             # Serial Chain Detection
             if target_timings and sorted_spans:
                 sequential_chains = []
-                current_chain = []
+                current_chain: list[SpanData] = []
                 gap_threshold_ms = 10
 
                 for i in range(len(sorted_spans) - 1):

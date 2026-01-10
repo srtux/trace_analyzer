@@ -20,7 +20,6 @@ def convert_trace_to_json(trace_spans):
     # or keep as proper OTel format depending on what the tool expects.
     # Looking at the original static files, it seems to expect a dict with "spans" key.
 
-
     # Calculate duration correctly
     start_times = [s.get("start_time") for s in trace_spans if "start_time" in s]
     end_times = [s.get("end_time") for s in trace_spans if "end_time" in s]
@@ -35,19 +34,23 @@ def convert_trace_to_json(trace_spans):
             # let's look for known fields.
 
             # Better approach: Iterate to find the root span (no parent) and use its duration if present
-            root_span = next((s for s in trace_spans if not s.get("parent_span_id")), None)
+            root_span = next(
+                (s for s in trace_spans if not s.get("parent_span_id")), None
+            )
             if root_span:
                 # duration_nano is strictly available in our generator
                 duration_ms = root_span.get("duration_nano", 0) / 1e6
         except Exception:
             pass
 
-    return json.dumps({
-        "trace_id": trace_id,
-        "project_id": "test-project",
-        "spans": trace_spans,
-        "duration_ms": duration_ms
-    })
+    return json.dumps(
+        {
+            "trace_id": trace_id,
+            "project_id": "test-project",
+            "spans": trace_spans,
+            "duration_ms": duration_ms,
+        }
+    )
 
 
 @pytest.fixture
@@ -55,13 +58,20 @@ def good_trace_json():
     generator = TraceGenerator()
     # Create a nice fast trace
     spans = generator.create_multi_service_trace(
-        services=["ProcessRequest", "AuthenticateUser", "FetchUserProfile", "RenderResponse"],
-        latency_strategy="normal"
+        services=[
+            "ProcessRequest",
+            "AuthenticateUser",
+            "FetchUserProfile",
+            "RenderResponse",
+        ],
+        latency_strategy="normal",
     )
     # Fix names to match test expectations if they rely on specific names
     # Original: ProcessRequest, AuthenticateUser, FetchUserProfile, RenderResponse
     # We can rename them to match the test logic expectation
-    for i, name in enumerate(["ProcessRequest", "AuthenticateUser", "FetchUserProfile", "RenderResponse"]):
+    for i, name in enumerate(
+        ["ProcessRequest", "AuthenticateUser", "FetchUserProfile", "RenderResponse"]
+    ):
         if i < len(spans):
             spans[i]["name"] = name
 
@@ -84,17 +94,18 @@ def bad_trace_json():
     # N+1 calls
     # N+1 calls - make them sequential
     from datetime import timedelta
+
     current_time = root_gen.base_time + timedelta(milliseconds=10)
 
     for _i in range(4):
         child_gen = OtelSpanGenerator(
-            trace_id=trace_id,
-            parent_span_id=root["span_id"],
-            base_time=current_time
+            trace_id=trace_id, parent_span_id=root["span_id"], base_time=current_time
         )
         child = child_gen.create_span(name="FetchItem", duration_ms=100.0)
         spans.append(child)
-        current_time = current_time + timedelta(milliseconds=110) # 100ms duration + 10ms gap
+        current_time = current_time + timedelta(
+            milliseconds=110
+        )  # 100ms duration + 10ms gap
 
     return convert_trace_to_json(spans)
 
@@ -106,9 +117,12 @@ def mock_fetch_trace():
     This is necessary because the tests pass the full JSON content as the trace_id.
     """
     import json
+
     with (
         patch("sre_agent.tools.analysis.trace.analysis.fetch_trace_data") as mock_a,
-        patch("sre_agent.tools.analysis.trace.statistical_analysis.fetch_trace_data") as mock_b,
+        patch(
+            "sre_agent.tools.analysis.trace.statistical_analysis.fetch_trace_data"
+        ) as mock_b,
     ):
 
         def side_effect(trace_id, project_id=None):

@@ -158,23 +158,27 @@ def baseline_period_logs() -> list[dict[str, Any]]:
 
     # Normal patterns
     for i in range(20):
-        logs.append({
-            "logName": "projects/test-project/logs/app",
-            "timestamp": generate_timestamp(base_time, i * 5),
-            "severity": "INFO",
-            "textPayload": f"Request {i} completed successfully in 50ms",
-            "resource": {"type": "k8s_container"},
-        })
+        logs.append(
+            {
+                "logName": "projects/test-project/logs/app",
+                "timestamp": generate_timestamp(base_time, i * 5),
+                "severity": "INFO",
+                "textPayload": f"Request {i} completed successfully in 50ms",
+                "resource": {"type": "k8s_container"},
+            }
+        )
 
     # Occasional warning
     for i in range(3):
-        logs.append({
-            "logName": "projects/test-project/logs/app",
-            "timestamp": generate_timestamp(base_time, 100 + i * 20),
-            "severity": "WARNING",
-            "textPayload": f"Slow query detected: 200ms for query {i}",
-            "resource": {"type": "k8s_container"},
-        })
+        logs.append(
+            {
+                "logName": "projects/test-project/logs/app",
+                "timestamp": generate_timestamp(base_time, 100 + i * 20),
+                "severity": "WARNING",
+                "textPayload": f"Slow query detected: 200ms for query {i}",
+                "resource": {"type": "k8s_container"},
+            }
+        )
 
     return logs
 
@@ -187,43 +191,51 @@ def incident_period_logs() -> list[dict[str, Any]]:
 
     # Some normal patterns still exist
     for i in range(10):
-        logs.append({
-            "logName": "projects/test-project/logs/app",
-            "timestamp": generate_timestamp(base_time, i * 5),
-            "severity": "INFO",
-            "textPayload": f"Request {i} completed successfully in 50ms",
-            "resource": {"type": "k8s_container"},
-        })
+        logs.append(
+            {
+                "logName": "projects/test-project/logs/app",
+                "timestamp": generate_timestamp(base_time, i * 5),
+                "severity": "INFO",
+                "textPayload": f"Request {i} completed successfully in 50ms",
+                "resource": {"type": "k8s_container"},
+            }
+        )
 
     # NEW ERROR PATTERNS (not in baseline)
     for i in range(15):
-        logs.append({
-            "logName": "projects/test-project/logs/app",
-            "timestamp": generate_timestamp(base_time, 50 + i * 3),
-            "severity": "ERROR",
-            "textPayload": f"Connection refused to database-primary:5432 (attempt {i})",
-            "resource": {"type": "k8s_container"},
-        })
+        logs.append(
+            {
+                "logName": "projects/test-project/logs/app",
+                "timestamp": generate_timestamp(base_time, 50 + i * 3),
+                "severity": "ERROR",
+                "textPayload": f"Connection refused to database-primary:5432 (attempt {i})",
+                "resource": {"type": "k8s_container"},
+            }
+        )
 
     # Another new error pattern
     for i in range(8):
-        logs.append({
-            "logName": "projects/test-project/logs/app",
-            "timestamp": generate_timestamp(base_time, 100 + i * 5),
-            "severity": "ERROR",
-            "textPayload": f"Timeout waiting for lock on resource {i}",
-            "resource": {"type": "k8s_container"},
-        })
+        logs.append(
+            {
+                "logName": "projects/test-project/logs/app",
+                "timestamp": generate_timestamp(base_time, 100 + i * 5),
+                "severity": "ERROR",
+                "textPayload": f"Timeout waiting for lock on resource {i}",
+                "resource": {"type": "k8s_container"},
+            }
+        )
 
     # Increased warnings
     for i in range(10):
-        logs.append({
-            "logName": "projects/test-project/logs/app",
-            "timestamp": generate_timestamp(base_time, 150 + i * 5),
-            "severity": "WARNING",
-            "textPayload": f"Retry attempt {i % 3 + 1} for request {i}",
-            "resource": {"type": "k8s_container"},
-        })
+        logs.append(
+            {
+                "logName": "projects/test-project/logs/app",
+                "timestamp": generate_timestamp(base_time, 150 + i * 5),
+                "severity": "WARNING",
+                "textPayload": f"Retry attempt {i % 3 + 1} for request {i}",
+                "resource": {"type": "k8s_container"},
+            }
+        )
 
     return logs
 
@@ -265,9 +277,7 @@ def mixed_payload_logs() -> list[dict[str, Any]]:
         {
             "timestamp": generate_timestamp(base_time, -40),
             "severity": "INFO",
-            "jsonPayload": {
-                "data": {"message": "Nested message", "id": 123}
-            },
+            "jsonPayload": {"data": {"message": "Nested message", "id": 123}},
             "resource": {"type": "k8s_container"},
         },
         # protoPayload
@@ -316,9 +326,7 @@ def sample_trace_spans() -> list[dict[str, Any]]:
                 "http.method": "GET",
                 "http.status_code": "200",
             },
-            "resource": {
-                "attributes": {"service.name": "api-gateway"}
-            },
+            "resource": {"attributes": {"service.name": "api-gateway"}},
         },
         {
             "trace_id": trace_id,
@@ -333,9 +341,7 @@ def sample_trace_spans() -> list[dict[str, Any]]:
                 "db.system": "postgresql",
                 "db.operation": "SELECT",
             },
-            "resource": {
-                "attributes": {"service.name": "api-gateway"}
-            },
+            "resource": {"attributes": {"service.name": "api-gateway"}},
         },
     ]
 

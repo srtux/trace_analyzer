@@ -21,5 +21,6 @@ def main():
     result = subprocess.run(cmd)
     sys.exit(result.returncode)
 
+
 if __name__ == "__main__":
     main()

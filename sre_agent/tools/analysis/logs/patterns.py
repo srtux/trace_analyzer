@@ -118,7 +118,10 @@ class LogPatternExtractor:
             MaskingInstruction(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", "<TIMESTAMP>"),
             MaskingInstruction(r"\b\d{4}-\d{2}-\d{2}", "<DATE>"),
             MaskingInstruction(r"\b\d{2}:\d{2}:\d{2}", "<TIME>"),
-            MaskingInstruction(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", "<UUID>"),
+            MaskingInstruction(
+                r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
+                "<UUID>",
+            ),
             MaskingInstruction(r"\b[0-9a-f]{24,}\b", "<ID>"),
             MaskingInstruction(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "<IP>"),
             MaskingInstruction(r"\b\d+\.\d+ms\b", "<DURATION>"),
@@ -166,7 +169,7 @@ class LogPatternExtractor:
         pattern_id = self._generate_pattern_id(template)
 
         # Map cluster to pattern
-        self._cluster_to_pattern[cluster_id] = pattern_id
+        self._cluster_to_pattern[cluster_id] = pattern_id  # type: ignore
 
         # Update or create pattern
         if pattern_id not in self.patterns:
@@ -185,7 +188,9 @@ class LogPatternExtractor:
         pattern.last_seen = timestamp
 
         if severity:
-            pattern.severity_counts[severity] = pattern.severity_counts.get(severity, 0) + 1
+            pattern.severity_counts[severity] = (
+                pattern.severity_counts.get(severity, 0) + 1
+            )
 
         if resource:
             pattern.resources.append(resource)
@@ -230,6 +235,7 @@ class LogPatternExtractor:
                     + p.severity_counts.get("CRITICAL", 0) * 20
                     + p.severity_counts.get("WARNING", 0) * 5
                 )
+
             patterns.sort(key=severity_score, reverse=True)
         elif sort_by == "recent":
             patterns.sort(key=lambda p: p.last_seen or "", reverse=True)
@@ -262,15 +268,20 @@ class LogPatternExtractor:
                 severity_totals[sev] = severity_totals.get(sev, 0) + count
 
         # Get top patterns by count
-        top_patterns = self.get_patterns(min_count=1, sort_by="count", limit=max_patterns)
+        top_patterns = self.get_patterns(
+            min_count=1, sort_by="count", limit=max_patterns
+        )
 
         # Get error patterns
         error_patterns = [
-            p for p in self.patterns.values()
+            p
+            for p in self.patterns.values()
             if p.severity_counts.get("ERROR", 0) > 0
             or p.severity_counts.get("CRITICAL", 0) > 0
         ]
-        error_patterns.sort(key=lambda p: p.severity_counts.get("ERROR", 0), reverse=True)
+        error_patterns.sort(
+            key=lambda p: p.severity_counts.get("ERROR", 0), reverse=True
+        )
 
         return {
             "total_logs_processed": total_logs,
@@ -497,7 +508,8 @@ def analyze_log_anomalies(
             timestamp=entry.get("timestamp", ""),
             severity=entry.get("severity", ""),
             resource=entry.get("resource", {}).get("type", "")
-            if isinstance(entry.get("resource"), dict) else "",
+            if isinstance(entry.get("resource"), dict)
+            else "",
         )
 
     # Get patterns sorted appropriately
@@ -566,7 +578,8 @@ def _determine_alert_level(comparison: PatternComparison) -> str:
     """Determine alert level based on comparison results."""
     # Check for critical new patterns
     new_error_patterns = [
-        p for p in comparison.new_patterns
+        p
+        for p in comparison.new_patterns
         if p.severity_counts.get("ERROR", 0) > 0
         or p.severity_counts.get("CRITICAL", 0) > 0
     ]

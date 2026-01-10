@@ -274,7 +274,7 @@ def validate_trace_quality(
         }
 
     spans = trace.get("spans", [])
-    issues = []
+    issues: list[dict[str, Any]] = []
 
     # Build parent-child map
     span_map = {s["span_id"]: s for s in spans if "span_id" in s}
@@ -313,7 +313,7 @@ def validate_trace_quality(
                             "span_id": span_id,
                             "duration_s": duration,
                         }
-                    )
+                    )  # type: ignore
 
                 # Check clock skew
                 if parent_id and parent_id in span_map:
@@ -478,7 +478,7 @@ def summarize_trace(trace_id: str, project_id: str | None = None) -> dict[str, A
     # Extract slow spans
     spans_with_dur = []
     for s in spans:
-        dur = 0
+        dur: float = 0.0
         if "duration_ms" in s:
             dur = s["duration_ms"]
         elif s.get("start_time") and s.get("end_time"):

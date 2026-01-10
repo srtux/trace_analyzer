@@ -26,7 +26,9 @@ async def test_agent_initialization(mock_env):
     assert root_agent.name == "sre_agent"
 
     # Check if the analysis tools are present
-    tool_names = [getattr(t, "name", getattr(t, "__name__", str(t))) for t in root_agent.tools]
+    tool_names = [
+        getattr(t, "name", getattr(t, "__name__", str(t))) for t in root_agent.tools
+    ]
 
     assert "run_triage_analysis" in tool_names
     assert "run_deep_dive_analysis" in tool_names

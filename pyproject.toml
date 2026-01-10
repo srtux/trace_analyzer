@@ -42,6 +42,8 @@ dev = [
     "pytest-cov>=5.0.0",
     "absl-py>=2.1.0",
     "poethepoet>=0.25.0",
+    "pre-commit>=4.5.1",
+    "codespell>=2.4.1",
 ]
 
 
@@ -86,7 +88,11 @@ sync = { help = "Sync dependencies with uv", cmd = "uv sync" }
 run = { help = "Run agent in terminal", cmd = "adk run sre_agent", envfile = ".env" }
 web = { help = "Run agent web UI", cmd = "adk web sre_agent", envfile = ".env" }
 list = { help = "List deployed agents", cmd = "python deploy/deploy.py --list", envfile = ".env" }
-lint = { help = "Run linter", cmd = "ruff check .", envfile = ".env" }
+lint = { help = "Run all linters", sequence = ["format", "_lint_only", "typecheck", "spell"] }
+_lint_only = { cmd = "ruff check .", envfile = ".env" }
+format = { help = "Format code", cmd = "ruff format .", envfile = ".env" }
+typecheck = { help = "Run type checking", cmd = "mypy .", envfile = ".env" }
+spell = { help = "Check spelling", cmd = "codespell", envfile = ".env" }
 test = { help = "Run tests", cmd = "pytest tests", envfile = ".env" }
 eval = { help = "Run agent evaluations", cmd = "python deploy/run_eval.py", envfile = ".env" }
 

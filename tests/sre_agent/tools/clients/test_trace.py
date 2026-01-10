@@ -169,7 +169,8 @@ class TestGetLogsForTrace:
 
         # Execute
         result_json = list_log_entries(
-            project_id="test-project", filter_str=f'trace="projects/test-project/traces/{trace_id}"'
+            project_id="test-project",
+            filter_str=f'trace="projects/test-project/traces/{trace_id}"',
         )
 
         # Verify
@@ -269,9 +270,7 @@ class TestListErrorEvents:
         mock_client.list_events.return_value = mock_events
 
         # Execute
-        result_json = list_error_events(
-            project_id="test-project", minutes_ago=60
-        )
+        result_json = list_error_events(project_id="test-project", minutes_ago=60)
 
         # Verify
         assert result_json is not None
@@ -368,7 +367,8 @@ class TestIntegration:
         )
 
         log_result = list_log_entries(
-            project_id="test-project", filter_str=f'trace="projects/test-project/traces/{trace_id}"'
+            project_id="test-project",
+            filter_str=f'trace="projects/test-project/traces/{trace_id}"',
         )
 
         # Verify both calls succeeded

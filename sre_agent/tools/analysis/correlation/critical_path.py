@@ -85,11 +85,14 @@ def analyze_critical_path(
                 end_time = s.get("end_time", "")
 
                 # Calculate duration
-                duration_ms = 0
+                duration_ms: float = 0.0
                 if start_time and end_time:
                     from datetime import datetime
+
                     try:
-                        start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+                        start_dt = datetime.fromisoformat(
+                            start_time.replace("Z", "+00:00")
+                        )
                         end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
                         duration_ms = (end_dt - start_dt).total_seconds() * 1000
                     except (ValueError, TypeError):
@@ -152,29 +155,39 @@ def analyze_critical_path(
                 "spans": critical_path["spans"],
                 "total_duration_ms": critical_path["total_duration_ms"],
                 "span_count": len(critical_path["spans"]),
-                "services_on_path": list(set(
-                    s["service"] for s in critical_path["spans"] if s["service"]
-                )),
+                "services_on_path": list(
+                    set(s["service"] for s in critical_path["spans"] if s["service"])
+                ),
             },
             "bottleneck_span": bottleneck,
             "parallel_opportunities": parallel_opportunities[:5],  # Top 5
             "optimization_recommendations": recommendations,
             "analysis_summary": {
                 "critical_path_ratio": round(
-                    critical_path["total_duration_ms"] /
-                    max(s["duration_ms"] for s in span_map.values()) * 100, 1
-                ) if span_map else 0,
+                    critical_path["total_duration_ms"]
+                    / max(s["duration_ms"] for s in span_map.values())
+                    * 100,
+                    1,
+                )
+                if span_map
+                else 0,
                 "bottleneck_contribution": round(
                     max_self_time / critical_path["total_duration_ms"] * 100, 1
-                ) if critical_path["total_duration_ms"] > 0 else 0,
+                )
+                if critical_path["total_duration_ms"] > 0
+                else 0,
                 "potential_parallelization_savings_ms": sum(
                     p.get("potential_savings_ms", 0) for p in parallel_opportunities[:5]
                 ),
             },
         }
 
-        span.set_attribute("sre_agent.critical_path.span_count", len(critical_path["spans"]))
-        span.set_attribute("sre_agent.critical_path.duration_ms", critical_path["total_duration_ms"])
+        span.set_attribute(
+            "sre_agent.critical_path.span_count", len(critical_path["spans"])
+        )
+        span.set_attribute(
+            "sre_agent.critical_path.duration_ms", critical_path["total_duration_ms"]
+        )
 
         return result
 
@@ -229,15 +242,17 @@ def _calculate_critical_path(
     if not children_ids:
         # Leaf span - it IS its own critical path
         return {
-            "spans": [{
-                "span_id": span_id,
-                "name": span["name"],
-                "service": span["service"],
-                "duration_ms": span["duration_ms"],
-                "self_time_ms": span["duration_ms"],  # No children = all self time
-                "is_error": span["is_error"],
-                "depth": 0,
-            }],
+            "spans": [
+                {
+                    "span_id": span_id,
+                    "name": span["name"],
+                    "service": span["service"],
+                    "duration_ms": span["duration_ms"],
+                    "self_time_ms": span["duration_ms"],  # No children = all self time
+                    "is_error": span["is_error"],
+                    "depth": 0,
+                }
+            ],
             "total_duration_ms": span["duration_ms"],
         }
 
@@ -252,8 +267,7 @@ def _calculate_critical_path(
 
     # Calculate self-time (duration minus time spent in children)
     total_child_duration = sum(
-        span_map[cid]["duration_ms"] for cid in children_ids
-        if cid in span_map
+        span_map[cid]["duration_ms"] for cid in children_ids if cid in span_map
     )
     self_time = max(0, span["duration_ms"] - total_child_duration)
 
@@ -317,16 +331,18 @@ def _find_parallel_opportunities(
                 potential_savings = total_duration - max_duration
 
                 if potential_savings > 10:  # At least 10ms savings
-                    opportunities.append({
-                        "type": "sequential_same_service",
-                        "service": service,
-                        "span_count": len(group),
-                        "span_names": [s["name"] for s in sorted_spans[:3]],
-                        "total_sequential_duration_ms": round(total_duration, 2),
-                        "potential_parallel_duration_ms": round(max_duration, 2),
-                        "potential_savings_ms": round(potential_savings, 2),
-                        "recommendation": f"Consider batching or parallelizing {len(group)} calls to {service}",
-                    })
+                    opportunities.append(
+                        {
+                            "type": "sequential_same_service",
+                            "service": service,
+                            "span_count": len(group),
+                            "span_names": [s["name"] for s in sorted_spans[:3]],
+                            "total_sequential_duration_ms": round(total_duration, 2),
+                            "potential_parallel_duration_ms": round(max_duration, 2),
+                            "potential_savings_ms": round(potential_savings, 2),
+                            "recommendation": f"Consider batching or parallelizing {len(group)} calls to {service}",
+                        }
+                    )
 
     # Sort by potential savings
     opportunities.sort(key=lambda x: x.get("potential_savings_ms", 0), reverse=True)
@@ -344,80 +360,94 @@ def _generate_optimization_recommendations(
 
     # Bottleneck recommendation
     if bottleneck:
-        recommendations.append({
-            "priority": "HIGH",
-            "type": "bottleneck_optimization",
-            "target": bottleneck["name"],
-            "service": bottleneck.get("service"),
-            "current_duration_ms": bottleneck["self_time_ms"],
-            "recommendation": (
-                f"The span '{bottleneck['name']}' is the primary bottleneck, "
-                f"contributing {bottleneck['self_time_ms']:.0f}ms of self-time. "
-                f"Focus optimization efforts here for maximum impact."
-            ),
-            "investigation_steps": [
-                "Check if this operation involves database queries",
-                "Look for N+1 query patterns",
-                "Consider caching frequently accessed data",
-                "Profile the code for CPU-intensive operations",
-            ],
-        })
+        recommendations.append(
+            {
+                "priority": "HIGH",
+                "type": "bottleneck_optimization",
+                "target": bottleneck["name"],
+                "service": bottleneck.get("service"),
+                "current_duration_ms": bottleneck["self_time_ms"],
+                "recommendation": (
+                    f"The span '{bottleneck['name']}' is the primary bottleneck, "
+                    f"contributing {bottleneck['self_time_ms']:.0f}ms of self-time. "
+                    f"Focus optimization efforts here for maximum impact."
+                ),
+                "investigation_steps": [
+                    "Check if this operation involves database queries",
+                    "Look for N+1 query patterns",
+                    "Consider caching frequently accessed data",
+                    "Profile the code for CPU-intensive operations",
+                ],
+            }
+        )
 
     # Parallelization recommendations
     if parallel_opportunities:
         top_opportunity = parallel_opportunities[0]
-        recommendations.append({
-            "priority": "MEDIUM",
-            "type": "parallelization",
-            "target": top_opportunity.get("service"),
-            "current_duration_ms": top_opportunity.get("total_sequential_duration_ms"),
-            "potential_duration_ms": top_opportunity.get("potential_parallel_duration_ms"),
-            "recommendation": top_opportunity.get("recommendation"),
-            "investigation_steps": [
-                "Verify spans are truly independent (no data dependencies)",
-                "Consider using async/concurrent execution",
-                "Look for batch API endpoints",
-                "Evaluate if order matters for business logic",
-            ],
-        })
+        recommendations.append(
+            {
+                "priority": "MEDIUM",
+                "type": "parallelization",
+                "target": top_opportunity.get("service"),
+                "current_duration_ms": top_opportunity.get(
+                    "total_sequential_duration_ms"
+                ),
+                "potential_duration_ms": top_opportunity.get(
+                    "potential_parallel_duration_ms"
+                ),
+                "recommendation": top_opportunity.get("recommendation"),
+                "investigation_steps": [
+                    "Verify spans are truly independent (no data dependencies)",
+                    "Consider using async/concurrent execution",
+                    "Look for batch API endpoints",
+                    "Evaluate if order matters for business logic",
+                ],
+            }
+        )
 
     # Error span recommendations
     error_spans = [s for s in span_map.values() if s.get("is_error")]
     if error_spans:
-        recommendations.append({
-            "priority": "HIGH",
-            "type": "error_investigation",
-            "error_count": len(error_spans),
-            "error_services": list(set(s.get("service") for s in error_spans if s.get("service"))),
-            "recommendation": (
-                f"Found {len(error_spans)} error spans in the trace. "
-                "Errors often cause retries and increased latency."
-            ),
-            "investigation_steps": [
-                "Examine error span labels for error messages",
-                "Check logs correlated with this trace",
-                "Look for timeout or connection errors",
-                "Verify downstream service health",
-            ],
-        })
+        recommendations.append(
+            {
+                "priority": "HIGH",
+                "type": "error_investigation",
+                "error_count": len(error_spans),
+                "error_services": list(
+                    set(s.get("service") for s in error_spans if s.get("service"))
+                ),
+                "recommendation": (
+                    f"Found {len(error_spans)} error spans in the trace. "
+                    "Errors often cause retries and increased latency."
+                ),
+                "investigation_steps": [
+                    "Examine error span labels for error messages",
+                    "Check logs correlated with this trace",
+                    "Look for timeout or connection errors",
+                    "Verify downstream service health",
+                ],
+            }
+        )
 
     # Long span chain recommendation
     if len(critical_path["spans"]) > 5:
-        recommendations.append({
-            "priority": "LOW",
-            "type": "architecture_review",
-            "span_depth": len(critical_path["spans"]),
-            "recommendation": (
-                f"The critical path has {len(critical_path['spans'])} spans deep. "
-                "Consider if the call chain can be simplified."
-            ),
-            "investigation_steps": [
-                "Review if intermediate services add value",
-                "Consider direct service-to-service calls",
-                "Evaluate caching at different layers",
-                "Look for unnecessary transformations",
-            ],
-        })
+        recommendations.append(
+            {
+                "priority": "LOW",
+                "type": "architecture_review",
+                "span_depth": len(critical_path["spans"]),
+                "recommendation": (
+                    f"The critical path has {len(critical_path['spans'])} spans deep. "
+                    "Consider if the call chain can be simplified."
+                ),
+                "investigation_steps": [
+                    "Review if intermediate services add value",
+                    "Consider direct service-to-service calls",
+                    "Evaluate caching at different layers",
+                    "Look for unnecessary transformations",
+                ],
+            }
+        )
 
     return recommendations
 
@@ -671,5 +701,7 @@ ORDER BY weighted_impact_ms DESC
             ],
         }
 
-        logger.info(f"Generated critical path contribution SQL for {service_name}/{operation_name}")
+        logger.info(
+            f"Generated critical path contribution SQL for {service_name}/{operation_name}"
+        )
         return json.dumps(result)

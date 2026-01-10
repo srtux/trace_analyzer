@@ -289,9 +289,9 @@ class TestBigQueryOtelTools:
             if "error" in result_data:
                 continue
 
-            assert "description" in result_data, (
-                f"{tool_func.__name__} missing description"
-            )
-            assert "next_steps" in result_data, (
-                f"{tool_func.__name__} missing next_steps"
-            )
+            assert (
+                "description" in result_data
+            ), f"{tool_func.__name__} missing description"
+            assert (
+                "next_steps" in result_data
+            ), f"{tool_func.__name__} missing next_steps"

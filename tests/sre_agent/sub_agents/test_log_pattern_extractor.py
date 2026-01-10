@@ -19,9 +19,7 @@ from sre_agent.tools.analysis.logs.patterns import (
 class TestLogPatternAnalysisWorkflow:
     """Integration tests for the log pattern analysis workflow."""
 
-    def test_full_pattern_extraction_workflow(
-        self, sample_text_payload_logs
-    ):
+    def test_full_pattern_extraction_workflow(self, sample_text_payload_logs):
         """Test complete pattern extraction from raw logs."""
         # Step 1: Extract messages
         messages = extract_messages_from_entries(sample_text_payload_logs)
@@ -87,21 +85,26 @@ class TestLogPatternAnalysisWorkflow:
 
         # 100 similar login messages
         for i in range(100):
-            logs.append({
-                "timestamp": (base_time + timedelta(seconds=i)).isoformat() + "Z",
-                "severity": "INFO",
-                "textPayload": f"User {i * 1000 + 12345} logged in from 192.168.{i % 256}.{i % 256}",
-                "resource": {"type": "k8s_container"},
-            })
+            logs.append(
+                {
+                    "timestamp": (base_time + timedelta(seconds=i)).isoformat() + "Z",
+                    "severity": "INFO",
+                    "textPayload": f"User {i * 1000 + 12345} logged in from 192.168.{i % 256}.{i % 256}",
+                    "resource": {"type": "k8s_container"},
+                }
+            )
 
         # 50 similar error messages
         for i in range(50):
-            logs.append({
-                "timestamp": (base_time + timedelta(seconds=100 + i)).isoformat() + "Z",
-                "severity": "ERROR",
-                "textPayload": f"Connection timeout to host-{i}:5432 after 30000ms",
-                "resource": {"type": "k8s_container"},
-            })
+            logs.append(
+                {
+                    "timestamp": (base_time + timedelta(seconds=100 + i)).isoformat()
+                    + "Z",
+                    "severity": "ERROR",
+                    "textPayload": f"Connection timeout to host-{i}:5432 after 30000ms",
+                    "resource": {"type": "k8s_container"},
+                }
+            )
 
         result = extract_log_patterns(logs)
 
@@ -129,7 +132,10 @@ class TestLogPatternAnalysisWorkflow:
         assert "warning_patterns" in result
 
         # Critical patterns should be flagged
-        assert len(result["critical_patterns"]) > 0 or "CRITICAL" in result["recommendation"]
+        assert (
+            len(result["critical_patterns"]) > 0
+            or "CRITICAL" in result["recommendation"]
+        )
 
 
 class TestLogPatternToolIntegration:
@@ -185,8 +191,10 @@ class TestSubAgentConfiguration:
         """Test that sub-agent has all required tools configured."""
         from sre_agent.sub_agents.logs import log_pattern_extractor
 
-        tool_names = [t.__name__ if hasattr(t, '__name__') else str(t)
-                      for t in log_pattern_extractor.tools]
+        tool_names = [
+            t.__name__ if hasattr(t, "__name__") else str(t)
+            for t in log_pattern_extractor.tools
+        ]
 
         # Should have log fetching tools
         assert any("log" in name.lower() for name in tool_names)
@@ -229,8 +237,9 @@ class TestMainAgentIntegration:
         """Test that main agent has log pattern tools."""
         from sre_agent.agent import base_tools
 
-        tool_names = [t.__name__ if hasattr(t, '__name__') else str(t)
-                      for t in base_tools]
+        tool_names = [
+            t.__name__ if hasattr(t, "__name__") else str(t) for t in base_tools
+        ]
 
         # Should have pattern extraction tools
         assert "extract_log_patterns" in tool_names

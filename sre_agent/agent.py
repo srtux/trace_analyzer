@@ -145,8 +145,6 @@ async def _get_monitoring_mcp_toolset():
     return _monitoring_mcp_toolset
 
 
-
-
 # ============================================================================
 # Orchestration Functions
 # ============================================================================
@@ -158,7 +156,7 @@ async def run_aggregate_analysis(
     table_name: str,
     time_window_hours: int = 24,
     service_name: str | None = None,
-    tool_context: ToolContext = None,
+    tool_context: ToolContext | None = None,
 ) -> dict[str, Any]:
     """
     Run Stage 0: Aggregate analysis using BigQuery.
@@ -178,10 +176,14 @@ async def run_aggregate_analysis(
     """
     logger.info(f"Running aggregate analysis on {dataset_id}.{table_name}")
 
+    if tool_context is None:
+        raise ValueError("tool_context is required")
+
     try:
         # Run aggregate analyzer sub-agent
         result = await AgentTool(aggregate_analyzer).run_async(
-            args={"request": f"""
+            args={
+                "request": f"""
 Analyze trace data in BigQuery:
 - Dataset: {dataset_id}
 - Table: {table_name}
@@ -218,7 +220,7 @@ async def run_triage_analysis(
     baseline_trace_id: str,
     target_trace_id: str,
     project_id: str | None = None,
-    tool_context: ToolContext = None,
+    tool_context: ToolContext | None = None,
 ) -> dict[str, Any]:
     """
     Run Stage 1: Parallel triage analysis with 4 specialized sub-agents.
@@ -257,22 +259,30 @@ Compare them and report your findings.
 
     # Run all triage analyzers in parallel
     results = await asyncio.gather(
-        AgentTool(latency_analyzer).run_async(args={"request": prompt}, tool_context=tool_context),
-        AgentTool(error_analyzer).run_async(args={"request": prompt}, tool_context=tool_context),
-        AgentTool(structure_analyzer).run_async(args={"request": prompt}, tool_context=tool_context),
-        AgentTool(statistics_analyzer).run_async(args={"request": prompt}, tool_context=tool_context),
+        AgentTool(latency_analyzer).run_async(
+            args={"request": prompt}, tool_context=tool_context
+        ),
+        AgentTool(error_analyzer).run_async(
+            args={"request": prompt}, tool_context=tool_context
+        ),
+        AgentTool(structure_analyzer).run_async(
+            args={"request": prompt}, tool_context=tool_context
+        ),
+        AgentTool(statistics_analyzer).run_async(
+            args={"request": prompt}, tool_context=tool_context
+        ),
         return_exceptions=True,
     )
 
     agent_names = ["latency", "error", "structure", "statistics"]
-    triage_results = {}
+    triage_results: dict[str, dict[str, Any]] = {}
 
     for name, result in zip(agent_names, results, strict=False):
         if isinstance(result, Exception):
             logger.error(f"{name}_analyzer failed: {result}")
             triage_results[name] = {"status": "error", "error": str(result)}
         else:
-            triage_results[name] = {"status": "success", "result": result}
+            triage_results[name] = {"status": "success", "result": result}  # type: ignore
 
     return {
         "stage": "triage",
@@ -290,7 +300,7 @@ async def run_log_pattern_analysis(
     comparison_start: str,
     comparison_end: str,
     project_id: str | None = None,
-    tool_context: ToolContext = None,
+    tool_context: ToolContext | None = None,
 ) -> dict[str, Any]:
     """
     Run log pattern analysis to find emergent issues.
@@ -315,9 +325,13 @@ async def run_log_pattern_analysis(
 
     logger.info(f"Running log pattern analysis for filter: {log_filter}")
 
+    if tool_context is None:
+        raise ValueError("tool_context is required")
+
     try:
         result = await AgentTool(log_pattern_extractor).run_async(
-            args={"request": f"""
+            args={
+                "request": f"""
 Analyze log patterns and find anomalies:
 
 Filter: {log_filter}
@@ -363,7 +377,7 @@ async def run_deep_dive_analysis(
     target_trace_id: str,
     triage_findings: dict[str, Any],
     project_id: str | None = None,
-    tool_context: ToolContext = None,
+    tool_context: ToolContext | None = None,
 ) -> dict[str, Any]:
     """
     Run Stage 2: Deep dive analysis with causality and impact sub-agents.
@@ -406,20 +420,24 @@ Determine root cause and assess impact.
 
     # Run deep dive analyzers in parallel
     results = await asyncio.gather(
-        AgentTool(causality_analyzer).run_async(args={"request": prompt}, tool_context=tool_context),
-        AgentTool(service_impact_analyzer).run_async(args={"request": prompt}, tool_context=tool_context),
+        AgentTool(causality_analyzer).run_async(
+            args={"request": prompt}, tool_context=tool_context
+        ),
+        AgentTool(service_impact_analyzer).run_async(
+            args={"request": prompt}, tool_context=tool_context
+        ),
         return_exceptions=True,
     )
 
     agent_names = ["causality", "service_impact"]
-    deep_dive_results = {}
+    deep_dive_results: dict[str, dict[str, Any]] = {}
 
     for name, result in zip(agent_names, results, strict=False):
         if isinstance(result, Exception):
             logger.error(f"{name}_analyzer failed: {result}")
             deep_dive_results[name] = {"status": "error", "error": str(result)}
         else:
-            deep_dive_results[name] = {"status": "success", "result": result}
+            deep_dive_results[name] = {"status": "success", "result": result}  # type: ignore
 
     return {
         "stage": "deep_dive",
@@ -513,7 +531,7 @@ sre_agent = LlmAgent(
         "critical path analysis, service dependency mapping, and multi-stage investigation pipelines."
     ),
     instruction=SRE_AGENT_PROMPT,
-    tools=base_tools,
+    tools=base_tools,  # type: ignore
     # Sub-agents for specialized analysis (automatically invoked based on task)
     sub_agents=[
         # Trace analysis sub-agents

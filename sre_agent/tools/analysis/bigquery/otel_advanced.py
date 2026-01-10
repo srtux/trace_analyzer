@@ -35,16 +35,20 @@ def analyze_span_events(
     """
     where_conditions = [
         f"start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {time_window_hours} HOUR)",
-        "ARRAY_LENGTH(events) > 0"
+        "ARRAY_LENGTH(events) > 0",
     ]
     if service_name:
-        where_conditions.append(f"JSON_EXTRACT_SCALAR(resource.attributes, '$.service.name') = '{service_name}'")
+        where_conditions.append(
+            f"JSON_EXTRACT_SCALAR(resource.attributes, '$.service.name') = '{service_name}'"
+        )
 
     # If we filter by event name, we put it in the UNNEST check or outside
     # Usually easier to filter after UNNEST
 
     where_clause = " AND ".join(where_conditions)
-    event_filter_clause = f"AND event.name = '{event_name_filter}'" if event_name_filter else ""
+    event_filter_clause = (
+        f"AND event.name = '{event_name_filter}'" if event_name_filter else ""
+    )
 
     query = f"""
 SELECT
@@ -63,11 +67,13 @@ WHERE {where_clause}
 ORDER BY event.time DESC
 LIMIT 100
 """
-    return json.dumps({
-        "analysis_type": "span_events",
-        "sql_query": query.strip(),
-        "description": "Analyze span events from OpenTelemetry data"
-    })
+    return json.dumps(
+        {
+            "analysis_type": "span_events",
+            "sql_query": query.strip(),
+            "description": "Analyze span events from OpenTelemetry data",
+        }
+    )
 
 
 @adk_tool
@@ -108,11 +114,13 @@ GROUP BY 1
 ORDER BY exception_count DESC
 LIMIT 50
 """
-    return json.dumps({
-        "analysis_type": "exception_patterns",
-        "sql_query": query.strip(),
-        "description": "Analyze exception patterns"
-    })
+    return json.dumps(
+        {
+            "analysis_type": "exception_patterns",
+            "sql_query": query.strip(),
+            "description": "Analyze exception patterns",
+        }
+    )
 
 
 @adk_tool
@@ -127,10 +135,12 @@ def analyze_span_links(
     """
     where_conditions = [
         f"start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {time_window_hours} HOUR)",
-        "ARRAY_LENGTH(links) > 0"
+        "ARRAY_LENGTH(links) > 0",
     ]
     if service_name:
-        where_conditions.append(f"JSON_EXTRACT_SCALAR(resource.attributes, '$.service.name') = '{service_name}'")
+        where_conditions.append(
+            f"JSON_EXTRACT_SCALAR(resource.attributes, '$.service.name') = '{service_name}'"
+        )
 
     where_clause = " AND ".join(where_conditions)
 
@@ -149,11 +159,13 @@ UNNEST(links) as link
 WHERE {where_clause}
 LIMIT 100
 """
-    return json.dumps({
-        "analysis_type": "span_links",
-        "sql_query": query.strip(),
-        "description": "Analyze span links"
-    })
+    return json.dumps(
+        {
+            "analysis_type": "span_links",
+            "sql_query": query.strip(),
+            "description": "Analyze span links",
+        }
+    )
 
 
 @adk_tool
@@ -176,11 +188,13 @@ WHERE t.start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {time_window_h
 GROUP BY 1
 ORDER BY total_links DESC
 """
-    return json.dumps({
-        "analysis_type": "link_patterns",
-        "sql_query": query.strip(),
-        "description": "Analyze link patterns"
-    })
+    return json.dumps(
+        {
+            "analysis_type": "link_patterns",
+            "sql_query": query.strip(),
+            "description": "Analyze link patterns",
+        }
+    )
 
 
 @adk_tool
@@ -206,11 +220,13 @@ WHERE start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {time_window_hou
 GROUP BY 1, 2, 3
 ORDER BY span_count DESC
 """
-    return json.dumps({
-        "analysis_type": "instrumentation_libraries",
-        "sql_query": query.strip(),
-        "description": "Analyze instrumentation libraries"
-    })
+    return json.dumps(
+        {
+            "analysis_type": "instrumentation_libraries",
+            "sql_query": query.strip(),
+            "description": "Analyze instrumentation libraries",
+        }
+    )
 
 
 @adk_tool
@@ -241,11 +257,13 @@ GROUP BY 1, 2, 3
 HAVING request_count >= {min_request_count}
 ORDER BY request_count DESC
 """
-    return json.dumps({
-        "analysis_type": "http_attributes",
-        "sql_query": query.strip(),
-        "description": "Analyze HTTP attributes"
-    })
+    return json.dumps(
+        {
+            "analysis_type": "http_attributes",
+            "sql_query": query.strip(),
+            "description": "Analyze HTTP attributes",
+        }
+    )
 
 
 @adk_tool
@@ -260,7 +278,9 @@ def analyze_database_operations(
     """
     where_extra = ""
     if db_system:
-        where_extra = f"AND JSON_EXTRACT_SCALAR(attributes, '$.db.system') = '{db_system}'"
+        where_extra = (
+            f"AND JSON_EXTRACT_SCALAR(attributes, '$.db.system') = '{db_system}'"
+        )
 
     query = f"""
 SELECT
@@ -279,8 +299,10 @@ WHERE start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {time_window_hou
 GROUP BY 1, 2, 3
 ORDER BY call_count DESC
 """
-    return json.dumps({
-        "analysis_type": "database_operations",
-        "sql_query": query.strip(),
-        "description": "Analyze database operations"
-    })
+    return json.dumps(
+        {
+            "analysis_type": "database_operations",
+            "sql_query": query.strip(),
+            "description": "Analyze database operations",
+        }
+    )

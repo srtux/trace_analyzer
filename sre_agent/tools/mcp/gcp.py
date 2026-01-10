@@ -61,7 +61,9 @@ def create_bigquery_mcp_toolset(project_id: str | None = None):
         project_id = get_project_id_with_fallback()
 
     if not project_id:
-        logger.warning("No Project ID detected; BigQuery MCP toolset will not be available")
+        logger.warning(
+            "No Project ID detected; BigQuery MCP toolset will not be available"
+        )
         return None
 
     try:
@@ -69,7 +71,9 @@ def create_bigquery_mcp_toolset(project_id: str | None = None):
 
         default_server = "google-bigquery.googleapis.com-mcp"
         mcp_server = os.environ.get("BIGQUERY_MCP_SERVER", default_server)
-        mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
+        mcp_server_name = (
+            f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
+        )
 
         api_registry = ApiRegistry(
             project_id, header_provider=lambda _: {"x-goog-user-project": project_id}
@@ -112,7 +116,9 @@ def create_logging_mcp_toolset(project_id: str | None = None):
         project_id = get_project_id_with_fallback()
 
     if not project_id:
-        logger.warning("No Project ID detected; Cloud Logging MCP toolset will not be available")
+        logger.warning(
+            "No Project ID detected; Cloud Logging MCP toolset will not be available"
+        )
         return None
 
     try:
@@ -120,7 +126,9 @@ def create_logging_mcp_toolset(project_id: str | None = None):
 
         default_server = "logging.googleapis.com-mcp"
         mcp_server = os.environ.get("LOGGING_MCP_SERVER", default_server)
-        mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
+        mcp_server_name = (
+            f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
+        )
 
         api_registry = ApiRegistry(
             project_id, header_provider=lambda _: {"x-goog-user-project": project_id}
@@ -159,7 +167,9 @@ def create_monitoring_mcp_toolset(project_id: str | None = None):
         project_id = get_project_id_with_fallback()
 
     if not project_id:
-        logger.warning("No Project ID detected; Cloud Monitoring MCP toolset will not be available")
+        logger.warning(
+            "No Project ID detected; Cloud Monitoring MCP toolset will not be available"
+        )
         return None
 
     try:
@@ -167,7 +177,9 @@ def create_monitoring_mcp_toolset(project_id: str | None = None):
 
         default_server = "monitoring.googleapis.com-mcp"
         mcp_server = os.environ.get("MONITORING_MCP_SERVER", default_server)
-        mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
+        mcp_server_name = (
+            f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
+        )
 
         api_registry = ApiRegistry(
             project_id, header_provider=lambda _: {"x-goog-user-project": project_id}
@@ -181,7 +193,9 @@ def create_monitoring_mcp_toolset(project_id: str | None = None):
         return mcp_toolset
 
     except Exception as e:
-        logger.error(f"Failed to create Cloud Monitoring MCP toolset: {e}", exc_info=True)
+        logger.error(
+            f"Failed to create Cloud Monitoring MCP toolset: {e}", exc_info=True
+        )
         return None
 
 
@@ -213,7 +227,9 @@ async def call_mcp_tool_with_retry(
         project_id = get_project_id_with_fallback()
 
     if not project_id:
-        return {"error": "No project ID available. Set GOOGLE_CLOUD_PROJECT environment variable."}
+        return {
+            "error": "No project ID available. Set GOOGLE_CLOUD_PROJECT environment variable."
+        }
 
     for attempt in range(max_retries):
         try:
@@ -233,13 +249,12 @@ async def call_mcp_tool_with_retry(
 
         except Exception as e:
             error_str = str(e)
-            is_session_error = (
-                "Session terminated" in error_str
-                or ("session" in error_str.lower() and "error" in error_str.lower())
+            is_session_error = "Session terminated" in error_str or (
+                "session" in error_str.lower() and "error" in error_str.lower()
             )
 
             if is_session_error and attempt < max_retries - 1:
-                delay = base_delay * (2 ** attempt)
+                delay = base_delay * (2**attempt)
                 logger.warning(
                     f"MCP session error during {tool_name} attempt {attempt + 1}/{max_retries}: {e}. "
                     f"Retrying in {delay}s..."
@@ -247,8 +262,12 @@ async def call_mcp_tool_with_retry(
                 await asyncio.sleep(delay)
             else:
                 if attempt >= max_retries - 1:
-                    logger.error(f"{tool_name} failed after {max_retries} attempts: {e}")
+                    logger.error(
+                        f"{tool_name} failed after {max_retries} attempts: {e}"
+                    )
                 raise
+
+    return {"error": f"Failed to execute {tool_name} after {max_retries} attempts"}
 
 
 # =============================================================================
@@ -262,7 +281,7 @@ async def mcp_list_log_entries(
     project_id: str | None = None,
     page_size: int = 100,
     order_by: str | None = None,
-    tool_context: ToolContext = None,
+    tool_context: ToolContext | None = None,
 ) -> dict:
     """
     Search and retrieve log entries from Google Cloud Logging via MCP.
@@ -324,7 +343,7 @@ async def mcp_list_timeseries(
     interval_end_time: str | None = None,
     minutes_ago: int = 60,
     aggregation: dict | None = None,
-    tool_context: ToolContext = None,
+    tool_context: ToolContext | None = None,
 ) -> dict:
     """
     Query time series metrics data from Google Cloud Monitoring via MCP.
@@ -403,7 +422,7 @@ async def mcp_query_range(
     end_time: str | None = None,
     minutes_ago: int = 60,
     step: str = "60s",
-    tool_context: ToolContext = None,
+    tool_context: ToolContext | None = None,
 ) -> dict:
     """
     Evaluate a PromQL query over a time range via Cloud Monitoring MCP.

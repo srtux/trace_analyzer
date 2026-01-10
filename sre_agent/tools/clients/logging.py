@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 @adk_tool
-def list_log_entries(project_id: str, filter_str: str, limit: int = 10, page_token: str | None = None) -> str:
+def list_log_entries(
+    project_id: str, filter_str: str, limit: int = 10, page_token: str | None = None
+) -> str:
     """
     Lists log entries from Google Cloud Logging using direct API.
 
@@ -76,11 +78,13 @@ def list_log_entries(project_id: str, filter_str: str, limit: int = 10, page_tok
 
                 # Truncate if string and too long
                 if isinstance(payload_data, str) and len(payload_data) > 2000:
-                   payload_data = payload_data[:2000] + "...(truncated)"
+                    payload_data = payload_data[:2000] + "...(truncated)"
 
                 results.append(
                     {
-                        "timestamp": entry.timestamp.isoformat() if entry.timestamp else None,
+                        "timestamp": entry.timestamp.isoformat()
+                        if entry.timestamp
+                        else None,
                         "severity": entry.severity.name,
                         "payload": payload_data,
                         "resource": {
@@ -92,10 +96,7 @@ def list_log_entries(project_id: str, filter_str: str, limit: int = 10, page_tok
                 )
             next_token = first_page.next_page_token
 
-        return json.dumps({
-            "entries": results,
-            "next_page_token": next_token or None
-        })
+        return json.dumps({"entries": results, "next_page_token": next_token or None})
     except Exception as e:
         error_msg = f"Failed to list log entries: {e!s}"
         logger.error(error_msg)
@@ -120,7 +121,7 @@ def list_error_events(project_id: str, minutes_ago: int = 60) -> str:
         client = errorreporting_v1beta1.ErrorStatsServiceClient()
         project_name = f"projects/{project_id}"
         time_range = errorreporting_v1beta1.QueryTimeRange()
-        time_range.period = errorreporting_v1beta1.QueryTimeRange.Period.PERIOD_1_HOUR
+        time_range.period = errorreporting_v1beta1.QueryTimeRange.Period.PERIOD_1_HOUR  # type: ignore
         request = errorreporting_v1beta1.ListEventsRequest(
             project_name=project_name,
             group_id=None,

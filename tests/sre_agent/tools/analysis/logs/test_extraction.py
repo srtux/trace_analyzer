@@ -4,7 +4,6 @@ Tests the smart message extraction logic that handles various
 log payload formats: textPayload, jsonPayload, protoPayload.
 """
 
-
 from sre_agent.tools.analysis.logs.extraction import (
     LogMessageExtractor,
     extract_log_message,
@@ -225,9 +224,7 @@ class TestLogMessageExtractor:
 class TestExtractMessagesFromEntries:
     """Tests for the extract_messages_from_entries function."""
 
-    def test_extract_from_multiple_entries(
-        self, sample_text_payload_logs
-    ):
+    def test_extract_from_multiple_entries(self, sample_text_payload_logs):
         """Test extraction from multiple log entries."""
         results = extract_messages_from_entries(sample_text_payload_logs)
 
@@ -291,13 +288,7 @@ class TestEdgeCases:
     def test_nested_json_payload(self):
         """Test extraction from deeply nested JSON."""
         entry = {
-            "jsonPayload": {
-                "data": {
-                    "nested": {
-                        "message": "Deeply nested message"
-                    }
-                }
-            }
+            "jsonPayload": {"data": {"nested": {"message": "Deeply nested message"}}}
         }
         message = extract_log_message(entry)
         # May or may not find nested message depending on implementation

@@ -1,4 +1,3 @@
-
 import json
 from unittest import mock
 
@@ -52,6 +51,7 @@ def test_query_promql(mock_auth_default, mock_session_cls):
     mock_session.get.assert_called_once()
     call_args = mock_session.get.call_args
     assert call_args.kwargs["params"]["query"] == "up"
+
 
 @mock.patch("sre_agent.tools.clients.monitoring.monitoring_v3.MetricServiceClient")
 def test_list_time_series_error(mock_metric_client_cls):

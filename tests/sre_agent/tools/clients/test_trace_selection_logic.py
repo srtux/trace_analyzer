@@ -1,4 +1,3 @@
-
 import json
 from unittest.mock import patch
 
@@ -10,7 +9,10 @@ from sre_agent.tools.clients.trace import find_example_traces, get_trace_by_url
 def test_find_example_traces_hybrid(mock_pid, mock_list_traces):
     # Setup mock traces
     # 50 normal traces (around 100ms)
-    traces = [{"trace_id": f"t{i}", "duration_ms": 100 + i, "project_id": "p"} for i in range(50)]
+    traces = [
+        {"trace_id": f"t{i}", "duration_ms": 100 + i, "project_id": "p"}
+        for i in range(50)
+    ]
     # Add one valid anomaly (500ms)
     traces.append({"trace_id": "t_slow", "duration_ms": 500, "project_id": "p"})
 
@@ -30,6 +32,7 @@ def test_find_example_traces_hybrid(mock_pid, mock_list_traces):
     assert result["anomaly"]["trace_id"] == "t_slow"
     assert result["stats"]["count"] == 51
 
+
 @patch("sre_agent.tools.clients.trace.fetch_trace")
 def test_get_trace_by_url_success(mock_fetch_trace):
     url = "https://console.cloud.google.com/traces/list?project=my-project&tid=1234567890abcdef"
@@ -41,6 +44,7 @@ def test_get_trace_by_url_success(mock_fetch_trace):
     assert data["trace_id"] == "1234567890abcdef"
     mock_fetch_trace.assert_called_with("my-project", "1234567890abcdef")
 
+
 @patch("sre_agent.tools.clients.trace.fetch_trace")
 def test_get_trace_by_url_details_path(mock_fetch_trace):
     url = "https://console.cloud.google.com/traces/list/details/1234567890abcdef?project=my-project"
@@ -50,6 +54,7 @@ def test_get_trace_by_url_details_path(mock_fetch_trace):
     data = json.loads(result)
 
     assert data["trace_id"] == "1234567890abcdef"
+
 
 def test_get_trace_by_url_invalid():
     url = "https://google.com"

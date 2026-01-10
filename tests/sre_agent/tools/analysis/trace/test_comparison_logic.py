@@ -1,4 +1,3 @@
-
 from unittest.mock import patch
 
 import pytest
@@ -11,26 +10,34 @@ from sre_agent.tools.analysis.trace.comparison import (
 
 @pytest.fixture
 def mock_calculate_durations():
-    with patch("sre_agent.tools.analysis.trace.comparison.calculate_span_durations") as mock:
+    with patch(
+        "sre_agent.tools.analysis.trace.comparison.calculate_span_durations"
+    ) as mock:
         yield mock
+
 
 @pytest.fixture
 def mock_build_call_graph():
     with patch("sre_agent.tools.analysis.trace.comparison.build_call_graph") as mock:
         yield mock
 
+
 def test_compare_span_timings_n_plus_one(mock_calculate_durations):
     baseline = [{"name": "db_query", "duration_ms": 10}]
     target = []
     # 5 sequential calls
     for i in range(5):
-        target.append({
-            "name": "db_query",
-            "duration_ms": 20,
-            "start_time": f"2024-01-01T00:00:{10+i:02d}Z",
-            "end_time": f"2024-01-01T00:00:{10+i:02d}.020Z"
-        })
-    target.append({"name": "other", "duration_ms": 5, "start_time": "2024-01-01T00:00:00Z"})
+        target.append(
+            {
+                "name": "db_query",
+                "duration_ms": 20,
+                "start_time": f"2024-01-01T00:00:{10 + i:02d}Z",
+                "end_time": f"2024-01-01T00:00:{10 + i:02d}.020Z",
+            }
+        )
+    target.append(
+        {"name": "other", "duration_ms": 5, "start_time": "2024-01-01T00:00:00Z"}
+    )
 
     mock_calculate_durations.side_effect = [baseline, target]
 
@@ -42,6 +49,7 @@ def test_compare_span_timings_n_plus_one(mock_calculate_durations):
     assert n_plus_one["span_name"] == "db_query"
     assert n_plus_one["count"] >= 3
 
+
 def test_compare_span_timings_serial_chain(mock_calculate_durations):
     # Setup target with serial chain
     # Ensure timestamps are simple and gaps match
@@ -49,9 +57,27 @@ def test_compare_span_timings_serial_chain(mock_calculate_durations):
     # B: 50 to 100ms (0 gap)
     # C: 100 to 200ms (0 gap)
     target = [
-        {"name": "A", "start_time": "2024-01-01T12:00:00.000Z", "end_time": "2024-01-01T12:00:00.050Z", "duration_ms": 50, "span_id": "1"},
-        {"name": "B", "start_time": "2024-01-01T12:00:00.050Z", "end_time": "2024-01-01T12:00:00.100Z", "duration_ms": 50, "span_id": "2"},
-        {"name": "C", "start_time": "2024-01-01T12:00:00.100Z", "end_time": "2024-01-01T12:00:00.200Z", "duration_ms": 100, "span_id": "3"}
+        {
+            "name": "A",
+            "start_time": "2024-01-01T12:00:00.000Z",
+            "end_time": "2024-01-01T12:00:00.050Z",
+            "duration_ms": 50,
+            "span_id": "1",
+        },
+        {
+            "name": "B",
+            "start_time": "2024-01-01T12:00:00.050Z",
+            "end_time": "2024-01-01T12:00:00.100Z",
+            "duration_ms": 50,
+            "span_id": "2",
+        },
+        {
+            "name": "C",
+            "start_time": "2024-01-01T12:00:00.100Z",
+            "end_time": "2024-01-01T12:00:00.200Z",
+            "duration_ms": 100,
+            "span_id": "3",
+        },
     ]
 
     mock_calculate_durations.side_effect = [[], target]
@@ -67,14 +93,15 @@ def test_compare_span_timings_serial_chain(mock_calculate_durations):
     assert serial is not None
     assert len(serial["span_names"]) == 3
 
+
 def test_compare_span_timings_diffs(mock_calculate_durations):
     baseline = [
         {"name": "fast_func", "duration_ms": 10},
-        {"name": "slow_func", "duration_ms": 100}
+        {"name": "slow_func", "duration_ms": 100},
     ]
     target = [
         {"name": "fast_func", "duration_ms": 50},
-        {"name": "slow_func", "duration_ms": 10}
+        {"name": "slow_func", "duration_ms": 10},
     ]
     mock_calculate_durations.side_effect = [baseline, target]
 
@@ -90,16 +117,17 @@ def test_compare_span_timings_diffs(mock_calculate_durations):
     assert faster[0]["span_name"] == "slow_func"
     assert faster[0]["diff_ms"] == -90
 
+
 def test_find_structural_differences(mock_build_call_graph):
     baseline = {
         "span_names": ["root", "childA", "childB"],
         "max_depth": 2,
-        "total_spans": 3
+        "total_spans": 3,
     }
     target = {
         "span_names": ["root", "childA", "childC"],
         "max_depth": 3,
-        "total_spans": 3
+        "total_spans": 3,
     }
     mock_build_call_graph.side_effect = [baseline, target]
 

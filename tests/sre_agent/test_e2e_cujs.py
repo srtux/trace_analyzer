@@ -47,7 +47,9 @@ class TestCUJ_IncidentInvestigation:
                 trace_id=generate_trace_id(), include_error=True
             ),
             "error_logs": CloudLoggingAPIGenerator.log_entries_response(
-                count=20, severity="ERROR", json_payload={"payment_id": "123", "error_code": "DB_CONN_ERR"}
+                count=20,
+                severity="ERROR",
+                json_payload={"payment_id": "123", "error_code": "DB_CONN_ERR"},
             ),
         }
 
@@ -116,14 +118,12 @@ class TestCUJ_PerformanceDebugging:
 
         # Fast trace (normal)
         fast_trace = generator.create_multi_service_trace(
-            services=["frontend", "api", "db"],
-            latency_strategy="normal"
+            services=["frontend", "api", "db"], latency_strategy="normal"
         )
 
         # Slow trace (latency creeps up)
         slow_trace = generator.create_multi_service_trace(
-            services=["frontend", "api", "db"],
-            latency_strategy="creep"
+            services=["frontend", "api", "db"], latency_strategy="creep"
         )
 
         # Verify traces have expected structure
@@ -197,21 +197,26 @@ class TestCUJ_ErrorDiagnosis:
 
         # Add the specific error pattern
         for i in range(15):
-            logs.append({
-                "timestamp": (base_time + timedelta(seconds=i)).isoformat() + "Z",
-                "severity": "ERROR",
-                "textPayload": f"DatabaseConnectionError: Connection refused to db-primary:5432 (attempt {i})",
-                "resource": {"type": "k8s_container"},
-            })
+            logs.append(
+                {
+                    "timestamp": (base_time + timedelta(seconds=i)).isoformat() + "Z",
+                    "severity": "ERROR",
+                    "textPayload": f"DatabaseConnectionError: Connection refused to db-primary:5432 (attempt {i})",
+                    "resource": {"type": "k8s_container"},
+                }
+            )
 
         # Add some noise
         for i in range(10):
-            logs.append({
-                "timestamp": (base_time + timedelta(seconds=20 + i)).isoformat() + "Z",
-                "severity": "INFO",
-                "textPayload": f"Request {i} processed successfully",
-                "resource": {"type": "k8s_container"},
-            })
+            logs.append(
+                {
+                    "timestamp": (base_time + timedelta(seconds=20 + i)).isoformat()
+                    + "Z",
+                    "severity": "INFO",
+                    "textPayload": f"Request {i} processed successfully",
+                    "resource": {"type": "k8s_container"},
+                }
+            )
 
         result = analyze_log_anomalies(logs, focus_on_errors=True)
 
@@ -220,9 +225,11 @@ class TestCUJ_ErrorDiagnosis:
         assert len(result["error_patterns"]) > 0
 
         # The recommendation should mention the error
-        assert "DatabaseConnectionError" in str(result) or \
-               "Connection" in str(result) or \
-               "ERROR" in result["recommendation"]
+        assert (
+            "DatabaseConnectionError" in str(result)
+            or "Connection" in str(result)
+            or "ERROR" in result["recommendation"]
+        )
 
 
 class TestCUJ_ProactiveMonitoring:
@@ -237,9 +244,7 @@ class TestCUJ_ProactiveMonitoring:
     6. Agent provides quick triage summary
     """
 
-    def test_quick_triage_workflow(
-        self, baseline_period_logs, incident_period_logs
-    ):
+    def test_quick_triage_workflow(self, baseline_period_logs, incident_period_logs):
         """Test the quick triage workflow for alert response."""
         from sre_agent.tools.analysis.logs.patterns import (
             compare_log_patterns,
@@ -247,9 +252,7 @@ class TestCUJ_ProactiveMonitoring:
         )
 
         # Step 1: Quick pattern extraction
-        current_patterns = extract_log_patterns(
-            incident_period_logs, max_patterns=10
-        )
+        current_patterns = extract_log_patterns(incident_period_logs, max_patterns=10)
 
         # Should complete quickly with limited patterns
         assert current_patterns["total_logs_processed"] > 0
@@ -310,8 +313,7 @@ class TestCUJ_RootCauseAnalysis:
 
         # Find the error span
         error_spans = [
-            span for span in trace
-            if span.get("status", {}).get("code") == 2
+            span for span in trace if span.get("status", {}).get("code") == 2
         ]
 
         # Should have exactly one error span (in database)
@@ -334,8 +336,7 @@ class TestCUJ_RootCauseAnalysis:
 
         # Should be able to filter logs by trace
         trace_logs = [
-            log for log in logs_with_trace
-            if trace_id in log.get("trace", "")
+            log for log in logs_with_trace if trace_id in log.get("trace", "")
         ]
 
         assert len(trace_logs) == 3
@@ -360,23 +361,29 @@ class TestCUJ_HistoricalComparison:
         baseline_time = datetime.now(timezone.utc) - timedelta(days=7)
         baseline_logs = []
         for i in range(20):
-            baseline_logs.append({
-                "timestamp": (baseline_time + timedelta(minutes=i)).isoformat() + "Z",
-                "severity": "INFO",
-                "textPayload": f"Normal operation log {i}",
-                "resource": {"type": "k8s_container"},
-            })
+            baseline_logs.append(
+                {
+                    "timestamp": (baseline_time + timedelta(minutes=i)).isoformat()
+                    + "Z",
+                    "severity": "INFO",
+                    "textPayload": f"Normal operation log {i}",
+                    "resource": {"type": "k8s_container"},
+                }
+            )
 
         # Generate "current" period
         current_time = datetime.now(timezone.utc)
         current_logs = []
         for i in range(20):
-            current_logs.append({
-                "timestamp": (current_time + timedelta(minutes=i)).isoformat() + "Z",
-                "severity": "INFO",
-                "textPayload": f"Normal operation log {i}",
-                "resource": {"type": "k8s_container"},
-            })
+            current_logs.append(
+                {
+                    "timestamp": (current_time + timedelta(minutes=i)).isoformat()
+                    + "Z",
+                    "severity": "INFO",
+                    "textPayload": f"Normal operation log {i}",
+                    "resource": {"type": "k8s_container"},
+                }
+            )
 
         # Compare periods
         result = compare_log_patterns(
@@ -385,7 +392,9 @@ class TestCUJ_HistoricalComparison:
         )
 
         # Identical patterns should result in LOW alert
-        assert "LOW" in result["alert_level"] or "stable" in result["alert_level"].lower()
+        assert (
+            "LOW" in result["alert_level"] or "stable" in result["alert_level"].lower()
+        )
 
 
 class TestCUJ_MultiSignalCorrelation:
@@ -434,25 +443,31 @@ class TestCUJ_MultiSignalCorrelation:
         events = []
 
         # Metric anomaly detected
-        events.append({
-            "time": base_time - timedelta(minutes=5),
-            "type": "metric",
-            "description": "Error rate exceeded threshold",
-        })
+        events.append(
+            {
+                "time": base_time - timedelta(minutes=5),
+                "type": "metric",
+                "description": "Error rate exceeded threshold",
+            }
+        )
 
         # First error log
-        events.append({
-            "time": base_time - timedelta(minutes=4),
-            "type": "log",
-            "description": "DatabaseConnectionError first occurrence",
-        })
+        events.append(
+            {
+                "time": base_time - timedelta(minutes=4),
+                "type": "log",
+                "description": "DatabaseConnectionError first occurrence",
+            }
+        )
 
         # Error trace
-        events.append({
-            "time": base_time - timedelta(minutes=3),
-            "type": "trace",
-            "description": "Request failed with 500 status",
-        })
+        events.append(
+            {
+                "time": base_time - timedelta(minutes=3),
+                "type": "trace",
+                "description": "Request failed with 500 status",
+            }
+        )
 
         # Sort by time to get timeline
         timeline = sorted(events, key=lambda e: e["time"])

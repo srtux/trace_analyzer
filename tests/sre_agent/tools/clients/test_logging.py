@@ -10,11 +10,22 @@ def create_mock_page(entries, next_token=None):
     page.next_page_token = next_token if next_token else ""
     return page
 
+
 @patch("sre_agent.tools.clients.logging.LoggingServiceV2Client")
 def test_list_log_entries_success_text_payload(mock_client_cls):
     mock_client = mock_client_cls.return_value
 
-    mock_entry = Mock(spec=["text_payload", "timestamp", "severity", "resource", "json_payload", "proto_payload", "insert_id"])
+    mock_entry = Mock(
+        spec=[
+            "text_payload",
+            "timestamp",
+            "severity",
+            "resource",
+            "json_payload",
+            "proto_payload",
+            "insert_id",
+        ]
+    )
     mock_entry.text_payload = "test log content"
     mock_entry.json_payload = None
     mock_entry.proto_payload = None
@@ -43,6 +54,7 @@ def test_list_log_entries_success_text_payload(mock_client_cls):
     assert kwargs["request"]["order_by"] == "timestamp desc"
     assert kwargs["request"]["page_size"] == 10
 
+
 @patch("sre_agent.tools.clients.logging.LoggingServiceV2Client")
 def test_list_log_entries_pagination(mock_client_cls):
     mock_client = mock_client_cls.return_value
@@ -64,11 +76,22 @@ def test_list_log_entries_pagination(mock_client_cls):
     last_call = call_args_list[1]
     assert last_call.kwargs["request"]["page_token"] == "token-abc"
 
+
 @patch("sre_agent.tools.clients.logging.LoggingServiceV2Client")
 def test_list_log_entries_json_payload(mock_client_cls):
     mock_client = mock_client_cls.return_value
 
-    mock_entry = Mock(spec=["text_payload", "timestamp", "severity", "resource", "json_payload", "proto_payload", "insert_id"])
+    mock_entry = Mock(
+        spec=[
+            "text_payload",
+            "timestamp",
+            "severity",
+            "resource",
+            "json_payload",
+            "proto_payload",
+            "insert_id",
+        ]
+    )
     mock_entry.text_payload = None
     mock_entry.json_payload = {"key": "value"}
     mock_entry.proto_payload = None
@@ -101,11 +124,13 @@ def test_list_error_events_success(mock_client_cls):
     mock_client.list_events.return_value = [mock_event]
 
     from sre_agent.tools.clients.logging import list_error_events
+
     result = list_error_events("p")
     data = json.loads(result)
 
     assert len(data) == 1
     assert data[0]["message"] == "Error occurred"
+
 
 @patch("google.cloud.errorreporting_v1beta1.ErrorStatsServiceClient")
 def test_list_error_events_error(mock_client_cls):
@@ -113,6 +138,7 @@ def test_list_error_events_error(mock_client_cls):
     mock_client.list_events.side_effect = Exception("fail")
 
     from sre_agent.tools.clients.logging import list_error_events
+
     result = list_error_events("p")
     data = json.loads(result)
     assert "error" in data

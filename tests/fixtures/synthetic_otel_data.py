@@ -23,7 +23,7 @@ def generate_span_id() -> str:
 
 
 def generate_timestamp(
-    base_time: datetime | None = None, offset_seconds: int = 0
+    base_time: datetime | None = None, offset_seconds: float = 0
 ) -> str:
     """Generate a timestamp in ISO format."""
     if base_time is None:
@@ -295,7 +295,6 @@ class OtelSpanGenerator:
         )
 
 
-
 @dataclass
 class TraceGenerator:
     """Generator for complete traces with multiple spans."""
@@ -361,14 +360,10 @@ class TraceGenerator:
 
         # Root Span
         root_gen = OtelSpanGenerator(
-            service_name=root_service,
-            trace_id=trace_id,
-            base_time=self.base_time
+            service_name=root_service, trace_id=trace_id, base_time=self.base_time
         )
         root_span = root_gen.create_http_server_span(
-            endpoint="/api/fanout",
-            duration_ms=150.0,
-            include_error=False
+            endpoint="/api/fanout", duration_ms=150.0, include_error=False
         )
         spans.append(root_span)
 
@@ -379,7 +374,7 @@ class TraceGenerator:
                 service_name=service_name,
                 trace_id=trace_id,
                 parent_span_id=root_span["span_id"],
-                base_time=self.base_time + timedelta(milliseconds=20)
+                base_time=self.base_time + timedelta(milliseconds=20),
             )
 
             # Make one specific child error if requested
@@ -388,13 +383,15 @@ class TraceGenerator:
             child_span = child_gen.create_http_server_span(
                 endpoint=f"/api/{service_name}",
                 duration_ms=50.0 + (i * 10),
-                include_error=is_error
+                include_error=is_error,
             )
             spans.append(child_span)
 
         return spans
 
-    def create_async_trace(self, service_chain: list[str] | None = None) -> list[dict[str, Any]]:
+    def create_async_trace(
+        self, service_chain: list[str] | None = None
+    ) -> list[dict[str, Any]]:
         """Generate a trace with async span links between disjoint traces."""
         if service_chain is None:
             service_chain = ["producer", "consumer"]
@@ -408,11 +405,10 @@ class TraceGenerator:
         prod_gen = OtelSpanGenerator(
             service_name=service_chain[0],
             trace_id=producer_trace_id,
-            base_time=self.base_time
+            base_time=self.base_time,
         )
         prod_span = prod_gen.create_http_server_span(
-            endpoint="/publish",
-            duration_ms=30.0
+            endpoint="/publish", duration_ms=30.0
         )
         spans.append(prod_span)
 
@@ -420,21 +416,21 @@ class TraceGenerator:
         cons_gen = OtelSpanGenerator(
             service_name=service_chain[1],
             trace_id=consumer_trace_id,
-            base_time=self.base_time + timedelta(seconds=2) # 2s later
+            base_time=self.base_time + timedelta(seconds=2),  # 2s later
         )
 
         link = SpanLinkGenerator.create_link(
             linked_trace_id=producer_trace_id,
             linked_span_id=prod_span["span_id"],
             link_type="follows_from",
-            reason="async_message_processing"
+            reason="async_message_processing",
         )
 
         cons_span = cons_gen.create_span(
             name="process_message",
-            kind=1, # INTERNAL
+            kind=1,  # INTERNAL
             duration_ms=100.0,
-            links=[link]
+            links=[link],
         )
         spans.append(cons_span)
 
@@ -444,7 +440,7 @@ class TraceGenerator:
         self,
         services: list[str] | None = None,
         include_errors: bool = False,
-        latency_strategy: str = "normal"  # normal, creep, spike
+        latency_strategy: str = "normal",  # normal, creep, spike
     ) -> list[dict[str, Any]]:
         """Generate a trace spanning multiple services."""
         if services is None:
@@ -471,7 +467,7 @@ class TraceGenerator:
             if latency_strategy == "spike" and service == "database":
                 base_duration *= 10
             elif latency_strategy == "creep":
-                base_duration *= (1.5 ** i)
+                base_duration *= 1.5**i
 
             if service == "database":
                 span = generator.create_database_span(
@@ -562,13 +558,17 @@ class BigQueryResultGenerator:
                 is_spike = random.random() > 0.95
                 error_count = int(request_count * (0.1 if is_spike else 0.01))
 
-                results.append({
-                    "service_name": service,
-                    "time_interval": point_time.isoformat(),
-                    "request_count": request_count,
-                    "error_count": error_count,
-                    "avg_latency": 100 + (50 if is_spike else 0) + random.randint(-10, 10)
-                })
+                results.append(
+                    {
+                        "service_name": service,
+                        "time_interval": point_time.isoformat(),
+                        "request_count": request_count,
+                        "error_count": error_count,
+                        "avg_latency": 100
+                        + (50 if is_spike else 0)
+                        + random.randint(-10, 10),
+                    }
+                )
 
         return results
 
@@ -746,7 +746,10 @@ class CloudLoggingAPIGenerator:
 
     @staticmethod
     def log_entries_response(
-        count: int = 10, trace_id: str | None = None, severity: str = "ERROR", json_payload: dict[str, Any] | None = None
+        count: int = 10,
+        trace_id: str | None = None,
+        severity: str = "ERROR",
+        json_payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Generate mock Cloud Logging API response."""
         entries = []
@@ -759,7 +762,7 @@ class CloudLoggingAPIGenerator:
                     trace_id=trace_id,
                 )
             else:
-                 entry = {
+                entry = {
                     "logName": "projects/test-project/logs/application",
                     "resource": {
                         "type": "gce_instance",
@@ -784,5 +787,3 @@ class CloudLoggingAPIGenerator:
             entries.append(entry)
 
         return {"entries": entries}
-
-

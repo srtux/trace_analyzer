@@ -76,10 +76,7 @@ class TestCorrelateTraceWithMetrics:
         queries = parsed["recommended_promql_queries"]
 
         # At least one query should contain the service filter
-        has_service_filter = any(
-            'service="my-service"' in q["query"]
-            for q in queries
-        )
+        has_service_filter = any('service="my-service"' in q["query"] for q in queries)
         assert has_service_filter
 
     def test_custom_metrics_to_check(self):
@@ -381,49 +378,77 @@ class TestCrossSignalToolsIntegration:
     def test_all_tools_return_valid_json(self):
         """Test that all tools return valid JSON."""
         tools_and_args = [
-            (correlate_trace_with_metrics, {
-                "trace_id": "test",
-                "dataset_id": "proj.ds",
-            }),
-            (correlate_metrics_with_traces_via_exemplars, {
-                "dataset_id": "proj.ds",
-                "metric_name": "latency",
-                "service_name": "svc",
-            }),
-            (build_cross_signal_timeline, {
-                "trace_id": "test",
-                "dataset_id": "proj.ds",
-            }),
-            (analyze_signal_correlation_strength, {
-                "dataset_id": "proj.ds",
-            }),
+            (
+                correlate_trace_with_metrics,
+                {
+                    "trace_id": "test",
+                    "dataset_id": "proj.ds",
+                },
+            ),
+            (
+                correlate_metrics_with_traces_via_exemplars,
+                {
+                    "dataset_id": "proj.ds",
+                    "metric_name": "latency",
+                    "service_name": "svc",
+                },
+            ),
+            (
+                build_cross_signal_timeline,
+                {
+                    "trace_id": "test",
+                    "dataset_id": "proj.ds",
+                },
+            ),
+            (
+                analyze_signal_correlation_strength,
+                {
+                    "dataset_id": "proj.ds",
+                },
+            ),
         ]
 
         for tool, args in tools_and_args:
             result = tool(**args)
             parsed = json.loads(result)
             assert isinstance(parsed, dict)
-            assert "analysis_type" in parsed or "sql_query" in parsed or "correlation_sql" in parsed
+            assert (
+                "analysis_type" in parsed
+                or "sql_query" in parsed
+                or "correlation_sql" in parsed
+            )
 
     def test_all_tools_include_next_steps(self):
         """Test that all tools include next steps guidance."""
         tools_and_args = [
-            (correlate_trace_with_metrics, {
-                "trace_id": "test",
-                "dataset_id": "proj.ds",
-            }),
-            (correlate_metrics_with_traces_via_exemplars, {
-                "dataset_id": "proj.ds",
-                "metric_name": "latency",
-                "service_name": "svc",
-            }),
-            (build_cross_signal_timeline, {
-                "trace_id": "test",
-                "dataset_id": "proj.ds",
-            }),
-            (analyze_signal_correlation_strength, {
-                "dataset_id": "proj.ds",
-            }),
+            (
+                correlate_trace_with_metrics,
+                {
+                    "trace_id": "test",
+                    "dataset_id": "proj.ds",
+                },
+            ),
+            (
+                correlate_metrics_with_traces_via_exemplars,
+                {
+                    "dataset_id": "proj.ds",
+                    "metric_name": "latency",
+                    "service_name": "svc",
+                },
+            ),
+            (
+                build_cross_signal_timeline,
+                {
+                    "trace_id": "test",
+                    "dataset_id": "proj.ds",
+                },
+            ),
+            (
+                analyze_signal_correlation_strength,
+                {
+                    "dataset_id": "proj.ds",
+                },
+            ),
         ]
 
         for tool, args in tools_and_args:

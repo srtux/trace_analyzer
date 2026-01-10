@@ -432,10 +432,13 @@ class TestDependencyToolsIntegration:
         """Test that all tools return valid JSON."""
         tools_and_args = [
             (build_service_dependency_graph, {"dataset_id": "proj.ds"}),
-            (analyze_upstream_downstream_impact, {
-                "dataset_id": "proj.ds",
-                "service_name": "svc",
-            }),
+            (
+                analyze_upstream_downstream_impact,
+                {
+                    "dataset_id": "proj.ds",
+                    "service_name": "svc",
+                },
+            ),
             (detect_circular_dependencies, {"dataset_id": "proj.ds"}),
             (find_hidden_dependencies, {"dataset_id": "proj.ds"}),
         ]
@@ -451,10 +454,13 @@ class TestDependencyToolsIntegration:
         """Test that all tools include next steps guidance."""
         tools_and_args = [
             (build_service_dependency_graph, {"dataset_id": "proj.ds"}),
-            (analyze_upstream_downstream_impact, {
-                "dataset_id": "proj.ds",
-                "service_name": "svc",
-            }),
+            (
+                analyze_upstream_downstream_impact,
+                {
+                    "dataset_id": "proj.ds",
+                    "service_name": "svc",
+                },
+            ),
             (detect_circular_dependencies, {"dataset_id": "proj.ds"}),
             (find_hidden_dependencies, {"dataset_id": "proj.ds"}),
         ]
@@ -470,10 +476,13 @@ class TestDependencyToolsIntegration:
         """Test that SQL queries have basic SELECT/FROM structure."""
         tools_and_args = [
             (build_service_dependency_graph, {"dataset_id": "proj.ds"}),
-            (analyze_upstream_downstream_impact, {
-                "dataset_id": "proj.ds",
-                "service_name": "svc",
-            }),
+            (
+                analyze_upstream_downstream_impact,
+                {
+                    "dataset_id": "proj.ds",
+                    "service_name": "svc",
+                },
+            ),
             (detect_circular_dependencies, {"dataset_id": "proj.ds"}),
             (find_hidden_dependencies, {"dataset_id": "proj.ds"}),
         ]

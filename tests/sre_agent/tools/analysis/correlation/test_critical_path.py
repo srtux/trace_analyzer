@@ -331,7 +331,9 @@ class TestCalculateCriticalPathContribution:
         sql = parsed["sql_query"]
 
         # Should include percentile calculations
-        assert "p50" in sql.lower() or "p95" in sql.lower() or "percentile" in sql.lower()
+        assert (
+            "p50" in sql.lower() or "p95" in sql.lower() or "percentile" in sql.lower()
+        )
 
     def test_includes_contribution_statistics(self):
         """Test that SQL calculates contribution statistics."""
@@ -405,10 +407,13 @@ class TestCriticalPathToolsIntegration:
         """Test that SQL queries have basic structure."""
         sql_tools = [
             (find_bottleneck_services, {"dataset_id": "proj.ds"}),
-            (calculate_critical_path_contribution, {
-                "dataset_id": "proj.ds",
-                "service_name": "svc",
-            }),
+            (
+                calculate_critical_path_contribution,
+                {
+                    "dataset_id": "proj.ds",
+                    "service_name": "svc",
+                },
+            ),
         ]
 
         for tool, args in sql_tools:
@@ -423,10 +428,13 @@ class TestCriticalPathToolsIntegration:
         """Test that all SQL-returning tools include next steps."""
         sql_tools = [
             (find_bottleneck_services, {"dataset_id": "proj.ds"}),
-            (calculate_critical_path_contribution, {
-                "dataset_id": "proj.ds",
-                "service_name": "svc",
-            }),
+            (
+                calculate_critical_path_contribution,
+                {
+                    "dataset_id": "proj.ds",
+                    "service_name": "svc",
+                },
+            ),
         ]
 
         for tool, args in sql_tools:

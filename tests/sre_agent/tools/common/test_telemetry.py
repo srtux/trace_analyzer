@@ -4,7 +4,9 @@ from sre_agent.tools.common.telemetry import get_meter, get_tracer
 
 
 def test_get_tracer():
-    with mock.patch("sre_agent.tools.common.telemetry.trace.get_tracer_provider") as mock_get_provider:
+    with mock.patch(
+        "sre_agent.tools.common.telemetry.trace.get_tracer_provider"
+    ) as mock_get_provider:
         mock_tracer = mock.Mock()
         mock_get_provider.return_value = mock_tracer
 
@@ -15,7 +17,9 @@ def test_get_tracer():
 
 
 def test_get_meter():
-    with mock.patch("sre_agent.tools.common.telemetry.metrics.get_meter") as mock_get_meter:
+    with mock.patch(
+        "sre_agent.tools.common.telemetry.metrics.get_meter"
+    ) as mock_get_meter:
         mock_meter = mock.Mock()
         mock_get_meter.return_value = mock_meter
 

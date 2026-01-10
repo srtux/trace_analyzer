@@ -1,4 +1,3 @@
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -27,6 +26,7 @@ async def test_run_aggregate_analysis_success():
         assert result["result"] == "Analysis complete"
         mock_instance.run_async.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_run_triage_analysis_success():
     tool_context = MagicMock(spec=ToolContext)
@@ -46,6 +46,7 @@ async def test_run_triage_analysis_success():
             # 4 agents called in parallel
             assert mock_instance.run_async.await_count == 4
 
+
 @pytest.mark.asyncio
 async def test_run_log_pattern_analysis_success():
     tool_context = MagicMock(spec=ToolContext)
@@ -55,12 +56,17 @@ async def test_run_log_pattern_analysis_success():
             mock_instance.run_async = AsyncMock(return_value="Patterns found")
 
             result = await run_log_pattern_analysis(
-                log_filter="f", baseline_start="s1", baseline_end="e1",
-                comparison_start="s2", comparison_end="e2", tool_context=tool_context
+                log_filter="f",
+                baseline_start="s1",
+                baseline_end="e1",
+                comparison_start="s2",
+                comparison_end="e2",
+                tool_context=tool_context,
             )
 
             assert result["status"] == "success"
             assert result["result"] == "Patterns found"
+
 
 @pytest.mark.asyncio
 async def test_run_deep_dive_analysis_success():
@@ -71,8 +77,10 @@ async def test_run_deep_dive_analysis_success():
             mock_instance.run_async = AsyncMock(return_value="Deep dive done")
 
             result = await run_deep_dive_analysis(
-                baseline_trace_id="b", target_trace_id="t", triage_findings={},
-                tool_context=tool_context
+                baseline_trace_id="b",
+                target_trace_id="t",
+                triage_findings={},
+                tool_context=tool_context,
             )
 
             assert result["stage"] == "deep_dive"

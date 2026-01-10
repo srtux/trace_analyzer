@@ -4,7 +4,6 @@ Tests the pattern extraction, comparison, and anomaly detection
 functionality using the Drain3 algorithm.
 """
 
-
 from sre_agent.tools.analysis.logs.patterns import (
     LogPattern,
     LogPatternExtractor,
@@ -66,7 +65,9 @@ class TestLogPatternExtractor:
 
         # Most should cluster together (Drain3 may split first few)
         unique_patterns = len(set(ids))
-        assert unique_patterns <= 3, f"Expected at most 3 patterns, got {unique_patterns}"
+        assert (
+            unique_patterns <= 3
+        ), f"Expected at most 3 patterns, got {unique_patterns}"
 
         # Total count should match
         total_count = sum(p.count for p in extractor.patterns.values())
@@ -109,14 +110,8 @@ class TestLogPatternExtractor:
         """Test that first/last seen timestamps are tracked."""
         extractor = LogPatternExtractor()
 
-        extractor.add_log(
-            message="Event occurred",
-            timestamp="2024-01-01T00:00:00Z"
-        )
-        extractor.add_log(
-            message="Event occurred",
-            timestamp="2024-01-01T01:00:00Z"
-        )
+        extractor.add_log(message="Event occurred", timestamp="2024-01-01T00:00:00Z")
+        extractor.add_log(message="Event occurred", timestamp="2024-01-01T01:00:00Z")
 
         pattern = next(iter(extractor.patterns.values()))
         assert pattern.first_seen == "2024-01-01T00:00:00Z"
@@ -186,8 +181,10 @@ class TestLogPatternExtractor:
 
         patterns = extractor.get_patterns(sort_by="severity")
         # Critical/Error should come first
-        assert patterns[0].severity_counts.get("CRITICAL", 0) > 0 or \
-               patterns[0].severity_counts.get("ERROR", 0) > 0
+        assert (
+            patterns[0].severity_counts.get("CRITICAL", 0) > 0
+            or patterns[0].severity_counts.get("ERROR", 0) > 0
+        )
 
     def test_get_patterns_with_limit(self):
         """Test limiting number of patterns returned."""
@@ -213,10 +210,7 @@ class TestLogPatternExtractor:
 
         for i in range(20):
             severity = "ERROR" if i % 5 == 0 else "INFO"
-            extractor.add_log(
-                message=f"Log entry type {i % 3}",
-                severity=severity
-            )
+            extractor.add_log(message=f"Log entry type {i % 3}", severity=severity)
 
         summary = extractor.get_summary(max_patterns=10)
 
@@ -254,8 +248,12 @@ class TestLogPatternExtractor:
         """Test that UUIDs are masked in patterns."""
         extractor = LogPatternExtractor()
 
-        extractor.add_log(message="Processing request abc12345-def6-7890-abcd-ef1234567890")
-        extractor.add_log(message="Processing request 11111111-2222-3333-4444-555555555555")
+        extractor.add_log(
+            message="Processing request abc12345-def6-7890-abcd-ef1234567890"
+        )
+        extractor.add_log(
+            message="Processing request 11111111-2222-3333-4444-555555555555"
+        )
 
         # Both should match same pattern (UUIDs masked)
         assert len(extractor.patterns) == 1
@@ -341,9 +339,7 @@ class TestComparePatterns:
             LogPattern("p2", "Pattern B", 50),  # Total: 100
         ]
 
-        comparison = compare_patterns(
-            patterns1, patterns2, significance_threshold=0.5
-        )
+        comparison = compare_patterns(patterns1, patterns2, significance_threshold=0.5)
 
         # Pattern A increased from 10% to 50% of traffic
         assert len(comparison.increased_patterns) >= 1
@@ -359,9 +355,7 @@ class TestComparePatterns:
             LogPattern("p2", "Pattern B", 80),  # Total: 100
         ]
 
-        comparison = compare_patterns(
-            patterns1, patterns2, significance_threshold=0.5
-        )
+        comparison = compare_patterns(patterns1, patterns2, significance_threshold=0.5)
 
         # Pattern A decreased from 80% to 20%
         assert len(comparison.decreased_patterns) >= 1
@@ -375,9 +369,7 @@ class TestComparePatterns:
             LogPattern("p1", "Pattern A", 110),  # Only 10% change
         ]
 
-        comparison = compare_patterns(
-            patterns1, patterns2, significance_threshold=0.5
-        )
+        comparison = compare_patterns(patterns1, patterns2, significance_threshold=0.5)
 
         assert len(comparison.stable_patterns) == 1
         assert len(comparison.increased_patterns) == 0
@@ -415,9 +407,7 @@ class TestExtractLogPatterns:
 
     def test_extract_with_max_patterns(self, sample_text_payload_logs):
         """Test limiting max patterns returned."""
-        result = extract_log_patterns(
-            sample_text_payload_logs, max_patterns=2
-        )
+        result = extract_log_patterns(sample_text_payload_logs, max_patterns=2)
 
         assert len(result["top_patterns"]) <= 2
 
@@ -426,14 +416,18 @@ class TestExtractLogPatterns:
         # Create logs with clear repetition
         logs = []
         for _i in range(10):
-            logs.append({
-                "textPayload": "Common pattern that repeats",
+            logs.append(
+                {
+                    "textPayload": "Common pattern that repeats",
+                    "severity": "INFO",
+                }
+            )
+        logs.append(
+            {
+                "textPayload": "Unique pattern that appears once",
                 "severity": "INFO",
-            })
-        logs.append({
-            "textPayload": "Unique pattern that appears once",
-            "severity": "INFO",
-        })
+            }
+        )
 
         result = extract_log_patterns(logs, min_count=5)
 
@@ -442,9 +436,7 @@ class TestExtractLogPatterns:
         if result["top_patterns"]:
             assert result["top_patterns"][0]["count"] >= 5
 
-    def test_extract_tracks_severity_distribution(
-        self, sample_text_payload_logs
-    ):
+    def test_extract_tracks_severity_distribution(self, sample_text_payload_logs):
         """Test that severity distribution is tracked."""
         result = extract_log_patterns(sample_text_payload_logs)
 
@@ -517,9 +509,7 @@ class TestAnalyzeLogAnomalies:
 
     def test_analyze_error_logs(self, incident_period_logs):
         """Test anomaly analysis focused on errors."""
-        result = analyze_log_anomalies(
-            incident_period_logs, focus_on_errors=True
-        )
+        result = analyze_log_anomalies(incident_period_logs, focus_on_errors=True)
 
         assert "total_logs" in result
         assert "unique_patterns" in result
@@ -528,18 +518,14 @@ class TestAnalyzeLogAnomalies:
 
     def test_analyze_all_logs(self, sample_text_payload_logs):
         """Test anomaly analysis without error focus."""
-        result = analyze_log_anomalies(
-            sample_text_payload_logs, focus_on_errors=False
-        )
+        result = analyze_log_anomalies(sample_text_payload_logs, focus_on_errors=False)
 
         assert "top_patterns" in result
         assert len(result["top_patterns"]) > 0
 
     def test_analyze_with_max_results(self, incident_period_logs):
         """Test limiting max results."""
-        result = analyze_log_anomalies(
-            incident_period_logs, max_results=3
-        )
+        result = analyze_log_anomalies(incident_period_logs, max_results=3)
 
         assert len(result["top_patterns"]) <= 3
 
@@ -563,14 +549,8 @@ class TestGetPatternSummary:
     def test_summary_with_patterns(self):
         """Test summary with patterns."""
         patterns = [
-            LogPattern(
-                "p1", "Error in service", 100,
-                severity_counts={"ERROR": 100}
-            ),
-            LogPattern(
-                "p2", "Request completed", 50,
-                severity_counts={"INFO": 50}
-            ),
+            LogPattern("p1", "Error in service", 100, severity_counts={"ERROR": 100}),
+            LogPattern("p2", "Request completed", 50, severity_counts={"INFO": 50}),
         ]
 
         summary = get_pattern_summary(patterns)
@@ -580,10 +560,7 @@ class TestGetPatternSummary:
 
     def test_summary_respects_max_length(self):
         """Test that summary respects max_length."""
-        patterns = [
-            LogPattern(f"p{i}", f"Pattern {i} " * 50, 10)
-            for i in range(20)
-        ]
+        patterns = [LogPattern(f"p{i}", f"Pattern {i} " * 50, 10) for i in range(20)]
 
         summary = get_pattern_summary(patterns, max_length=500)
 
@@ -612,8 +589,7 @@ class TestAlertLevelDetermination:
         """Test MEDIUM alert for many new patterns."""
         comparison = PatternComparison(
             new_patterns=[
-                LogPattern(f"p{i}", f"New pattern {i}", 5)
-                for i in range(10)
+                LogPattern(f"p{i}", f"New pattern {i}", 5) for i in range(10)
             ],
             disappeared_patterns=[],
             increased_patterns=[],
@@ -644,8 +620,7 @@ class TestRecommendationGeneration:
     def test_recommendation_for_critical(self):
         """Test recommendation for critical patterns."""
         critical = [
-            LogPattern("p1", "Critical failure", 10,
-                      severity_counts={"CRITICAL": 10})
+            LogPattern("p1", "Critical failure", 10, severity_counts={"CRITICAL": 10})
         ]
 
         rec = _generate_recommendation(critical, [], [])
@@ -654,10 +629,7 @@ class TestRecommendationGeneration:
 
     def test_recommendation_for_errors(self):
         """Test recommendation for error patterns."""
-        errors = [
-            LogPattern("p1", "Error occurred", 50,
-                      severity_counts={"ERROR": 50})
-        ]
+        errors = [LogPattern("p1", "Error occurred", 50, severity_counts={"ERROR": 50})]
 
         rec = _generate_recommendation([], errors, [])
         assert "ERROR" in rec or "error" in rec.lower()
@@ -665,8 +637,7 @@ class TestRecommendationGeneration:
     def test_recommendation_for_warnings(self):
         """Test recommendation for warning patterns."""
         warnings = [
-            LogPattern("p1", "Warning message", 20,
-                      severity_counts={"WARNING": 20})
+            LogPattern("p1", "Warning message", 20, severity_counts={"WARNING": 20})
         ]
 
         rec = _generate_recommendation([], [], warnings)
