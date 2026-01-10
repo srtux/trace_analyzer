@@ -19,6 +19,7 @@ from datetime import datetime
 from typing import Any
 
 from drain3 import TemplateMiner
+from drain3.masking import MaskingInstruction
 from drain3.template_miner_config import TemplateMinerConfig
 
 from ..common import adk_tool
@@ -115,17 +116,17 @@ class LogPatternExtractor:
         config.drain_max_children = max_children
         config.drain_max_clusters = max_clusters
 
-        # Mask common variable patterns
+        # Mask common variable patterns using MaskingInstruction objects
         config.masking_instructions = [
-            {"regex_pattern": r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", "mask_with": "<TIMESTAMP>"},
-            {"regex_pattern": r"\b\d{4}-\d{2}-\d{2}", "mask_with": "<DATE>"},
-            {"regex_pattern": r"\b\d{2}:\d{2}:\d{2}", "mask_with": "<TIME>"},
-            {"regex_pattern": r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", "mask_with": "<UUID>"},
-            {"regex_pattern": r"\b[0-9a-f]{24,}\b", "mask_with": "<ID>"},
-            {"regex_pattern": r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "mask_with": "<IP>"},
-            {"regex_pattern": r"\b\d+\.\d+ms\b", "mask_with": "<DURATION>"},
-            {"regex_pattern": r"\b\d+ms\b", "mask_with": "<DURATION>"},
-            {"regex_pattern": r'"\w+@\w+\.\w+"', "mask_with": "<EMAIL>"},
+            MaskingInstruction(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", "<TIMESTAMP>"),
+            MaskingInstruction(r"\b\d{4}-\d{2}-\d{2}", "<DATE>"),
+            MaskingInstruction(r"\b\d{2}:\d{2}:\d{2}", "<TIME>"),
+            MaskingInstruction(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", "<UUID>"),
+            MaskingInstruction(r"\b[0-9a-f]{24,}\b", "<ID>"),
+            MaskingInstruction(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "<IP>"),
+            MaskingInstruction(r"\b\d+\.\d+ms\b", "<DURATION>"),
+            MaskingInstruction(r"\b\d+ms\b", "<DURATION>"),
+            MaskingInstruction(r'"\w+@\w+\.\w+"', "<EMAIL>"),
         ]
 
         self.miner = TemplateMiner(config=config)
@@ -156,8 +157,13 @@ class LogPatternExtractor:
         if result is None:
             return "unknown"
 
-        cluster_id = result.cluster_id
-        template = result.get_template()
+        # Handle both dict (newer API) and object (older API) return types
+        if isinstance(result, dict):
+            cluster_id = result.get("cluster_id")
+            template = result.get("template_mined", message)
+        else:
+            cluster_id = result.cluster_id
+            template = result.get_template()
 
         # Generate stable pattern ID from template
         pattern_id = self._generate_pattern_id(template)
