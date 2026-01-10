@@ -1,16 +1,16 @@
 """Tests for metrics analysis tools."""
 
-import pytest
 from sre_agent.tools.analysis.metrics import (
     calculate_series_stats,
+    compare_metric_windows,
     detect_metric_anomalies,
-    compare_metric_windows
 )
+
 
 def test_calculate_series_stats_basic():
     data = [1.0, 2.0, 3.0, 4.0, 5.0]
     stats = calculate_series_stats(data)
-    
+
     assert stats["count"] == 5.0
     assert stats["mean"] == 3.0
     assert stats["median"] == 3.0
@@ -25,11 +25,11 @@ def test_calculate_series_stats_empty():
 def test_detect_metric_anomalies_basic():
     # Mean=5, Stdev=0. (all 5s)
     # Add an anomaly: 100
-    data = [5.0] * 10 + [100.0] 
-    
+    data = [5.0] * 10 + [100.0]
+
     # 5.0 * 10 = 50. + 100 = 150. / 11 ~= 13.6
     # This might skewer stdev.
-    
+
     result = detect_metric_anomalies(data, threshold_sigma=2.0)
     assert result["is_anomaly_detected"] is True
     assert result["anomalies_count"] == 1
@@ -45,7 +45,7 @@ def test_detect_metric_anomalies_dicts():
 def test_compare_metric_windows_shift():
     base = [10.0] * 10
     target = [20.0] * 10
-    
+
     result = compare_metric_windows(base, target)
     assert result["comparison"]["is_significant_shift"] is True
     assert result["comparison"]["mean_shift"] == 10.0

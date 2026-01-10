@@ -1,12 +1,13 @@
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 from sre_agent.tools.analysis.trace.statistical_analysis import (
     analyze_critical_path,
-    perform_causal_analysis,
     analyze_trace_patterns,
-    detect_latency_anomalies
+    detect_latency_anomalies,
+    perform_causal_analysis,
 )
+
 
 @patch("sre_agent.tools.analysis.trace.statistical_analysis.fetch_trace_data")
 def test_analyze_critical_path_success(mock_fetch):
@@ -35,9 +36,9 @@ def test_analyze_critical_path_success(mock_fetch):
         ]
     }
     mock_fetch.return_value = trace_data
-    
+
     result = analyze_critical_path("t1")
-    
+
     assert "critical_path" in result
     path = result["critical_path"]
     assert len(path) == 2
@@ -70,19 +71,19 @@ def test_perform_causal_analysis_success(mock_build_graph, mock_analyze_critical
         ]
     }
     mock_fetch.side_effect = [baseline_data, target_data]
-    
+
     # Mock critical path logic
     mock_analyze_critical.return_value = {
         "critical_path": [{"span_id": "t1", "self_time_ms": 100}]
     }
-    
+
     # Mock call graph logic
     mock_build_graph.return_value = {
         "span_tree": [{"span_id": "t1", "depth": 0, "children": []}]
     }
-    
+
     result = perform_causal_analysis("base", "target")
-    
+
     candidates = result["root_cause_candidates"]
     assert len(candidates) > 0
     top = candidates[0]
@@ -108,13 +109,13 @@ def test_analyze_trace_patterns_mocked_fetch(mock_fetch_parallel):
         ]
     }
     mock_fetch_parallel.return_value = [t1, t2, t3]
-    
+
     result = analyze_trace_patterns(["t1", "t2", "t3"])
-    
-    
+
+
     # Based on error log, overall_trend is top level
     assert "overall_trend" in result
-    
+
     patterns = result["patterns"]
     slowdown = next((p for p in patterns["recurring_slowdowns"] if p["pattern_type"] == "recurring_slowdown"), None)
     assert slowdown is not None
@@ -131,7 +132,7 @@ def test_detect_latency_anomalies_success(mock_fetch, mock_compute):
         }
     }
     mock_compute.return_value = baseline_stats
-    
+
     # Target trace: spanA takes 60ms (anomaly vs 10ms +/- 4ms)
     # Must be > 50ms to be considered (threshold logic)
     target_data = {
@@ -141,9 +142,9 @@ def test_detect_latency_anomalies_success(mock_fetch, mock_compute):
         ]
     }
     mock_fetch.return_value = target_data
-    
+
     result = detect_latency_anomalies(["b1"], "t1")
-    
+
     assert result["is_anomaly"] is True
     spans = result["anomalous_spans"]
     assert len(spans) == 1

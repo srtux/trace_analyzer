@@ -11,11 +11,8 @@ The main goals are:
 """
 
 import hashlib
-import json
 import logging
-from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any
 
 from drain3 import TemplateMiner

@@ -1,9 +1,9 @@
-import os
 import unittest
 from unittest.mock import MagicMock, patch
 
+
 class TestMCPIntegration(unittest.TestCase):
-    
+
     @patch("sre_agent.tools.mcp.gcp.ApiRegistry")
     @patch("sre_agent.tools.mcp.gcp.google.auth.default")
     @patch("sre_agent.tools.mcp.gcp.os.environ")
@@ -12,7 +12,7 @@ class TestMCPIntegration(unittest.TestCase):
         # Setup mocks
         mock_auth_default.return_value = (MagicMock(), "mock-project-id")
         mock_environ.get.return_value = "mock-project-id"
-        
+
         mock_api_registry = MagicMock()
         mock_toolset = MagicMock()
         mock_api_registry.get_toolset.return_value = mock_toolset
@@ -38,7 +38,7 @@ class TestMCPIntegration(unittest.TestCase):
         """Test that create_bigquery_mcp_toolset returns fresh toolset each time."""
         mock_auth_default.return_value = (MagicMock(), "mock-project-id")
         mock_environ.get.return_value = "mock-project-id"
-        
+
         mock_api_registry = MagicMock()
         mock_toolset1 = MagicMock()
         mock_toolset2 = MagicMock()
@@ -79,7 +79,7 @@ class TestMCPIntegration(unittest.TestCase):
         """Test that create_bigquery_mcp_toolset handles errors gracefully."""
         mock_auth_default.return_value = (MagicMock(), "mock-project-id")
         mock_environ.get.return_value = "mock-project-id"
-        
+
         # Setup mock to raise error during get_toolset
         mock_api_registry_cls.return_value.get_toolset.side_effect = Exception(
             "Connection error"
@@ -96,7 +96,6 @@ class TestMCPIntegration(unittest.TestCase):
         # This test ensures no side-effects import
         # We can mock ApiRegistry global to ensure it is NOT called
         with patch("sre_agent.tools.mcp.gcp.create_bigquery_mcp_toolset") as mock_create:
-            import sre_agent.agent
             # agent module load should not call create_bigquery_mcp_toolset
             # agent.py calls it lazily in _get_bigquery_mcp_toolset
             mock_create.assert_not_called()

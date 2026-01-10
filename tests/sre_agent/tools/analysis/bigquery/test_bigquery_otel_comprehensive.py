@@ -2,10 +2,10 @@
 
 import json
 
+from sre_agent.tools.analysis.bigquery import otel as bigquery_otel
 from tests.fixtures.synthetic_otel_data import (
     generate_trace_id,
 )
-from sre_agent.tools.analysis.bigquery import otel as bigquery_otel
 
 
 class TestAnalyzeAggregateMetrics:

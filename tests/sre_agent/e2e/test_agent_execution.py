@@ -29,7 +29,7 @@ async def test_run_triage_analysis_flow():
 
         # Verify run_async calls
         assert mock_tool_instance.run_async.call_count == 4
-        
+
         # Verify result structure
         assert result["stage"] == "triage"
         assert result["baseline_trace_id"] == "b1"

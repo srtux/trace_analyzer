@@ -35,7 +35,7 @@ def get_current_time() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def fetch_trace_data(  # noqa: C901
+def fetch_trace_data(
     trace_id_or_json: str | dict[str, Any], project_id: str | None = None
 ) -> dict[str, Any]:
     """
@@ -159,7 +159,7 @@ def fetch_trace(project_id: str, trace_id: str) -> str:
 
 
 @adk_tool
-def list_traces(  # noqa: C901
+def list_traces(
     project_id: str,
     start_time: str | None = None,
     end_time: str | None = None,
@@ -303,7 +303,7 @@ def _calculate_anomaly_score(
     return score
 
 
-def validate_trace(trace_data: str | dict) -> dict[str, Any]:  # noqa: C901
+def validate_trace(trace_data: str | dict) -> dict[str, Any]:
     """
     Validates trace data for completeness and quality.
 
@@ -367,7 +367,7 @@ def validate_trace(trace_data: str | dict) -> dict[str, Any]:  # noqa: C901
 
 
 @adk_tool
-def find_example_traces(  # noqa: C901
+def find_example_traces(
     project_id: str | None = None, prefer_errors: bool = True, min_sample_size: int = 20
 ) -> str:
     """
@@ -524,7 +524,7 @@ def find_example_traces(  # noqa: C901
 
 
 @adk_tool
-def get_trace_by_url(url: str) -> str:  # noqa: C901
+def get_trace_by_url(url: str) -> str:
     """
     Parses a Cloud Console URL to extract trace ID and fetch the trace.
 

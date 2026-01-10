@@ -28,7 +28,7 @@ tool_execution_count = meter.create_counter(
 )
 
 
-def adk_tool(func: Callable[..., Any]) -> Callable[..., Any]:  # noqa: C901
+def adk_tool(func: Callable[..., Any]) -> Callable[..., Any]:
     """
     Decorator to mark a function as an ADK tool and provide automatic
     logging and instrumentation.

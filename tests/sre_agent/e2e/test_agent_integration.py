@@ -27,10 +27,10 @@ async def test_agent_initialization(mock_env):
 
     # Check if the analysis tools are present
     tool_names = [getattr(t, "name", getattr(t, "__name__", str(t))) for t in root_agent.tools]
-    
+
     assert "run_triage_analysis" in tool_names
     assert "run_deep_dive_analysis" in tool_names
-    
+
     # Check for selection tools
     assert "select_traces_from_error_reports" in tool_names
     assert "select_traces_manually" in tool_names

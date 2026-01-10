@@ -5,9 +5,9 @@ import time
 from datetime import datetime
 from typing import Any
 
-from ...common.telemetry import get_meter, get_tracer, log_tool_call
 from ...common import adk_tool
-from .analysis import calculate_span_durations, build_call_graph
+from ...common.telemetry import get_meter, get_tracer, log_tool_call
+from .analysis import build_call_graph, calculate_span_durations
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ SpanData = dict[str, Any]
 
 
 @adk_tool
-def compare_span_timings(  # noqa: C901
+def compare_span_timings(
     baseline_trace_id: str,
     target_trace_id: str,
     project_id: str | None = None,

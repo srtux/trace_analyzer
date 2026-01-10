@@ -4,7 +4,6 @@ Tests the smart message extraction logic that handles various
 log payload formats: textPayload, jsonPayload, protoPayload.
 """
 
-import pytest
 
 from sre_agent.tools.analysis.logs.extraction import (
     LogMessageExtractor,

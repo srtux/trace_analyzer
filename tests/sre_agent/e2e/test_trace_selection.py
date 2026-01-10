@@ -3,11 +3,11 @@ from unittest.mock import patch
 
 import pytest
 
-from sre_agent.tools.clients.trace import find_example_traces
 from sre_agent.tools.analysis.trace.filters import (
     select_traces_from_statistical_outliers,
     select_traces_manually,
 )
+from sre_agent.tools.clients.trace import find_example_traces
 
 
 @pytest.mark.asyncio

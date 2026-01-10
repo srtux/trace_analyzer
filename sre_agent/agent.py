@@ -22,95 +22,92 @@ Metrics Analysis:
 
 import asyncio
 import logging
-import os
 from typing import Any
 
-import google.auth
 from google.adk.agents import LlmAgent
-from google.adk.tools import ToolContext, AgentTool
+from google.adk.tools import AgentTool, ToolContext
 
 from .prompt import SRE_AGENT_PROMPT
+
+# Import sub-agents
+from .sub_agents import (
+    # Trace analysis sub-agents
+    aggregate_analyzer,
+    causality_analyzer,
+    error_analyzer,
+    latency_analyzer,
+    # Log analysis sub-agents
+    log_pattern_extractor,
+    # Metrics analysis sub-agents
+    metrics_analyzer,
+    service_impact_analyzer,
+    statistics_analyzer,
+    structure_analyzer,
+)
 from .tools import (
+    # BigQuery tools
+    analyze_aggregate_metrics,
+    # Critical path analysis tools (NEW!)
+    analyze_critical_path,
+    analyze_log_anomalies,
+    analyze_signal_correlation_strength,
+    analyze_upstream_downstream_impact,
+    build_call_graph,
+    build_cross_signal_timeline,
+    # Service dependency tools (NEW!)
+    build_service_dependency_graph,
+    calculate_critical_path_contribution,
+    calculate_series_stats,
+    calculate_span_durations,
+    compare_log_patterns,
+    compare_metric_windows,
+    compare_span_timings,
+    compare_time_periods,
+    correlate_logs_with_trace,
+    correlate_metrics_with_traces_via_exemplars,
+    # Cross-signal correlation tools (NEW!)
+    correlate_trace_with_metrics,
+    detect_circular_dependencies,
+    # Metrics analysis tools
+    detect_metric_anomalies,
+    detect_trend_changes,
+    extract_errors,
+    # Log pattern analysis tools
+    extract_log_patterns,
     # Trace tools
     fetch_trace,
-    list_traces,
+    find_bottleneck_services,
     find_example_traces,
-    get_trace_by_url,
-    calculate_span_durations,
-    extract_errors,
-    build_call_graph,
-    summarize_trace,
-    validate_trace_quality,
-    compare_span_timings,
+    find_exemplar_traces,
+    find_hidden_dependencies,
     find_structural_differences,
+    get_current_time,
+    get_logs_for_trace,
+    get_trace_by_url,
+    list_error_events,
     # GCP direct API tools
     list_log_entries,
     list_time_series,
+    list_traces,
     query_promql,
-    list_error_events,
-    get_logs_for_trace,
-    get_current_time,
-    # BigQuery tools
-    analyze_aggregate_metrics,
-    find_exemplar_traces,
-    compare_time_periods,
-    detect_trend_changes,
-    correlate_logs_with_trace,
-    # Log pattern analysis tools
-    extract_log_patterns,
-    compare_log_patterns,
-    analyze_log_anomalies,
     # Trace selection tools
     select_traces_from_error_reports,
     select_traces_from_monitoring_alerts,
     select_traces_from_statistical_outliers,
     select_traces_manually,
-    # Metrics analysis tools
-    detect_metric_anomalies,
-    compare_metric_windows,
-    calculate_series_stats,
-    # Cross-signal correlation tools (NEW!)
-    correlate_trace_with_metrics,
-    correlate_metrics_with_traces_via_exemplars,
-    build_cross_signal_timeline,
-    analyze_signal_correlation_strength,
-    # Critical path analysis tools (NEW!)
-    analyze_critical_path,
-    find_bottleneck_services,
-    calculate_critical_path_contribution,
-    # Service dependency tools (NEW!)
-    build_service_dependency_graph,
-    analyze_upstream_downstream_impact,
-    detect_circular_dependencies,
-    find_hidden_dependencies,
+    summarize_trace,
+    validate_trace_quality,
 )
 from .tools.common import adk_tool
 from .tools.mcp.gcp import (
     create_bigquery_mcp_toolset,
     create_logging_mcp_toolset,
     create_monitoring_mcp_toolset,
+    get_project_id_with_fallback,
     mcp_list_log_entries,
     mcp_list_timeseries,
     mcp_query_range,
-    get_project_id_with_fallback,
 )
-
-# Import sub-agents
-from .sub_agents import (
-    # Trace analysis sub-agents
-    aggregate_analyzer,
-    latency_analyzer,
-    error_analyzer,
-    structure_analyzer,
-    statistics_analyzer,
-    causality_analyzer,
-    service_impact_analyzer,
-    # Log analysis sub-agents
-    log_pattern_extractor,
-    # Metrics analysis sub-agents
-    metrics_analyzer,
-)
-
 
 logger = logging.getLogger(__name__)
 
@@ -270,7 +267,7 @@ Compare them and report your findings.
     agent_names = ["latency", "error", "structure", "statistics"]
     triage_results = {}
 
-    for name, result in zip(agent_names, results):
+    for name, result in zip(agent_names, results, strict=False):
         if isinstance(result, Exception):
             logger.error(f"{name}_analyzer failed: {result}")
             triage_results[name] = {"status": "error", "error": str(result)}
@@ -417,7 +414,7 @@ Determine root cause and assess impact.
     agent_names = ["causality", "service_impact"]
     deep_dive_results = {}
 
-    for name, result in zip(agent_names, results):
+    for name, result in zip(agent_names, results, strict=False):
         if isinstance(result, Exception):
             logger.error(f"{name}_analyzer failed: {result}")
             deep_dive_results[name] = {"status": "error", "error": str(result)}

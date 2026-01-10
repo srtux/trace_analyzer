@@ -37,17 +37,14 @@ dev = [
     "google-adk[eval]>=1.0.0",
     "nest-asyncio>=1.6.0",
     "pytest-xdist>=3.8.0",
-    "flake8>=7.1.1",
+    "ruff>=0.4.6",
+    "mypy>=1.15.0",
     "pytest-cov>=5.0.0",
     "absl-py>=2.1.0",
     "poethepoet>=0.25.0",
 ]
 
-[project.optional-dependencies]
-lint = [
-    "ruff>=0.4.6",
-    "mypy>=1.15.0",
-]
+
 
 [tool.ruff]
 line-length = 88
@@ -89,7 +86,7 @@ sync = { help = "Sync dependencies with uv", cmd = "uv sync" }
 run = { help = "Run agent in terminal", cmd = "adk run sre_agent", envfile = ".env" }
 web = { help = "Run agent web UI", cmd = "adk web sre_agent", envfile = ".env" }
 list = { help = "List deployed agents", cmd = "python deploy/deploy.py --list", envfile = ".env" }
-lint = { help = "Run linter", cmd = "flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics", envfile = ".env" }
+lint = { help = "Run linter", cmd = "ruff check .", envfile = ".env" }
 test = { help = "Run tests", cmd = "pytest tests", envfile = ".env" }
 eval = { help = "Run agent evaluations", cmd = "python deploy/run_eval.py", envfile = ".env" }
 

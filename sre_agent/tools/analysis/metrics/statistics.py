@@ -1,9 +1,9 @@
 """Statistical analysis for time series data."""
 
 import statistics
-from typing import Any
 
 from ...common.decorators import adk_tool
+
 
 @adk_tool
 def calculate_series_stats(points: list[float]) -> dict[str, float]:

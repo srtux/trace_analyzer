@@ -8,6 +8,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from tests.fixtures.synthetic_otel_data import (
     BigQueryResultGenerator,
     CloudLoggingAPIGenerator,
@@ -103,7 +104,7 @@ class MockLLMResponse:
 
     @staticmethod
     def fetch_trace_response(
-        tool_call_id: str = "call_4", trace_id: str = None
+        tool_call_id: str = "call_4", trace_id: str | None = None
     ) -> Message:
         """Mock LLM response for fetching a trace."""
         if trace_id is None:

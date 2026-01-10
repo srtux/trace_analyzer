@@ -7,18 +7,18 @@ Specialized agents for intelligent metrics analysis:
 from google.adk.agents import LlmAgent
 
 from ..tools import (
+    calculate_series_stats,
+    compare_metric_windows,
+    correlate_metrics_with_traces_via_exemplars,
+    # Cross-signal correlation
+    correlate_trace_with_metrics,
+    # Analysis tools
+    detect_metric_anomalies,
     # Metrics tools
     list_time_series,
     mcp_list_timeseries,
-    query_promql,
     mcp_query_range,
-    # Analysis tools
-    detect_metric_anomalies,
-    compare_metric_windows,
-    calculate_series_stats,
-    # Cross-signal correlation
-    correlate_trace_with_metrics,
-    correlate_metrics_with_traces_via_exemplars,
+    query_promql,
 )
 
 # =============================================================================

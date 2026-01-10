@@ -11,35 +11,35 @@ Key capabilities:
 - Service dependency mapping
 """
 
-from .cross_signal import (
-    correlate_trace_with_metrics,
-    correlate_metrics_with_traces_via_exemplars,
-    build_cross_signal_timeline,
-    analyze_signal_correlation_strength,
-)
 from .critical_path import (
     analyze_critical_path,
-    find_bottleneck_services,
     calculate_critical_path_contribution,
+    find_bottleneck_services,
+)
+from .cross_signal import (
+    analyze_signal_correlation_strength,
+    build_cross_signal_timeline,
+    correlate_metrics_with_traces_via_exemplars,
+    correlate_trace_with_metrics,
 )
 from .dependencies import (
-    build_service_dependency_graph,
     analyze_upstream_downstream_impact,
+    build_service_dependency_graph,
     detect_circular_dependencies,
 )
 
 __all__ = [
-    # Cross-signal correlation
-    "correlate_trace_with_metrics",
-    "correlate_metrics_with_traces_via_exemplars",
-    "build_cross_signal_timeline",
-    "analyze_signal_correlation_strength",
     # Critical path analysis
     "analyze_critical_path",
-    "find_bottleneck_services",
-    "calculate_critical_path_contribution",
+    "analyze_signal_correlation_strength",
+    "analyze_upstream_downstream_impact",
+    "build_cross_signal_timeline",
     # Service dependencies
     "build_service_dependency_graph",
-    "analyze_upstream_downstream_impact",
+    "calculate_critical_path_contribution",
+    "correlate_metrics_with_traces_via_exemplars",
+    # Cross-signal correlation
+    "correlate_trace_with_metrics",
     "detect_circular_dependencies",
+    "find_bottleneck_services",
 ]

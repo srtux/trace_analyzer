@@ -1,13 +1,24 @@
 
-import pytest
 from sre_agent.schema import (
-    SpanInfo, LatencyDiff, ErrorDiff, StructureDiff, TraceSummary,
-    TraceComparisonReport, LatencyAnalysisReport, ErrorInfo, ErrorAnalysisReport,
-    StructuralChange, StructureAnalysisReport, LatencyDistribution, AnomalyFinding,
-    CriticalPathSegment, StatisticalAnalysisReport, RootCauseCandidate,
-    CausalChainLink, CausalAnalysisReport, ServiceImpact, ServiceImpactReport,
-    LogEntry, TimeSeriesPoint, TimeSeries, ErrorEvent, Severity, Confidence
+    CausalAnalysisReport,
+    Confidence,
+    ErrorAnalysisReport,
+    ErrorEvent,
+    LatencyAnalysisReport,
+    LatencyDiff,
+    LatencyDistribution,
+    LogEntry,
+    ServiceImpactReport,
+    Severity,
+    SpanInfo,
+    StatisticalAnalysisReport,
+    StructureAnalysisReport,
+    TimeSeries,
+    TimeSeriesPoint,
+    TraceComparisonReport,
+    TraceSummary,
 )
+
 
 def test_span_info():
     span = SpanInfo(span_id="1", name="test")

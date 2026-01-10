@@ -17,10 +17,9 @@ References:
 
 import json
 import logging
-from typing import Any
 
 from ...common import adk_tool
-from ...common.telemetry import get_tracer, get_meter
+from ...common.telemetry import get_meter, get_tracer
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,7 @@ def build_service_dependency_graph(
     Returns:
         JSON with SQL query for dependency graph and visualization data
     """
-    with tracer.start_as_current_span("build_service_dependency_graph") as span:
+    with tracer.start_as_current_span("build_service_dependency_graph"):
         dependency_operations.add(1, {"type": "build_graph"})
 
         sql = f"""
@@ -435,7 +434,7 @@ def detect_circular_dependencies(
     Returns:
         JSON with SQL query to detect cycles
     """
-    with tracer.start_as_current_span("detect_circular_dependencies") as span:
+    with tracer.start_as_current_span("detect_circular_dependencies"):
         dependency_operations.add(1, {"type": "detect_cycles"})
 
         # Note: BigQuery doesn't support recursive CTEs well for cycle detection
@@ -571,7 +570,7 @@ def find_hidden_dependencies(
     Returns:
         JSON with SQL query to find hidden dependencies
     """
-    with tracer.start_as_current_span("find_hidden_dependencies") as span:
+    with tracer.start_as_current_span("find_hidden_dependencies"):
         dependency_operations.add(1, {"type": "hidden_deps"})
 
         sql = f"""

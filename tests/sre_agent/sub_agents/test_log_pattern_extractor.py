@@ -4,18 +4,15 @@ These tests verify the integration between the log pattern extraction
 tools and the sub-agent workflow.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 from datetime import datetime, timedelta, timezone
 
-from sre_agent.tools.analysis.logs.patterns import (
-    extract_log_patterns,
-    compare_log_patterns,
-    analyze_log_anomalies,
-)
 from sre_agent.tools.analysis.logs.extraction import (
-    extract_log_message,
     extract_messages_from_entries,
+)
+from sre_agent.tools.analysis.logs.patterns import (
+    analyze_log_anomalies,
+    compare_log_patterns,
+    extract_log_patterns,
 )
 
 

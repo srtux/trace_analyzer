@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
-import requests
+
 import google.auth
 from google.auth.transport.requests import AuthorizedSession
 from google.cloud import monitoring_v3
@@ -110,17 +110,17 @@ def query_promql(project_id: str, query: str, start: str | None = None, end: str
         # Cloud Monitoring Prometheus API endpoint
         # https://cloud.google.com/stackdriver/docs/managed-prometheus/query
         url = f"https://monitoring.googleapis.com/v1/projects/{project_id}/location/global/prometheus/api/v1/query_range"
-        
+
         params = {
             "query": query,
             "start": start,
             "end": end,
             "step": step
         }
-        
+
         response = session.get(url, params=params)
         response.raise_for_status()
-        
+
         return json.dumps(response.json())
 
     except Exception as e:

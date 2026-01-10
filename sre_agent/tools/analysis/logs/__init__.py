@@ -13,26 +13,26 @@ Tools:
     - extract_log_message: Smart extraction of message from payloads
 """
 
-from .patterns import (
-    LogPatternExtractor,
-    extract_log_patterns,
-    compare_log_patterns,
-    analyze_log_anomalies,
-    get_pattern_summary,
-)
 from .extraction import (
+    LogMessageExtractor,
     extract_log_message,
     extract_messages_from_entries,
-    LogMessageExtractor,
+)
+from .patterns import (
+    LogPatternExtractor,
+    analyze_log_anomalies,
+    compare_log_patterns,
+    extract_log_patterns,
+    get_pattern_summary,
 )
 
 __all__ = [
-    "LogPatternExtractor",
-    "extract_log_patterns",
-    "compare_log_patterns",
-    "analyze_log_anomalies",
-    "get_pattern_summary",
-    "extract_log_message",
-    "extract_messages_from_entries",
     "LogMessageExtractor",
+    "LogPatternExtractor",
+    "analyze_log_anomalies",
+    "compare_log_patterns",
+    "extract_log_message",
+    "extract_log_patterns",
+    "extract_messages_from_entries",
+    "get_pattern_summary",
 ]

@@ -18,9 +18,9 @@ import json
 import logging
 from typing import Any
 
-from ...common import adk_tool
-from ...common.telemetry import get_tracer, get_meter
 from ...clients.trace import fetch_trace_data
+from ...common import adk_tool
+from ...common.telemetry import get_meter, get_tracer
 
 logger = logging.getLogger(__name__)
 
@@ -291,7 +291,7 @@ def _find_parallel_opportunities(
     """
     opportunities = []
 
-    for parent_id, children_ids in children_map.items():
+    for _parent_id, children_ids in children_map.items():
         if len(children_ids) < 2:
             continue
 
@@ -444,7 +444,7 @@ def find_bottleneck_services(
     Returns:
         JSON with SQL query to find bottleneck services
     """
-    with tracer.start_as_current_span("find_bottleneck_services") as span:
+    with tracer.start_as_current_span("find_bottleneck_services"):
         critical_path_operations.add(1, {"type": "find_bottlenecks"})
 
         sql = f"""
@@ -571,7 +571,7 @@ def calculate_critical_path_contribution(
     Returns:
         JSON with SQL query and analysis guidance
     """
-    with tracer.start_as_current_span("calculate_critical_path_contribution") as span:
+    with tracer.start_as_current_span("calculate_critical_path_contribution"):
         critical_path_operations.add(1, {"type": "contribution"})
 
         where_clauses = [

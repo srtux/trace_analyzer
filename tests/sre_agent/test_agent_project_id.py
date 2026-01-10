@@ -34,7 +34,7 @@ async def test_run_triage_analysis_accepts_project_id():
         # Verify project_id was passed in request
         call_args = mock_tool_instance.run_async.call_args_list[0]
         request = call_args.kwargs.get("args", {}).get("request")
-        
+
         assert request is not None
         assert "test-project-id" in request
 
@@ -68,6 +68,6 @@ async def test_run_deep_dive_analysis_accepts_project_id():
         # Verify project_id was passed in request
         call_args = mock_tool_instance.run_async.call_args_list[0]
         request = call_args.kwargs.get("args", {}).get("request")
-        
+
         assert request is not None
         assert "test-project-id" in request

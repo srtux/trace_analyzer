@@ -15,30 +15,29 @@ Log Analysis Sub-agents:
     - log_pattern_extractor: Drain3-powered log pattern extraction
 """
 
-from .trace import (
-    aggregate_analyzer,
-    latency_analyzer,
-    error_analyzer,
-    structure_analyzer,
-    statistics_analyzer,
-    causality_analyzer,
-    service_impact_analyzer,
-)
-
 from .logs import log_pattern_extractor
 from .metrics import metrics_analyzer
+from .trace import (
+    aggregate_analyzer,
+    causality_analyzer,
+    error_analyzer,
+    latency_analyzer,
+    service_impact_analyzer,
+    statistics_analyzer,
+    structure_analyzer,
+)
 
 __all__ = [
     # Trace analysis
     "aggregate_analyzer",
-    "latency_analyzer",
-    "error_analyzer",
-    "structure_analyzer",
-    "statistics_analyzer",
     "causality_analyzer",
-    "service_impact_analyzer",
+    "error_analyzer",
+    "latency_analyzer",
     # Log analysis
     "log_pattern_extractor",
     # Metrics analysis
     "metrics_analyzer",
+    "service_impact_analyzer",
+    "statistics_analyzer",
+    "structure_analyzer",
 ]

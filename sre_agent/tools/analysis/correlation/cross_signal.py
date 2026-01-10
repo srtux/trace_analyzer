@@ -16,11 +16,9 @@ References:
 
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Any
 
 from ...common import adk_tool
-from ...common.telemetry import get_tracer, get_meter
+from ...common.telemetry import get_meter, get_tracer
 
 logger = logging.getLogger(__name__)
 
@@ -567,7 +565,7 @@ def analyze_signal_correlation_strength(
     Returns:
         JSON with correlation health metrics and improvement recommendations
     """
-    with tracer.start_as_current_span("analyze_signal_correlation_strength") as span:
+    with tracer.start_as_current_span("analyze_signal_correlation_strength"):
         correlation_operations.add(1, {"type": "correlation_health"})
 
         service_filter = ""

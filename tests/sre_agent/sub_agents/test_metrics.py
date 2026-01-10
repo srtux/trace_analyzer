@@ -1,16 +1,12 @@
 """Tests for metrics sub-agent."""
 
 from sre_agent.sub_agents.metrics import metrics_analyzer
-from sre_agent.tools.analysis.metrics import (
-    detect_metric_anomalies,
-    compare_metric_windows
-)
-from sre_agent.tools.clients.monitoring import list_time_series
+
 
 def test_metrics_analyzer_initialization():
     assert metrics_analyzer.name == "metrics_analyzer"
     assert "metrics" in metrics_analyzer.description
-    
+
 def test_metrics_analyzer_tools():
     tool_names = [getattr(t, "name", t.__name__) for t in metrics_analyzer.tools]
     assert "list_time_series" in tool_names

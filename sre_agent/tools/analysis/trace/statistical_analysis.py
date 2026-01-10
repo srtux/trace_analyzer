@@ -7,9 +7,9 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
+from ...clients.trace import fetch_trace_data
 from ...common.decorators import adk_tool
 from ...common.telemetry import get_meter, get_tracer
-from ...clients.trace import fetch_trace_data
 
 # Telemetry setup
 tracer = get_tracer(__name__)
@@ -44,7 +44,7 @@ def _fetch_traces_parallel(
     return results
 
 
-def compute_latency_statistics(  # noqa: C901
+def compute_latency_statistics(
     trace_ids: list[str], project_id: str | None = None
 ) -> dict[str, Any]:
     """
@@ -148,7 +148,7 @@ def compute_latency_statistics(  # noqa: C901
         return stats
 
 
-def detect_latency_anomalies(  # noqa: C901
+def detect_latency_anomalies(
     baseline_trace_ids: list[str],
     target_trace_id: str,
     threshold_sigma: float = 2.0,
@@ -264,7 +264,7 @@ def detect_latency_anomalies(  # noqa: C901
         }
 
 
-def analyze_critical_path(  # noqa: C901
+def analyze_critical_path(
     trace_id: str, project_id: str | None = None
 ) -> dict[str, Any]:
     """
@@ -463,7 +463,7 @@ def analyze_critical_path(  # noqa: C901
 
 
 @adk_tool
-def perform_causal_analysis(  # noqa: C901
+def perform_causal_analysis(
     baseline_trace_id: str, target_trace_id: str, project_id: str | None = None
 ) -> dict[str, Any] | str:
     """
@@ -636,7 +636,7 @@ def perform_causal_analysis(  # noqa: C901
 
 
 @adk_tool
-def analyze_trace_patterns(  # noqa: C901
+def analyze_trace_patterns(
     trace_ids: list[str],
     lookback_window_minutes: int = 60,
     project_id: str | None = None,

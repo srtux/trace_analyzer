@@ -2,6 +2,7 @@
 
 import json
 import logging
+
 from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
 
 from ..common import adk_tool
@@ -30,10 +31,10 @@ def list_log_entries(project_id: str, filter_str: str, limit: int = 10, page_tok
     try:
         client = LoggingServiceV2Client()
         resource_names = [f"projects/{project_id}"]
-        
+
         # Ensure timestamp desc ordering for recent logs
         order_by = "timestamp desc"
-        
+
         request = {
             "resource_names": resource_names,
             "filter": filter_str,
@@ -45,16 +46,16 @@ def list_log_entries(project_id: str, filter_str: str, limit: int = 10, page_tok
 
         # Get the iterator/pager
         entries_pager = client.list_log_entries(request=request)
-        
+
         # Fetch a single page to respect limit and get token
         # We use .pages iterator to get the first page object
         results = []
         next_token = None
-        
+
         # Get the first page of the iterator
         pages_iterator = entries_pager.pages
         first_page = next(pages_iterator, None)
-        
+
         if first_page:
             for entry in first_page:
                 # Handle payload fields safely

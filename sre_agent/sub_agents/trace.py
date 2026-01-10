@@ -9,33 +9,31 @@ These sub-agents work together in a multi-stage pipeline:
 from google.adk.agents import LlmAgent
 
 from ..tools import (
-    # Trace tools
-    fetch_trace,
-    calculate_span_durations,
-    extract_errors,
-    build_call_graph,
-    compare_span_timings,
-    find_structural_differences,
     # BigQuery tools
     analyze_aggregate_metrics,
-    find_exemplar_traces,
-    compare_time_periods,
-    detect_trend_changes,
-    correlate_logs_with_trace,
-    # Cross-signal correlation tools
-    correlate_trace_with_metrics,
-    correlate_metrics_with_traces_via_exemplars,
-    build_cross_signal_timeline,
-    analyze_signal_correlation_strength,
     # Critical path tools
     analyze_critical_path,
-    find_bottleneck_services,
-    calculate_critical_path_contribution,
+    analyze_upstream_downstream_impact,
+    build_call_graph,
+    build_cross_signal_timeline,
     # Dependency tools
     build_service_dependency_graph,
-    analyze_upstream_downstream_impact,
+    calculate_critical_path_contribution,
+    calculate_span_durations,
+    compare_span_timings,
+    compare_time_periods,
+    correlate_logs_with_trace,
+    correlate_metrics_with_traces_via_exemplars,
+    # Cross-signal correlation tools
+    correlate_trace_with_metrics,
     detect_circular_dependencies,
-    find_hidden_dependencies,
+    detect_trend_changes,
+    extract_errors,
+    # Trace tools
+    fetch_trace,
+    find_bottleneck_services,
+    find_exemplar_traces,
+    find_structural_differences,
 )
 
 # =============================================================================

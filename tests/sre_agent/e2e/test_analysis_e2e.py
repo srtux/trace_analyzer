@@ -1,12 +1,11 @@
-import os
 import json
 from unittest.mock import patch
 
 import pytest
 
-from sre_agent.tools.analysis.trace.statistical_analysis import analyze_trace_patterns
 from sre_agent.tools.analysis.trace.comparison import compare_span_timings
-from tests.fixtures.synthetic_otel_data import TraceGenerator, OtelSpanGenerator
+from sre_agent.tools.analysis.trace.statistical_analysis import analyze_trace_patterns
+from tests.fixtures.synthetic_otel_data import OtelSpanGenerator, TraceGenerator
 
 
 def convert_trace_to_json(trace_spans):
@@ -14,27 +13,27 @@ def convert_trace_to_json(trace_spans):
     # Group by trace_id (should be unique for single trace)
     if not trace_spans:
         return "{}"
-        
+
     trace_id = trace_spans[0].get("trace_id", "unknown")
-    
+
     # Convert spans to the simplified format used in analysis tools if needed,
     # or keep as proper OTel format depending on what the tool expects.
     # Looking at the original static files, it seems to expect a dict with "spans" key.
-    
-    
+
+
     # Calculate duration correctly
     start_times = [s.get("start_time") for s in trace_spans if "start_time" in s]
     end_times = [s.get("end_time") for s in trace_spans if "end_time" in s]
-    
+
     duration_ms = 0.0
     if start_times and end_times:
         try:
-            # Simple string comparison isn't enough for time diff, but 
-            # for now let's just use the root span's duration if available, 
-            # or roughly estimate if we really parsed them. 
-            # Since importing datetime parsing here might be overkill if not already imported, 
+            # Simple string comparison isn't enough for time diff, but
+            # for now let's just use the root span's duration if available,
+            # or roughly estimate if we really parsed them.
+            # Since importing datetime parsing here might be overkill if not already imported,
             # let's look for known fields.
-            
+
             # Better approach: Iterate to find the root span (no parent) and use its duration if present
             root_span = next((s for s in trace_spans if not s.get("parent_span_id")), None)
             if root_span:
@@ -42,7 +41,7 @@ def convert_trace_to_json(trace_spans):
                 duration_ms = root_span.get("duration_nano", 0) / 1e6
         except Exception:
             pass
-            
+
     return json.dumps({
         "trace_id": trace_id,
         "project_id": "test-project",
@@ -65,38 +64,38 @@ def good_trace_json():
     for i, name in enumerate(["ProcessRequest", "AuthenticateUser", "FetchUserProfile", "RenderResponse"]):
         if i < len(spans):
             spans[i]["name"] = name
-            
+
     return convert_trace_to_json(spans)
 
 
 @pytest.fixture
 def bad_trace_json():
-    generator = TraceGenerator()
+    TraceGenerator()
     trace_id = "bad_trace_001"
-    
+
     # We need to simulate N+1 problem: Root -> Multiple redundant DB calls
     # Original bad_trace.json had: ProcessRequest -> AuthenticateUser, FetchItem x4, ProcessItems (error)
-    
+
     spans = []
     root_gen = OtelSpanGenerator(trace_id=trace_id)
     root = root_gen.create_span(name="ProcessRequest", duration_ms=1500.0)
     spans.append(root)
-    
+
     # N+1 calls
     # N+1 calls - make them sequential
     from datetime import timedelta
     current_time = root_gen.base_time + timedelta(milliseconds=10)
-    
-    for i in range(4):
+
+    for _i in range(4):
         child_gen = OtelSpanGenerator(
-            trace_id=trace_id, 
+            trace_id=trace_id,
             parent_span_id=root["span_id"],
             base_time=current_time
         )
         child = child_gen.create_span(name="FetchItem", duration_ms=100.0)
         spans.append(child)
         current_time = current_time + timedelta(milliseconds=110) # 100ms duration + 10ms gap
-        
+
     return convert_trace_to_json(spans)
 
 

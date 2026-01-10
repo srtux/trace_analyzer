@@ -12,7 +12,6 @@ For jsonPayload, we use heuristics to find the main message field:
 import json
 import logging
 import re
-from ...common import adk_tool
 from typing import Any
 
 logger = logging.getLogger(__name__)

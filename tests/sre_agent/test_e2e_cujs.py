@@ -4,16 +4,15 @@ These tests verify complete user workflows from start to finish,
 ensuring the SRE Agent can handle real-world investigation scenarios.
 """
 
-import json
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from tests.fixtures.synthetic_otel_data import (
-    TraceGenerator,
     BigQueryResultGenerator,
     CloudLoggingAPIGenerator,
     CloudTraceAPIGenerator,
+    TraceGenerator,
     generate_trace_id,
 )
 
@@ -134,15 +133,15 @@ class TestCUJ_PerformanceDebugging:
         # Both should have root and child spans
         assert all("trace_id" in span for span in fast_trace)
         assert all("span_id" in span for span in slow_trace)
-    
+
     def test_fanout_analysis(self):
         """Test analyzing a fanout trace."""
         generator = TraceGenerator(service_name="aggregator")
         trace = generator.create_fanout_trace(fanout_degree=5)
-        
+
         # Should have 1 root + 5 children = 6 spans
         assert len(trace) == 6
-        
+
         # Verify parent-child relationships
         root = trace[0]
         children = trace[1:]
@@ -150,7 +149,6 @@ class TestCUJ_PerformanceDebugging:
 
     def test_span_timing_extraction(self):
         """Test that span timings can be extracted for comparison."""
-        from sre_agent.tools.analysis.trace.analysis import calculate_span_durations
 
         generator = TraceGenerator()
         trace = generator.create_multi_service_trace(
@@ -244,8 +242,8 @@ class TestCUJ_ProactiveMonitoring:
     ):
         """Test the quick triage workflow for alert response."""
         from sre_agent.tools.analysis.logs.patterns import (
-            extract_log_patterns,
             compare_log_patterns,
+            extract_log_patterns,
         )
 
         # Step 1: Quick pattern extraction

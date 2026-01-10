@@ -3,8 +3,8 @@
 import logging
 from typing import Any
 
-from .statistics import calculate_series_stats
 from ...common.decorators import adk_tool
+from .statistics import calculate_series_stats
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +29,13 @@ def detect_metric_anomalies(
     values = []
     original_data_map = {} # Map index to original data for reconstruction
 
-    for i, item in enumerate(data_points):
+    for _i, item in enumerate(data_points):
         val = None
         if isinstance(item, (int, float)):
             val = float(item)
         elif isinstance(item, dict):
             val = float(item.get(value_key, 0.0))
-        
+
         if val is not None:
             values.append(val)
             original_data_map[len(values) - 1] = item
@@ -48,7 +48,7 @@ def detect_metric_anomalies(
     stdev = stats["stdev"]
 
     anomalies = []
-    
+
     if stdev > 0:
         for i, val in enumerate(values):
             z_score = (val - mean) / stdev
@@ -60,7 +60,7 @@ def detect_metric_anomalies(
                     "original_data": original_data_map.get(i),
                     "type": "high" if z_score > 0 else "low"
                 })
-    
+
     return {
         "is_anomaly_detected": len(anomalies) > 0,
         "anomalies_count": len(anomalies),

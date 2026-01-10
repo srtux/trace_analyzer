@@ -1,8 +1,9 @@
 
 import json
 from unittest import mock
-import pytest
+
 from sre_agent.tools.clients.monitoring import list_time_series, query_promql
+
 
 @mock.patch("sre_agent.tools.clients.monitoring.monitoring_v3.MetricServiceClient")
 def test_list_time_series(mock_metric_client_cls):
@@ -46,7 +47,7 @@ def test_query_promql(mock_auth_default, mock_session_cls):
 
     result_json = query_promql("p1", "up")
     result = json.loads(result_json)
-    
+
     assert result["status"] == "success"
     mock_session.get.assert_called_once()
     call_args = mock_session.get.call_args
@@ -60,6 +61,6 @@ def test_list_time_series_error(mock_metric_client_cls):
 
     result_json = list_time_series("p1", "filter")
     result = json.loads(result_json)
-    
+
     assert "error" in result
     assert "API error" in result["error"]

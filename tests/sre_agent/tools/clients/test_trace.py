@@ -3,14 +3,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from google.cloud import logging_v2, trace_v1
-from sre_agent.tools.clients.logging import list_log_entries, list_error_events
 
+import sre_agent.tools.clients.trace as trace_client
+from sre_agent.tools.clients.logging import list_error_events, list_log_entries
 from tests.fixtures.synthetic_otel_data import (
     CloudLoggingAPIGenerator,
     CloudTraceAPIGenerator,
     generate_trace_id,
 )
-import sre_agent.tools.clients.trace as trace_client
 
 
 @pytest.fixture
@@ -91,7 +91,7 @@ class TestListTraces:
 
         # Setup mock response
         mock_traces = []
-        for i in range(5):
+        for _i in range(5):
             mock_trace = MagicMock()
             mock_trace.trace_id = generate_trace_id()
             mock_trace.project_id = "test-project"
@@ -190,7 +190,7 @@ class TestFindExampleTraces:
 
         # Setup mock traces with errors
         mock_traces = []
-        for i in range(3):
+        for _i in range(3):
             mock_trace = MagicMock()
             mock_trace.trace_id = generate_trace_id()
             mock_trace.project_id = "test-project"
@@ -235,7 +235,7 @@ class TestGetTraceByURL:
 
             # Verify trace was fetched with correct ID
             mock_fetch.assert_called_once()
-            args, kwargs = mock_fetch.call_args
+            args, _kwargs = mock_fetch.call_args
             assert args[1] == "4fb09ce68979116e0ca143d225695000"
 
     def test_get_trace_by_url_invalid_url(self):

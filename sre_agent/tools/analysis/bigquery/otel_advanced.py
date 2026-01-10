@@ -42,7 +42,7 @@ def analyze_span_events(
 
     # If we filter by event name, we put it in the UNNEST check or outside
     # Usually easier to filter after UNNEST
-    
+
     where_clause = " AND ".join(where_conditions)
     event_filter_clause = f"AND event.name = '{event_name_filter}'" if event_name_filter else ""
 
@@ -88,7 +88,7 @@ def analyze_exception_patterns(
     """
     group_expr = "JSON_EXTRACT_SCALAR(event.attributes, '$.exception.type')"
     group_alias = "exception_type"
-    
+
     if group_by == "service_name":
         group_expr = "JSON_EXTRACT_SCALAR(t.resource.attributes, '$.service.name')"
         group_alias = "service_name"
@@ -131,7 +131,7 @@ def analyze_span_links(
     ]
     if service_name:
         where_conditions.append(f"JSON_EXTRACT_SCALAR(resource.attributes, '$.service.name') = '{service_name}'")
-    
+
     where_clause = " AND ".join(where_conditions)
 
     query = f"""

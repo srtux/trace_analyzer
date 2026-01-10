@@ -22,7 +22,7 @@ flags.mark_flag_as_required("resource_id")
 flags.mark_flag_as_required("user_id")
 
 
-def main(argv: list[str]) -> None:  # noqa: C901 pylint: disable=unused-argument
+def main(argv: list[str]) -> None:
     load_dotenv()
 
     project_id = (

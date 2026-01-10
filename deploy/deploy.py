@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+from pathlib import Path
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -33,11 +34,10 @@ flags.DEFINE_bool("verify", True, "Verify agent import before creation.")
 flags.mark_bool_flags_as_mutual_exclusive(["create", "delete"])
 
 
+
 def get_requirements() -> list[str]:
     """Reads requirements from pyproject.toml with robust merging."""
-    pyproject_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "pyproject.toml"
-    )
+    pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
     with open(pyproject_path, "rb") as f:
         pyproject = tomllib.load(f)
 
@@ -54,7 +54,7 @@ def get_requirements() -> list[str]:
 
     # Map of package name (lowercase) to full requirement string
     req_map = {}
-    
+
     def add_req(req_str: str):
         # Extract package name for comparison (e.g., 'google-adk>=1.0' -> 'google-adk')
         import re
@@ -64,7 +64,7 @@ def get_requirements() -> list[str]:
     # Process existing dependencies first
     for d in dependencies:
         add_req(d)
-    
+
     # Merge required deployment packages if not already present
     for r in required_for_deploy:
         name = re.split(r"[>=<~!\[]", r)[0].lower().strip()

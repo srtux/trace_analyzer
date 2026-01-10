@@ -4,19 +4,18 @@ Tests the pattern extraction, comparison, and anomaly detection
 functionality using the Drain3 algorithm.
 """
 
-import pytest
 
 from sre_agent.tools.analysis.logs.patterns import (
-    LogPatternExtractor,
     LogPattern,
+    LogPatternExtractor,
     PatternComparison,
-    compare_patterns,
-    extract_log_patterns,
-    compare_log_patterns,
-    analyze_log_anomalies,
-    get_pattern_summary,
     _determine_alert_level,
     _generate_recommendation,
+    analyze_log_anomalies,
+    compare_log_patterns,
+    compare_patterns,
+    extract_log_patterns,
+    get_pattern_summary,
 )
 
 
@@ -91,7 +90,7 @@ class TestLogPatternExtractor:
         for _ in range(5):
             extractor.add_log(message="Connection established to host-1234")
 
-        pattern = list(extractor.patterns.values())[0]
+        pattern = next(iter(extractor.patterns.values()))
         assert pattern.count == 5
 
     def test_pattern_tracks_severity(self):
@@ -102,7 +101,7 @@ class TestLogPatternExtractor:
         extractor.add_log(message="Error occurred", severity="ERROR")
         extractor.add_log(message="Error occurred", severity="WARNING")
 
-        pattern = list(extractor.patterns.values())[0]
+        pattern = next(iter(extractor.patterns.values()))
         assert pattern.severity_counts.get("ERROR", 0) == 2
         assert pattern.severity_counts.get("WARNING", 0) == 1
 
@@ -119,7 +118,7 @@ class TestLogPatternExtractor:
             timestamp="2024-01-01T01:00:00Z"
         )
 
-        pattern = list(extractor.patterns.values())[0]
+        pattern = next(iter(extractor.patterns.values()))
         assert pattern.first_seen == "2024-01-01T00:00:00Z"
         assert pattern.last_seen == "2024-01-01T01:00:00Z"
 
@@ -130,7 +129,7 @@ class TestLogPatternExtractor:
         for i in range(10):
             extractor.add_log(message=f"Request {i} completed in 50ms")
 
-        pattern = list(extractor.patterns.values())[0]
+        pattern = next(iter(extractor.patterns.values()))
         # Should store up to 5 samples
         assert len(pattern.sample_messages) <= 5
         assert len(pattern.sample_messages) > 0
@@ -143,7 +142,7 @@ class TestLogPatternExtractor:
         extractor.add_log(message="Log entry", resource="k8s_container")
         extractor.add_log(message="Log entry", resource="gce_instance")
 
-        pattern = list(extractor.patterns.values())[0]
+        pattern = next(iter(extractor.patterns.values()))
         assert "k8s_container" in pattern.resources
         assert "gce_instance" in pattern.resources
 
@@ -426,7 +425,7 @@ class TestExtractLogPatterns:
         """Test filtering by minimum count."""
         # Create logs with clear repetition
         logs = []
-        for i in range(10):
+        for _i in range(10):
             logs.append({
                 "textPayload": "Common pattern that repeats",
                 "severity": "INFO",

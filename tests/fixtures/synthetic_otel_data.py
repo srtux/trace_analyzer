@@ -348,7 +348,7 @@ class TraceGenerator:
     def create_fanout_trace(
         self,
         root_service: str = "api-gateway",
-        child_services: list[str] = None,
+        child_services: list[str] | None = None,
         fanout_degree: int = 3,
         include_errors: bool = False,
     ) -> list[dict[str, Any]]:
@@ -358,7 +358,7 @@ class TraceGenerator:
 
         trace_id = generate_trace_id()
         spans = []
-        
+
         # Root Span
         root_gen = OtelSpanGenerator(
             service_name=root_service,
@@ -381,29 +381,29 @@ class TraceGenerator:
                 parent_span_id=root_span["span_id"],
                 base_time=self.base_time + timedelta(milliseconds=20)
             )
-            
+
             # Make one specific child error if requested
             is_error = include_errors and i == 0
-            
+
             child_span = child_gen.create_http_server_span(
                 endpoint=f"/api/{service_name}",
                 duration_ms=50.0 + (i * 10),
                 include_error=is_error
             )
             spans.append(child_span)
-            
+
         return spans
 
-    def create_async_trace(self, service_chain: list[str] = None) -> list[dict[str, Any]]:
+    def create_async_trace(self, service_chain: list[str] | None = None) -> list[dict[str, Any]]:
         """Generate a trace with async span links between disjoint traces."""
         if service_chain is None:
             service_chain = ["producer", "consumer"]
-            
+
         producer_trace_id = generate_trace_id()
         consumer_trace_id = generate_trace_id()
-        
+
         spans = []
-        
+
         # 1. Producer Trace
         prod_gen = OtelSpanGenerator(
             service_name=service_chain[0],
@@ -415,21 +415,21 @@ class TraceGenerator:
             duration_ms=30.0
         )
         spans.append(prod_span)
-        
+
         # 2. Consumer Trace (linked to producer)
         cons_gen = OtelSpanGenerator(
             service_name=service_chain[1],
             trace_id=consumer_trace_id,
             base_time=self.base_time + timedelta(seconds=2) # 2s later
         )
-        
+
         link = SpanLinkGenerator.create_link(
             linked_trace_id=producer_trace_id,
             linked_span_id=prod_span["span_id"],
             link_type="follows_from",
             reason="async_message_processing"
         )
-        
+
         cons_span = cons_gen.create_span(
             name="process_message",
             kind=1, # INTERNAL
@@ -437,7 +437,7 @@ class TraceGenerator:
             links=[link]
         )
         spans.append(cons_span)
-        
+
         return spans
 
     def create_multi_service_trace(
@@ -465,7 +465,7 @@ class TraceGenerator:
 
             is_last = i == len(services) - 1
             include_error = include_errors and is_last
-            
+
             # Calculate duration based on strategy
             base_duration = 50.0 + (i * 10)
             if latency_strategy == "spike" and service == "database":
@@ -541,27 +541,27 @@ class BigQueryResultGenerator:
             services = ["frontend", "api-gateway", "user-service"]
 
         results = []
-        
+
         # Calculate number of points
         num_points = int((duration_hours * 60) / interval_minutes)
         base_time = datetime.now(timezone.utc) - timedelta(hours=duration_hours)
-        
+
         for service in services:
             # Generate a consistent pattern for each service
             # e.g., sine wave for request count, random spikes for errors
-            phase_shift = random.randint(0, 10)
-            
+            random.randint(0, 10)
+
             for i in range(num_points):
                 point_time = base_time + timedelta(minutes=i * interval_minutes)
-                
+
                 # Sinusoidal traffic pattern
                 traffic_factor = 1.0 + 0.5 * (i % 24 - 12) / 12.0  # Daily cycle roughly
                 request_count = int(1000 * traffic_factor)
-                
+
                 # Random error spikes
                 is_spike = random.random() > 0.95
                 error_count = int(request_count * (0.1 if is_spike else 0.01))
-                
+
                 results.append({
                     "service_name": service,
                     "time_interval": point_time.isoformat(),
@@ -569,7 +569,7 @@ class BigQueryResultGenerator:
                     "error_count": error_count,
                     "avg_latency": 100 + (50 if is_spike else 0) + random.randint(-10, 10)
                 })
-                
+
         return results
 
     @staticmethod

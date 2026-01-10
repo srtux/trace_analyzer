@@ -1,10 +1,13 @@
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from sre_agent.tools.analysis.trace.comparison import (
     compare_span_timings,
     find_structural_differences,
 )
+
 
 @pytest.fixture
 def mock_calculate_durations():
@@ -32,7 +35,7 @@ def test_compare_span_timings_n_plus_one(mock_calculate_durations):
     mock_calculate_durations.side_effect = [baseline, target]
 
     result = compare_span_timings("base", "target", "p")
-    
+
     patterns = result["patterns"]
     n_plus_one = next((p for p in patterns if p["type"] == "n_plus_one"), None)
     assert n_plus_one is not None
@@ -50,7 +53,7 @@ def test_compare_span_timings_serial_chain(mock_calculate_durations):
         {"name": "B", "start_time": "2024-01-01T12:00:00.050Z", "end_time": "2024-01-01T12:00:00.100Z", "duration_ms": 50, "span_id": "2"},
         {"name": "C", "start_time": "2024-01-01T12:00:00.100Z", "end_time": "2024-01-01T12:00:00.200Z", "duration_ms": 100, "span_id": "3"}
     ]
-    
+
     mock_calculate_durations.side_effect = [[], target]
 
     result = compare_span_timings("base", "target", "p")
@@ -60,7 +63,7 @@ def test_compare_span_timings_serial_chain(mock_calculate_durations):
     # If this fails, debugging is enabled:
     if not serial:
         print(f"Patterns found: {patterns}")
-        
+
     assert serial is not None
     assert len(serial["span_names"]) == 3
 
@@ -70,13 +73,13 @@ def test_compare_span_timings_diffs(mock_calculate_durations):
         {"name": "slow_func", "duration_ms": 100}
     ]
     target = [
-        {"name": "fast_func", "duration_ms": 50}, 
+        {"name": "fast_func", "duration_ms": 50},
         {"name": "slow_func", "duration_ms": 10}
     ]
     mock_calculate_durations.side_effect = [baseline, target]
 
     result = compare_span_timings("base", "target")
-    
+
     slower = result["slower_spans"]
     assert len(slower) == 1
     assert slower[0]["span_name"] == "fast_func"
@@ -101,7 +104,7 @@ def test_find_structural_differences(mock_build_call_graph):
     mock_build_call_graph.side_effect = [baseline, target]
 
     result = find_structural_differences("base", "target")
-    
+
     assert "childB" in result["missing_spans"]
     assert "childC" in result["new_spans"]
     assert result["depth_change"] == 1

@@ -235,7 +235,7 @@ async def call_mcp_tool_with_retry(
             error_str = str(e)
             is_session_error = (
                 "Session terminated" in error_str
-                or "session" in error_str.lower() and "error" in error_str.lower()
+                or ("session" in error_str.lower() and "error" in error_str.lower())
             )
 
             if is_session_error and attempt < max_retries - 1:

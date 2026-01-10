@@ -13,16 +13,16 @@ Tools:
 
 from .otel import (
     analyze_aggregate_metrics,
-    find_exemplar_traces,
     compare_time_periods,
-    detect_trend_changes,
     correlate_logs_with_trace,
+    detect_trend_changes,
+    find_exemplar_traces,
 )
 
 __all__ = [
     "analyze_aggregate_metrics",
-    "find_exemplar_traces",
     "compare_time_periods",
-    "detect_trend_changes",
     "correlate_logs_with_trace",
+    "detect_trend_changes",
+    "find_exemplar_traces",
 ]

@@ -5,9 +5,9 @@ import time
 from datetime import datetime
 from typing import Any
 
+from ...clients.trace import fetch_trace_data
 from ...common import adk_tool
 from ...common.telemetry import get_meter, get_tracer, log_tool_call
-from ...clients.trace import fetch_trace_data
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ def calculate_span_durations(
 
 
 @adk_tool
-def extract_errors(  # noqa: C901
+def extract_errors(
     trace_id: str, project_id: str | None = None
 ) -> list[dict[str, Any]]:
     """
@@ -246,7 +246,7 @@ def extract_errors(  # noqa: C901
 
 
 @adk_tool
-def validate_trace_quality(  # noqa: C901
+def validate_trace_quality(
     trace_id: str, project_id: str | None = None
 ) -> dict[str, Any]:
     """
@@ -344,7 +344,7 @@ def validate_trace_quality(  # noqa: C901
 
 
 @adk_tool
-def build_call_graph(trace_id: str, project_id: str | None = None) -> dict[str, Any]:  # noqa: C901
+def build_call_graph(trace_id: str, project_id: str | None = None) -> dict[str, Any]:
     """
     Builds a hierarchical call graph from the trace spans.
 

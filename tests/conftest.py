@@ -1,15 +1,11 @@
 """Shared test fixtures for SRE Agent tests."""
 
-import json
-import random
-import string
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-
 
 # ============================================================================
 # Helper Functions
