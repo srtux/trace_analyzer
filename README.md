@@ -470,6 +470,11 @@ Required roles for the service account:
 - `roles/monitoring.viewer` - Read metrics
 - `roles/bigquery.dataViewer` - Query BigQuery (if using BigQuery tools)
 
+## CI/CD Pipeline
+
+The project uses **GitHub Actions** for automated testing and deployment.
+See [.github/README.md](.github/README.md) for detailed configuration and secret requirements.
+
 ## License
 
 Apache-2.0
