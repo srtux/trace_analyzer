@@ -78,5 +78,5 @@ async def test_metrics_analysis():
         agent_module="gcp_observability.agent",
         eval_set=eval_set,
         eval_config=config,
-        print_detailed_results=True
+        print_detailed_results=False
     )
