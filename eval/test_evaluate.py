@@ -25,7 +25,7 @@ async def test_agent_capabilities():
     config = EvalConfig(criteria={"response_match_score": 0.6})
     
     await AgentEvaluator.evaluate_eval_set(
-        agent_module="gcp_observability.agent",
+        agent_module="sre_agent.agent",
         eval_set=eval_set,
         eval_config=config,
         print_detailed_results=False
@@ -52,7 +52,7 @@ async def test_tool_selection():
     })
     
     await AgentEvaluator.evaluate_eval_set(
-        agent_module="gcp_observability.agent",
+        agent_module="sre_agent.agent",
         eval_set=eval_set,
         eval_config=config,
         print_detailed_results=False
@@ -75,7 +75,7 @@ async def test_metrics_analysis():
     })
     
     await AgentEvaluator.evaluate_eval_set(
-        agent_module="gcp_observability.agent",
+        agent_module="sre_agent.agent",
         eval_set=eval_set,
         eval_config=config,
         print_detailed_results=False

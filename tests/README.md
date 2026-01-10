@@ -10,35 +10,42 @@ tests/
 ├── data/                         # Static JSON data files for trace analysis tests
 ├── fixtures/                     # Dynamic synthetic data generators
 │   └── synthetic_otel_data.py    # OTel trace data generation utilities
-└── gcp_observability/            # Main test package (Mirrors source code)
+└── sre_agent/                    # Main test package (Mirrors source code)
     ├── e2e/                      # End-to-End and Integration tests
     │   ├── test_agent_execution.py    # Orchestration tests
     │   ├── test_agent_integration.py  # Root agent initialization
+    │   ├── test_analysis_e2e.py       # E2E analysis workflows
+    │   ├── test_mocks_e2e.py          # E2E tests with full system mocks
     │   └── test_trace_selection.py    # E2E trace selection logic
-    ├── sub_agents/               # Tests for specialized specialists
+    ├── sub_agents/               # Tests for specialized analysts
     │   ├── test_log_pattern_extractor.py
-    │   └── ...
+    │   └── test_metrics.py            # Metrics analyzer tests
     ├── tools/                    # Unit tests for core tools
-    │   ├── analysis/             # Analysis logic (BigQuery, Trace, Logs)
-    │   ├── clients/              # Direct API clients (Logging, Monitoring, Trace)
-    │   ├── common/               # Shared utilities and telemetry
-    │   └── gcp/                  # GCP specific tools (MCP integration, Clients)
+    │   ├── analysis/             # Analysis logic subdirectories
+    │   │   ├── bigquery/         # BigQuery SQL tool tests
+    │   │   ├── logs/             # Log pattern analysis tests
+    │   │   ├── metrics/          # Metrics statistical tests
+    │   │   └── trace/            # Trace comparison & statistical tests
+    │   ├── clients/              # Direct API client tests
+    │   ├── common/               # Shared utilities (caching, decorators)
+    │   └── logs/                 # Log extraction utility tests
     ├── test_agent_project_id.py  # Config verification
-    ├── test_mcp_integration.py   # MCP session tests
+    ├── test_e2e_cujs.py          # End-to-end Critical User Journeys
+    ├── test_mcp_integration.py   # MCP session & toolset tests
     ├── test_orchestration.py     # Agent orchestration logic
     └── test_schema.py            # Pydantic model validation
 ```
 
 ## 🧪 Test Categories
 
-### 1. End-to-End Tests (`gcp_observability/e2e/`)
+### 1. End-to-End Tests (`sre_agent/e2e/`)
 These tests verify the integrated behavior of the system, including the "Council of Experts" orchestration and agent lifecycle.
 *   **`test_agent_execution.py`**: Validates the full analysis workflow.
 *   **`test_agent_integration.py`**: Smoke tests for agent initialization and tool registration.
 
 ### 2. Unit Tests
-*   **Analysis Logic** (`tools/analysis/`): Tests for statistical analysis, comparison logic, and log pattern extraction.
-*   **Clients** (`tools/clients/`, `tools/gcp/`): Tests for API interaction, ensuring mocks are used correctly to avoid real network calls.
+*   **Analysis Logic** (`tools/analysis/`): Tests for statistical analysis, comparison logic, and log pattern extraction. Organized by signal type (Trace, Logs, Metrics, BigQuery).
+*   **Clients** (`tools/clients/`): Tests for API interaction, ensuring mocks are used correctly to avoid real network calls.
 *   **Infrastructure** (`tools/common/`, `test_schema.py`): Tests for schemas, telemetry, and caching.
 
 ## 🛠️ Global Fixtures (`conftest.py`)
@@ -57,10 +64,10 @@ To run the full test suite (81% Coverage):
 uv run pytest
 
 # Run with coverage report
-uv run pytest --cov=gcp_observability --cov-report=term-missing
+uv run pytest --cov=sre_agent --cov-report=term-missing
 
 # Run specific E2E tests
-uv run pytest tests/gcp_observability/e2e/test_agent_execution.py
+uv run pytest tests/sre_agent/e2e/test_agent_execution.py
 ```
 
 ## 📝 Best Practices

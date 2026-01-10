@@ -1,5 +1,5 @@
 [project]
-name = "gcp-observability"
+name = "sre-agent"
 version = "0.2.0"
 description = "SRE Agent - Google Cloud Observability analysis agent for traces, logs, and metrics"
 authors = [{ name = "SRT", email = "srtuxx@gmail.com" }]
@@ -23,6 +23,7 @@ dependencies = [
     "google-cloud-monitoring>=2.21.0",
     "google-cloud-error-reporting>=1.14.0",
     "numpy>=1.26.0",
+    "requests>=2.31.0",
 
     # Log pattern analysis
     "drain3>=0.9.11",
@@ -56,7 +57,7 @@ select = ["E", "F", "W", "I", "B", "UP", "RUF"]
 ignore = ["E501", "C901"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["gcp_observability"]
+known-first-party = ["sre_agent"]
 
 [tool.pytest.ini_options]
 pythonpath = "."
@@ -80,4 +81,4 @@ default = true
 example_question = "Analyze traces and logs in project my-gcp-project to find performance issues"
 
 [tool.agent-starter-pack.settings]
-agent_directory = "gcp_observability"
+agent_directory = "sre_agent"

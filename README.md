@@ -194,19 +194,24 @@ sequenceDiagram
 ## Project Structure
 
 ```
-trace_analyzer/
-├── gcp_observability/    # Main package
+sre_agent/
+├── sre_agent/            # Main package
 │   ├── agent.py          # SRE Agent & Orchestrator Tools
 │   ├── prompt.py         # Agent instructions
 │   ├── schema.py         # Pydantic structured output schemas
 │   ├── tools/            # Modular tools for GCP & Analysis
 │   │   ├── clients/      # Direct API Clients (Logging, Trace, Monitoring)
 │   │   ├── mcp/          # MCP Integration (BigQuery, Logging, etc.)
-│   │   ├── analysis/     # Analysis Logic (Trace, Logs, BigQuery)
+│   │   ├── analysis/     # Analysis Logic (Trace, Logs, BigQuery, Metrics)
+│   │   │   ├── trace/    # Trace analysis, comparison, filters
+│   │   │   ├── logs/     # Log pattern extraction & matching
+│   │   │   ├── metrics/  # Metrics statistics & anomalies
+│   │   │   └── bigquery/ # BigQuery OTel analysis
 │   │   └── common/       # Telemetry & Caching
-│   └── sub_agents/       # Specialist Specialists
+│   └── sub_agents/       # Specialist Experts
 │       ├── trace.py      # Latency, Error, Structure experts
-│       └── logs.py       # Log pattern extractor
+│       ├── logs.py       # Log pattern extractor
+│       └── metrics.py    # Metrics analyzer
 ├── tests/                # Comprehensive test suite
 ├── deploy/               # Deployment scripts for Agent Engine
 └── pyproject.toml        # Project dependencies and ADK config
@@ -249,10 +254,10 @@ GOOGLE_CLOUD_LOCATION=us-central1
 
 ```bash
 # Interactive terminal
-uv run adk run gcp_observability_agent
+uv run adk run sre_agent
 
 # Web interface
-uv run adk web gcp_observability_agent
+uv run adk web sre_agent
 ```
 
 ## Usage Examples
@@ -327,6 +332,8 @@ uv run adk web gcp_observability_agent
 | `validate_trace_quality` | Detect orphaned spans and clock skew |
 | `compare_span_timings` | Compare two traces for timing slowdowns |
 | `find_structural_differences` | Compare call graph topology changes |
+| `compute_latency_statistics` | Calculate p50, p90, p99 for a set of traces |
+| `detect_latency_anomalies` | Identify spans with statistically significant delay |
 
 ### Cloud Logging Tools
 | Tool | Description |
@@ -350,7 +357,18 @@ uv run adk web gcp_observability_agent
 | `mcp_query_range` | Execute PromQL queries via MCP |
 | `list_time_series` | Query metrics via direct API |
 | `query_promql` | Execute PromQL queries via direct API |
+| `detect_metric_anomalies` | Identify sudden spikes or drops in metrics |
+| `compare_metric_windows` | Compare metric distributions between two periods |
+| `calculate_series_stats` | Calculate mean, stddev, and z-score for time series |
 | `get_current_time` | Utility to get current ISO timestamp |
+
+### Trace Selection Tools (NEW!)
+| Tool | Description |
+|------|-------------|
+| `select_traces_from_error_reports` | Discovery: find traces associated with recent Error Reporting events |
+| `select_traces_from_monitoring_alerts` | Discovery: find traces linked to Cloud Monitoring incidents |
+| `select_traces_from_statistical_outliers` | Discovery: find traces that are p99+ outliers for a service |
+| `select_traces_manually` | User-driven: select traces by specific criteria or list of IDs |
 
 
 
@@ -358,7 +376,7 @@ uv run adk web gcp_observability_agent
 
 An Agentic AI system for analyzing Google Cloud Observability data (Traces, Logs, Metrics) to identify root causes of production issues.
 
-**New Architecture**: Consolidates `trace_analyzer` and `sre_agent` into a single `gcp_observability` library.
+**New Architecture**: Consolidates `sre_agent` and `sre_agent` into a single `sre_agent` library.
 
 ### Trace Analysis Squad
 | Sub-Agent | Stage | Role |
@@ -388,7 +406,7 @@ uv run pytest -v
 ### Code Quality
 
 ```bash
-uv run ruff check gcp_observability/
+uv run ruff check sre_agent/
 ```
 
 ## IAM Permissions

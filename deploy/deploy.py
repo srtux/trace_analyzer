@@ -1,6 +1,12 @@
 """Deployment script for SRE Agent"""
 
 import os
+import sys
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 import vertexai
 from absl import app, flags
@@ -8,7 +14,7 @@ from dotenv import load_dotenv
 from vertexai import agent_engines
 from vertexai.preview.reasoning_engines import AdkApp
 
-from gcp_observability.agent import root_agent
+from sre_agent.agent import root_agent
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("project_id", None, "GCP project ID.")
@@ -23,39 +29,50 @@ flags.DEFINE_bool("delete", False, "Deletes an existing agent.")
 flags.mark_bool_flags_as_mutual_exclusive(["create", "delete"])
 
 
+def get_requirements() -> list[str]:
+    """Reads requirements from pyproject.toml."""
+    pyproject_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "pyproject.toml"
+    )
+    with open(pyproject_path, "rb") as f:
+        pyproject = tomllib.load(f)
+
+    # Get dependencies from [project] section
+    dependencies = pyproject.get("project", {}).get("dependencies", [])
+
+    # Ensure crucial deployment dependencies are present
+    # These are often needed even if not explicitly in pyproject.toml
+    # for the Reasoning Engine runtime
+    required_for_deploy = [
+        "google-adk>=1.0.0",
+        "google-cloud-aiplatform[adk,agent-engines]>=1.93.0",
+        "numpy>=1.26.0",
+    ]
+
+    for req in required_for_deploy:
+        if req not in dependencies:
+            # Check if a different version of the same package is present
+            package_name = req.split(">=")[0].split("[")[0]
+            if not any(d.startswith(package_name) for d in dependencies):
+                dependencies.append(req)
+
+    return dependencies
+
+
 def create(env_vars: dict[str, str] | None = None) -> None:
     """Creates an agent engine for SRE Agent."""
     if env_vars is None:
         env_vars = {}
     adk_app = AdkApp(agent=root_agent, enable_tracing=True)
 
+    requirements = get_requirements()
+    print(f"Deploying with requirements: {requirements}")
+
     remote_agent = agent_engines.create(
         adk_app,
         display_name=root_agent.name,
-        requirements=[
-            # Core ADK and AI dependencies
-            "google-adk>=1.0.0",
-            "google-cloud-aiplatform[adk,agent-engines]>=1.93.0",
-            "google-genai>=1.9.0",
-            "pydantic>=2.10.6",
-            "python-dotenv>=1.0.1",
-            # GCP service clients
-            "google-cloud-trace>=1.0.0",
-            "google-cloud-logging>=3.10.0",
-            "google-cloud-monitoring>=2.21.0",
-            "google-cloud-error-reporting>=1.14.0",
-            "google-auth>=2.18.1",
-            # OpenTelemetry instrumentation
-            "opentelemetry-api>=1.24.0",
-            "opentelemetry-sdk>=1.24.0",
-            "opentelemetry-exporter-otlp-proto-grpc>=1.24.0",
-            # Log pattern analysis
-            "drain3>=0.9.11",
-            # Other dependencies
-            "grpcio>=1.63.0",
-            "numpy>=1.26.0",
-        ],
-        extra_packages=["./gcp_observability"],
+        requirements=requirements,
+        extra_packages=["./sre_agent"],
         env_vars={
             "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY": "true",
             "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "true",
@@ -73,12 +90,17 @@ def delete(resource_id: str) -> None:
 
 def list_agents() -> None:
     remote_agents = agent_engines.list()
+    if not remote_agents:
+        print("No remote agents found.")
+        return
+
     template = """
 {agent.name} ("{agent.display_name}")
+- Resource Name: {agent.resource_name}
 - Create time: {agent.create_time}
 - Update time: {agent.update_time}
 """
-    remote_agents_string = "\n".join(
+    remote_agents_string = "".join(
         template.format(agent=agent) for agent in remote_agents
     )
     print(f"All remote agents:\n{remote_agents_string}")

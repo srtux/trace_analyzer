@@ -1,5 +1,5 @@
 {
-  "eval_set_id": "gcp_observability_tool_selection",
+  "eval_set_id": "sre_agent_tool_selection",
   "eval_cases": [
     {
       "eval_id": "fetch_trace_selection",
@@ -35,7 +35,7 @@
         }
       ],
       "session_input": {
-        "app_name": "gcp_observability",
+        "app_name": "sre_agent",
         "user_id": "test_user",
         "state": {}
       }
@@ -73,7 +73,7 @@
         }
       ],
       "session_input": {
-        "app_name": "gcp_observability",
+        "app_name": "sre_agent",
         "user_id": "test_user",
         "state": {}
       }
@@ -112,7 +112,7 @@
         }
       ],
       "session_input": {
-        "app_name": "gcp_observability",
+        "app_name": "sre_agent",
         "user_id": "test_user",
         "state": {}
       }

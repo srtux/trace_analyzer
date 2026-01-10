@@ -25,7 +25,7 @@ htmlcov/
 # Project Specific
 *tmp*/
 *.log
-trace_analyzer_tmp*/
+sre_agent_tmp*/
 session.db
 
 # IDEs

@@ -1,5 +1,5 @@
 {
-  "eval_set_id": "gcp_observability_metrics",
+  "eval_set_id": "sre_agent_metrics",
   "eval_cases": [
     {
       "eval_id": "metrics_analysis_cpu",
@@ -34,7 +34,7 @@
         }
       ],
       "session_input": {
-        "app_name": "gcp_observability",
+        "app_name": "sre_agent",
         "user_id": "test_user",
         "state": {}
       }

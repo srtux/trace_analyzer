@@ -40,7 +40,7 @@ The SRE Agent uses a **multi-stage analysis pipeline** with specialized sub-agen
 ## Dev Environment Tips
 
 - Use `uv sync` to install dependencies and create the virtual environment.
-- Use `uv run adk web sre_agent` to launch the agent's web interface.
+- Use `uv run adk web sre_agent` to launch the agent's web interface (with MCP tools).
 - Use `uv run adk run sre_agent` to launch the interactive terminal interface.
 - Environment variables are managed in `.env`. Copy `.env.example` to `.env`.
 - Agent definitions are in `sre_agent/agent.py` and `sub_agents/`.

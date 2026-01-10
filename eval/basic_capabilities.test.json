@@ -1,5 +1,5 @@
 {
-  "eval_set_id": "gcp_observability_capabilities",
+  "eval_set_id": "sre_agent_capabilities",
   "eval_cases": [
     {
       "eval_id": "capability_check",
@@ -24,7 +24,7 @@
         }
       ],
       "session_input": {
-        "app_name": "gcp_observability",
+        "app_name": "sre_agent",
         "user_id": "test_user",
         "state": {}
       }
