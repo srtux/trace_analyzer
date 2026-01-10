@@ -321,62 +321,74 @@ uv run adk run trace_analyzer
 
 ## Available Tools
 
-### BigQuery Tools
+### BigQuery Analysis Tools
 | Tool | Description |
 |------|-------------|
-| `analyze_aggregate_metrics` | Aggregate trace metrics |
-| `find_exemplar_traces` | Find representative traces |
-| `compare_time_periods` | Compare metrics between windows |
-| `detect_trend_changes` | Find when metrics degraded |
-| `correlate_logs_with_trace` | Find logs for a trace |
+| `analyze_aggregate_metrics` | Service-level health metrics at scale using BigQuery |
+| `find_exemplar_traces` | Find baseline and outlier traces for investigation |
+| `compare_time_periods` | Detect performance regressions between two windows |
+| `detect_trend_changes` | Identify exact time when metrics started degrading |
+| `correlate_logs_with_trace` | SQL-based correlation between spans and logs |
 
 ### Cloud Trace Tools
 | Tool | Description |
 |------|-------------|
 | `fetch_trace` | Get full trace by ID |
-| `list_traces` | List traces with filtering |
-| `find_example_traces` | Smart trace discovery |
-| `compare_span_timings` | Compare two traces |
-| `find_structural_differences` | Compare structures |
+| `list_traces` | List traces with advanced filtering |
+| `get_trace_by_url` | Parse Cloud Console URL to get trace |
+| `find_example_traces` | Smart discovery of baseline vs anomaly traces |
+| `calculate_span_durations` | Extract timing information for all spans |
+| `extract_errors` | Find all error spans in a trace with details |
+| `build_call_graph` | Build hierarchical call graph tree |
+| `summarize_trace`| Compact summary of trace for LLM context |
+| `validate_trace_quality` | Detect orphaned spans and clock skew |
+| `compare_span_timings` | Compare two traces for timing slowdowns |
+| `find_structural_differences` | Compare call graph topology changes |
 
 ### Cloud Logging Tools
 | Tool | Description |
 |------|-------------|
 | `mcp_list_log_entries` | Query logs via MCP |
-| `list_log_entries` | Query logs via API |
-| `get_logs_for_trace` | Get logs for a trace |
+| `list_log_entries` | Query logs via direct API |
+| `get_logs_for_trace` | Get logs correlated with a trace |
+| `list_error_events` | List events from Error Reporting |
 
 ### Log Pattern Analysis Tools (NEW!)
 | Tool | Description |
 |------|-------------|
-| `extract_log_patterns` | Extract patterns from logs using Drain3 |
-| `compare_log_patterns` | Compare patterns between time periods |
-| `analyze_log_anomalies` | Find anomalous error patterns |
+| `extract_log_patterns` | Compress logs into patterns using Drain3 |
+| `compare_log_patterns` | Compare patterns between periods |
+| `analyze_log_anomalies` | triage patterns focused on errors |
 
 ### Cloud Monitoring Tools
 | Tool | Description |
 |------|-------------|
 | `mcp_list_timeseries` | Query metrics via MCP |
-| `mcp_query_range` | PromQL queries via MCP |
-| `list_time_series` | Query metrics via API |
+| `mcp_query_range` | Execute PromQL queries via MCP |
+| `list_time_series` | Query metrics via direct API |
+| `get_current_time` | Utility to get current ISO timestamp |
+
+
 
 ## Sub-Agents
 
-### Trace Analysis Sub-Agents
+The SRE Agent coordinates several specialized sub-agents to perform complex analyses.
+
+### Trace Analysis Squad
 | Sub-Agent | Stage | Role |
 |-----------|-------|------|
-| `aggregate_analyzer` | 0 | BigQuery analysis |
-| `latency_analyzer` | 1 | Timing comparison |
-| `error_analyzer` | 1 | Error detection |
-| `structure_analyzer` | 1 | Topology analysis |
-| `statistics_analyzer` | 1 | Outlier detection |
-| `causality_analyzer` | 2 | Root cause |
-| `service_impact_analyzer` | 2 | Blast radius |
+| `aggregate_analyzer` | 0 | **Data Analyst** - Analyzes BigQuery data to find trends and select exemplars. |
+| `latency_analyzer` | 1 | **Latency Specialist** - Timing expert focusing on slowdowns and anti-patterns. |
+| `error_analyzer` | 1 | **Error Forensics** - Failure detective identifying and comparing error spans. |
+| `structure_analyzer` | 1 | **Structure Mapper** - Topology expert detecting structural changes in call graphs. |
+| `statistics_analyzer` | 1 | **Quant Expert** - Determines statistical significance and percentile ranking. |
+| `causality_analyzer` | 2 | **Root Cause Analyst** - Identifies the primary cause using evidence from traces/logs. |
+| `service_impact_analyzer` | 2 | **Impact Assessor** - Determines blast radius and user impact. |
 
-### Log Analysis Sub-Agents (NEW!)
+### Log Analysis Squad
 | Sub-Agent | Role |
 |-----------|------|
-| `log_pattern_extractor` | Drain3-powered pattern extraction and anomaly detection |
+| `log_pattern_extractor`| **Log Whisperer** - Uses Drain3 to compress thousands of logs into patterns to find "spicy" anomalies. |
 
 ## Development
 
