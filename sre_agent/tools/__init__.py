@@ -22,6 +22,12 @@ Trace Tools (tools.trace):
     - Trace comparison tools for diff analysis
     - Trace filter utilities
 
+Log Analysis Tools (tools.logs):
+    - Log pattern extraction using Drain3 algorithm
+    - Pattern comparison between time periods
+    - Anomaly detection for emergent log patterns
+    - Smart payload extraction from various formats
+
 Common Utilities (tools.common):
     - @adk_tool decorator with OpenTelemetry instrumentation
     - Telemetry helpers (tracer, meter)
@@ -32,6 +38,7 @@ Usage:
     from sre_agent.tools.gcp import mcp_list_log_entries
     from sre_agent.tools.trace import compare_span_timings
     from sre_agent.tools.bigquery import analyze_aggregate_metrics
+    from sre_agent.tools.logs import extract_log_patterns, compare_log_patterns
 """
 
 # Common utilities
@@ -101,6 +108,18 @@ from .bigquery import (
     correlate_logs_with_trace,
 )
 
+# Log analysis tools
+from .logs import (
+    LogPatternExtractor,
+    extract_log_patterns,
+    compare_log_patterns,
+    analyze_log_anomalies,
+    get_pattern_summary,
+    extract_log_message,
+    extract_messages_from_entries,
+    LogMessageExtractor,
+)
+
 __all__ = [
     # Common
     "adk_tool",
@@ -154,4 +173,13 @@ __all__ = [
     "compare_time_periods",
     "detect_trend_changes",
     "correlate_logs_with_trace",
+    # Log Analysis
+    "LogPatternExtractor",
+    "extract_log_patterns",
+    "compare_log_patterns",
+    "analyze_log_anomalies",
+    "get_pattern_summary",
+    "extract_log_message",
+    "extract_messages_from_entries",
+    "LogMessageExtractor",
 ]

@@ -1,6 +1,6 @@
 """Sub-agents for specialized SRE analysis tasks.
 
-This module provides specialized sub-agents for trace analysis:
+This module provides specialized sub-agents for observability analysis:
 
 Trace Analysis Sub-agents:
     - aggregate_analyzer: BigQuery-powered aggregate analysis
@@ -10,6 +10,9 @@ Trace Analysis Sub-agents:
     - statistics_analyzer: Statistical outlier detection
     - causality_analyzer: Root cause determination
     - service_impact_analyzer: Blast radius assessment
+
+Log Analysis Sub-agents:
+    - log_pattern_extractor: Drain3-powered log pattern extraction
 """
 
 from .trace_analysis import (
@@ -22,7 +25,10 @@ from .trace_analysis import (
     service_impact_analyzer,
 )
 
+from .log_analysis import log_pattern_extractor
+
 __all__ = [
+    # Trace analysis
     "aggregate_analyzer",
     "latency_analyzer",
     "error_analyzer",
@@ -30,4 +36,6 @@ __all__ = [
     "statistics_analyzer",
     "causality_analyzer",
     "service_impact_analyzer",
+    # Log analysis
+    "log_pattern_extractor",
 ]

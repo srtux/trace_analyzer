@@ -3,12 +3,21 @@
 This is the main agent for SRE tasks, specializing in analyzing telemetry data
 from Google Cloud Observability: traces, logs, and metrics.
 
-The agent uses a hierarchical architecture for trace analysis:
+Capabilities:
+
+Trace Analysis (Multi-Stage Pipeline):
 - Stage 0 (Aggregate): BigQuery-powered analysis of thousands of traces
 - Stage 1 (Triage): Parallel analysis with 4 specialized sub-agents
 - Stage 2 (Deep Dive): Root cause and impact analysis
 
-For other tasks (logs, metrics), the agent uses direct tools.
+Log Analysis:
+- Pattern extraction using Drain3 algorithm
+- Time period comparison for anomaly detection
+- Smart message extraction from various payload formats
+
+Metrics Analysis:
+- Direct API and MCP tools for Cloud Monitoring
+- PromQL queries for complex aggregations
 """
 
 import asyncio
@@ -46,6 +55,10 @@ from .tools import (
     compare_time_periods,
     detect_trend_changes,
     correlate_logs_with_trace,
+    # Log pattern analysis tools
+    extract_log_patterns,
+    compare_log_patterns,
+    analyze_log_anomalies,
 )
 from .tools.gcp.mcp import (
     create_bigquery_mcp_toolset,
@@ -57,8 +70,9 @@ from .tools.gcp.mcp import (
     get_project_id_with_fallback,
 )
 
-# Import sub-agents for trace analysis
+# Import sub-agents
 from .sub_agents import (
+    # Trace analysis sub-agents
     aggregate_analyzer,
     latency_analyzer,
     error_analyzer,
@@ -66,6 +80,8 @@ from .sub_agents import (
     statistics_analyzer,
     causality_analyzer,
     service_impact_analyzer,
+    # Log analysis sub-agents
+    log_pattern_extractor,
 )
 
 logger = logging.getLogger(__name__)
@@ -135,6 +151,10 @@ base_tools = [
     compare_time_periods,
     detect_trend_changes,
     correlate_logs_with_trace,
+    # Log pattern analysis tools (Drain3)
+    extract_log_patterns,
+    compare_log_patterns,
+    analyze_log_anomalies,
     # MCP tools (wrapper functions)
     mcp_list_log_entries,
     mcp_list_timeseries,
@@ -271,6 +291,79 @@ Compare them and report your findings.
     }
 
 
+async def run_log_pattern_analysis(
+    log_filter: str,
+    baseline_start: str,
+    baseline_end: str,
+    comparison_start: str,
+    comparison_end: str,
+    project_id: str | None = None,
+    tool_context: ToolContext = None,
+) -> dict[str, Any]:
+    """
+    Run log pattern analysis to find emergent issues.
+
+    This function compares log patterns between two time periods using
+    the Drain3 algorithm to identify NEW patterns that may indicate issues.
+
+    Args:
+        log_filter: Cloud Logging filter (e.g., 'resource.type="k8s_container"')
+        baseline_start: Start of baseline period (RFC3339)
+        baseline_end: End of baseline period (RFC3339)
+        comparison_start: Start of comparison period (RFC3339)
+        comparison_end: End of comparison period (RFC3339)
+        project_id: GCP project ID
+        tool_context: ADK tool context
+
+    Returns:
+        Pattern comparison results with anomalies.
+    """
+    if not project_id:
+        project_id = get_project_id_with_fallback()
+
+    logger.info(f"Running log pattern analysis for filter: {log_filter}")
+
+    try:
+        result = await log_pattern_extractor.run_async(
+            user_content=f"""
+Analyze log patterns and find anomalies:
+
+Filter: {log_filter}
+Project: {project_id}
+
+Baseline Period (before):
+- Start: {baseline_start}
+- End: {baseline_end}
+
+Comparison Period (during/after):
+- Start: {comparison_start}
+- End: {comparison_end}
+
+Please:
+1. Fetch logs from both periods using the filter
+2. Extract patterns from each period using extract_log_patterns
+3. Compare the patterns to find NEW or INCREASED patterns
+4. Focus on ERROR patterns as they are most likely to indicate issues
+5. Report your findings with recommendations
+""",
+            tool_context=tool_context,
+        )
+
+        return {
+            "stage": "log_pattern_analysis",
+            "status": "success",
+            "result": result,
+        }
+
+    except Exception as e:
+        logger.error(f"Log pattern analysis failed: {e}", exc_info=True)
+        return {
+            "stage": "log_pattern_analysis",
+            "status": "error",
+            "error": str(e),
+        }
+
+
 async def run_deep_dive_analysis(
     baseline_trace_id: str,
     target_trace_id: str,
@@ -354,6 +447,7 @@ sre_agent = LlmAgent(
     tools=base_tools,
     # Sub-agents for specialized analysis (automatically invoked based on task)
     sub_agents=[
+        # Trace analysis sub-agents
         aggregate_analyzer,
         latency_analyzer,
         error_analyzer,
@@ -361,6 +455,8 @@ sre_agent = LlmAgent(
         statistics_analyzer,
         causality_analyzer,
         service_impact_analyzer,
+        # Log analysis sub-agents
+        log_pattern_extractor,
     ],
 )
 
@@ -406,6 +502,7 @@ async def get_agent_with_mcp_tools():
         instruction=SRE_AGENT_PROMPT,
         tools=all_tools,
         sub_agents=[
+            # Trace analysis sub-agents
             aggregate_analyzer,
             latency_analyzer,
             error_analyzer,
@@ -413,5 +510,7 @@ async def get_agent_with_mcp_tools():
             statistics_analyzer,
             causality_analyzer,
             service_impact_analyzer,
+            # Log analysis sub-agents
+            log_pattern_extractor,
         ],
     )

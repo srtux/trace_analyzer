@@ -23,6 +23,9 @@ dependencies = [
     "google-cloud-monitoring>=2.21.0",
     "google-cloud-error-reporting>=1.14.0",
     "numpy>=1.26.0",
+
+    # Log pattern analysis
+    "drain3>=0.9.11",
 ]
 
 requires-python = ">=3.10,<3.13"
