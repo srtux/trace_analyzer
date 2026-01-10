@@ -6,6 +6,62 @@
 
 An ADK-based agent for analyzing telemetry data from Google Cloud Observability: **traces**, **logs**, and **metrics**. Specializes in distributed trace analysis with multi-stage investigation capabilities.
 
+## System Architecture
+
+```mermaid
+flowchart LR
+    subgraph User["User"]
+        CLI["ADK CLI"]
+    end
+
+    subgraph Agent["SRE Agent"]
+        Main["sre_agent<br/>(Gemini 2.5 Pro)"]
+
+        subgraph SubAgents["Sub-Agents"]
+            direction TB
+            TA["Trace Analysis<br/>(7 sub-agents)"]
+            LA["Log Analysis<br/>(log_pattern_extractor)"]
+        end
+    end
+
+    subgraph Tools["Tools"]
+        TT["Trace Tools"]
+        BQ["BigQuery Tools"]
+        LT["Log Tools<br/>(Drain3)"]
+        MT["Metrics Tools"]
+    end
+
+    subgraph GCP["Google Cloud"]
+        Trace["Cloud Trace"]
+        Logging["Cloud Logging"]
+        Monitoring["Cloud Monitoring"]
+        BigQuery["BigQuery"]
+    end
+
+    CLI --> Main
+    Main --> TA
+    Main --> LA
+    Main --> TT & BQ & LT & MT
+
+    TA --> TT & BQ
+    LA --> LT
+
+    TT --> Trace
+    LT --> Logging
+    MT --> Monitoring
+    BQ --> BigQuery
+
+    classDef gemini fill:#4285f4,stroke:#1a73e8,color:white
+    classDef subagent fill:#34a853,stroke:#1e8e3e,color:white
+    classDef tool fill:#fbbc04,stroke:#f9ab00,color:black
+    classDef gcp fill:#ea4335,stroke:#c5221f,color:white
+
+    class Main gemini
+    class TA,LA subagent
+    class TT,BQ,LT,MT tool
+    class Trace,Logging,Monitoring,BigQuery gcp
+```
+
 ## Features
 
 ### Core Capabilities
