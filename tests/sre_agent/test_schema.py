@@ -125,3 +125,24 @@ def test_observability_schemas():
 
     err = ErrorEvent(event_time="now", message="fail", service_context={})
     assert err.message == "fail"
+
+
+def test_immutability():
+    """Verify that models are immutable (frozen)."""
+    import pytest
+    from pydantic import ValidationError
+
+    span = SpanInfo(span_id="1", name="test")
+    with pytest.raises(ValidationError):
+        span.name = "changed"
+
+    report = TraceComparisonReport(
+        baseline_summary=TraceSummary(
+            trace_id="1", span_count=1, total_duration_ms=10.0
+        ),
+        target_summary=TraceSummary(trace_id="2", span_count=1, total_duration_ms=20.0),
+        overall_assessment="degraded",
+        root_cause_hypothesis="slow DB",
+    )
+    with pytest.raises(ValidationError):
+        report.overall_assessment = "healthy"
