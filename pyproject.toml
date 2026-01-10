@@ -1,7 +1,7 @@
 [project]
-name = "trace-analyzer"
-version = "0.1.0"
-description = "A Google ADK-based Cloud Trace Analyzer Agent for distributed trace diff analysis"
+name = "sre-agent"
+version = "0.2.0"
+description = "SRE Agent - Google Cloud Observability analysis agent for traces, logs, and metrics"
 authors = [{ name = "SRT", email = "srtuxx@gmail.com" }]
 license = "Apache-2.0"
 readme = "README.md"
@@ -52,7 +52,7 @@ select = ["E", "F", "W", "I", "B", "UP", "RUF"]
 ignore = ["E501", "C901"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["trace_analyzer"]
+known-first-party = ["sre_agent", "trace_analyzer"]
 
 [tool.pytest.ini_options]
 pythonpath = "."
@@ -73,7 +73,7 @@ url = "https://pypi.org/simple"
 default = true
 
 [tool.agent-starter-pack]
-example_question = "Compare trace abc123 with trace def456 in project my-gcp-project"
+example_question = "Analyze traces and logs in project my-gcp-project to find performance issues"
 
 [tool.agent-starter-pack.settings]
-agent_directory = "trace_analyzer"
+agent_directory = "sre_agent"
