@@ -6,60 +6,142 @@
 
 An ADK-based agent for analyzing telemetry data from Google Cloud Observability: **traces**, **logs**, and **metrics**. Specializes in distributed trace analysis with multi-stage investigation capabilities.
 
-## System Architecture
+## Architecture
+
+The agent is built using the Google Agent Development Kit (ADK). It uses a hierarchical orchestration pattern where the main **SRE Agent** coordinates specialized analysis squads.
+
+### System Architecture
 
 ```mermaid
-flowchart LR
-    subgraph User["User"]
-        CLI["ADK CLI"]
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'fontFamily': 'arial',
+    'fontSize': '16px',
+    'lineColor': '#333333',
+    'primaryTextColor': '#000000',
+    'tertiaryColor': '#ffffff',
+    'clusterBkg': '#fafafa',
+    'clusterBorder': '#999999'
+  }
+}}%%
+flowchart TB
+    subgraph ControlRow [ ]
+        direction LR
+        User([👤 User])
+        Agent["🔧 <b>SRE Agent</b><br/>(Orchestrator)"]
+        Gemini{{"🧠 <b>Gemini 2.5 Pro</b>"}}
+
+        User <==> Agent
+        Agent <==> Gemini
     end
 
-    subgraph Agent["SRE Agent"]
-        Main["sre_agent<br/>(Gemini 2.5 Pro)"]
+    subgraph Squads [ ]
+        direction LR
 
-        subgraph SubAgents["Sub-Agents"]
+        subgraph TraceSquad [📊 Trace Analysis Squad]
             direction TB
-            TA["Trace Analysis<br/>(7 sub-agents)"]
-            LA["Log Analysis<br/>(log_pattern_extractor)"]
+            subgraph Stage0 [Stage 0: Aggregate]
+                AGG["📈 Aggregate<br/>Analyzer"]
+            end
+            subgraph Stage1 [Stage 1: Triage]
+                L["⏱️ Latency"]
+                E["💥 Error"]
+                S["🏗️ Structure"]
+                ST["📉 Stats"]
+            end
+            subgraph Stage2 [Stage 2: Deep Dive]
+                C["🔗 Causality"]
+                SI["🌊 Impact"]
+            end
+        end
+
+        subgraph LogSquad [📝 Log Analysis Squad]
+            direction TB
+            LP["🔍 Log Pattern<br/>Extractor<br/>(Drain3)"]
         end
     end
 
-    subgraph Tools["Tools"]
-        TT["Trace Tools"]
-        BQ["BigQuery Tools"]
-        LT["Log Tools<br/>(Drain3)"]
-        MT["Metrics Tools"]
+    subgraph ToolLayer [Integrated Tools]
+        direction LR
+        TraceAPI["☁️ Cloud Trace API"]
+        LogAPI["📋 Cloud Logging"]
+        MetricsAPI["📊 Cloud Monitoring"]
+        BQ["🗄️ BigQuery"]
     end
 
-    subgraph GCP["Google Cloud"]
-        Trace["Cloud Trace"]
-        Logging["Cloud Logging"]
-        Monitoring["Cloud Monitoring"]
-        BigQuery["BigQuery"]
+    Agent ==> TraceSquad
+    Agent ==> LogSquad
+    Agent -.-> ToolLayer
+    TraceSquad -.-> ToolLayer
+    LogSquad -.-> ToolLayer
+
+    style ControlRow fill:none,stroke:none
+    style Squads fill:none,stroke:none
+
+    classDef userNode fill:#ffffff,stroke:#000000,stroke-width:2px;
+    classDef agentNode fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef brainNode fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef squadNode fill:#fff8e1,stroke:#fbc02d,stroke-width:1px;
+    classDef logNode fill:#e8f5e9,stroke:#43a047,stroke-width:1px;
+    classDef toolNode fill:#f5f5f5,stroke:#616161,stroke-width:1px;
+
+    class User userNode;
+    class Agent agentNode;
+    class Gemini brainNode;
+    class AGG,L,E,S,ST,C,SI squadNode;
+    class LP logNode;
+    class TraceAPI,LogAPI,MetricsAPI,BQ toolNode;
+```
+
+### Interaction Workflow
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': false, 'background': '#ffffff', 'mainBkg': '#ffffff', 'fontFamily': 'arial', 'fontSize': '16px', 'textColor': '#000000', 'primaryTextColor': '#000000'}}}%%
+sequenceDiagram
+    actor User
+    participant SRE as 🔧 SRE Agent
+    participant Tools as 🛠️ Tools
+    participant Trace as 📊 Trace Squad
+    participant Logs as 📝 Log Squad
+
+    Note over User, Logs: 🔎 PHASE 1: EVIDENCE GATHERING
+
+    User->>SRE: 1. "Investigate high latency..."
+    SRE->>Tools: 2. Aggregate Analysis (BigQuery)
+    activate Tools
+    Tools-->>SRE: 3. Health metrics + exemplar traces
+    deactivate Tools
+
+    Note over User, Logs: ⚡ PHASE 2: PARALLEL TRIAGE
+
+    par Trace Analysis
+        SRE->>Trace: 4a. Compare traces
+        activate Trace
+        Trace->>Trace: Latency/Error/Structure
+        Trace-->>SRE: Trace findings
+        deactivate Trace
+    and Log Analysis
+        SRE->>Logs: 4b. Extract patterns
+        activate Logs
+        Logs->>Logs: Drain3 clustering
+        Logs-->>SRE: NEW error patterns!
+        deactivate Logs
     end
 
-    CLI --> Main
-    Main --> TA
-    Main --> LA
-    Main --> TT & BQ & LT & MT
+    SRE->>User: 5. "Found 3 new error patterns..."
 
-    TA --> TT & BQ
-    LA --> LT
+    Note over User, Logs: 🕵️ PHASE 3: ROOT CAUSE
 
-    TT --> Trace
-    LT --> Logging
-    MT --> Monitoring
-    BQ --> BigQuery
+    User->>SRE: 6. "What's the root cause?"
+    SRE->>Trace: 7. Deep Dive (Causality + Impact)
+    activate Trace
+    Trace-->>SRE: 8. Root cause identified
+    deactivate Trace
 
-    classDef gemini fill:#4285f4,stroke:#1a73e8,color:white
-    classDef subagent fill:#34a853,stroke:#1e8e3e,color:white
-    classDef tool fill:#fbbc04,stroke:#f9ab00,color:black
-    classDef gcp fill:#ea4335,stroke:#c5221f,color:white
+    Note over User, Logs: 📝 PHASE 4: REPORT
 
-    class Main gemini
-    class TA,LA subagent
-    class TT,BQ,LT,MT tool
-    class Trace,Logging,Monitoring,BigQuery gcp
+    SRE->>User: 9. 📂 Investigation Summary
 ```
 
 ## Features
