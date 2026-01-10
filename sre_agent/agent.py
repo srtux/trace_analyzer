@@ -69,6 +69,20 @@ from .tools import (
     detect_metric_anomalies,
     compare_metric_windows,
     calculate_series_stats,
+    # Cross-signal correlation tools (NEW!)
+    correlate_trace_with_metrics,
+    correlate_metrics_with_traces_via_exemplars,
+    build_cross_signal_timeline,
+    analyze_signal_correlation_strength,
+    # Critical path analysis tools (NEW!)
+    analyze_critical_path,
+    find_bottleneck_services,
+    calculate_critical_path_contribution,
+    # Service dependency tools (NEW!)
+    build_service_dependency_graph,
+    analyze_upstream_downstream_impact,
+    detect_circular_dependencies,
+    find_hidden_dependencies,
 )
 from .tools.common import adk_tool
 from .tools.mcp.gcp import (
@@ -471,6 +485,20 @@ base_tools = [
     detect_metric_anomalies,
     compare_metric_windows,
     calculate_series_stats,
+    # Cross-signal correlation tools (NEW!)
+    correlate_trace_with_metrics,
+    correlate_metrics_with_traces_via_exemplars,
+    build_cross_signal_timeline,
+    analyze_signal_correlation_strength,
+    # Critical path analysis tools (NEW!)
+    analyze_critical_path,
+    find_bottleneck_services,
+    calculate_critical_path_contribution,
+    # Service dependency tools (NEW!)
+    build_service_dependency_graph,
+    analyze_upstream_downstream_impact,
+    detect_circular_dependencies,
+    find_hidden_dependencies,
 ]
 
 
@@ -483,9 +511,9 @@ sre_agent = LlmAgent(
     name="sre_agent",
     model="gemini-2.5-pro",
     description=(
-        "SRE Agent for Google Cloud Observability. Analyzes traces, logs, and metrics "
-        "to diagnose production issues. Specializes in distributed trace analysis with "
-        "multi-stage investigation: aggregate analysis, triage, and deep dive."
+        "SRE Agent for Google Cloud Observability and OpenTelemetry. Analyzes traces, logs, and metrics "
+        "with advanced cross-signal correlation using exemplars and trace context. Features include "
+        "critical path analysis, service dependency mapping, and multi-stage investigation pipelines."
     ),
     instruction=SRE_AGENT_PROMPT,
     tools=base_tools,

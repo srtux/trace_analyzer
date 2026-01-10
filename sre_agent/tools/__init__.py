@@ -29,6 +29,24 @@ Log Analysis Tools (tools.logs):
     - Anomaly detection for emergent log patterns
     - Smart payload extraction from various formats
 
+Cross-Signal Correlation Tools (tools.correlation):
+    - Trace-metrics correlation using exemplars
+    - Trace-logs correlation using trace context
+    - Cross-signal timeline alignment
+    - Signal correlation strength analysis
+
+Critical Path Analysis Tools (tools.correlation.critical_path):
+    - Critical path identification in distributed traces
+    - Bottleneck service detection
+    - Parallelization opportunity analysis
+    - Optimization recommendations
+
+Service Dependency Tools (tools.correlation.dependencies):
+    - Service dependency graph construction
+    - Upstream/downstream impact analysis
+    - Circular dependency detection
+    - Hidden dependency discovery
+
 Common Utilities (tools.common):
     - @adk_tool decorator with OpenTelemetry instrumentation
     - Telemetry helpers (tracer, meter)
@@ -134,6 +152,29 @@ from .analysis.logs.patterns import (
     get_pattern_summary,
 )
 
+# Cross-Signal Correlation
+from .analysis.correlation.cross_signal import (
+    correlate_trace_with_metrics,
+    correlate_metrics_with_traces_via_exemplars,
+    build_cross_signal_timeline,
+    analyze_signal_correlation_strength,
+)
+
+# Critical Path Analysis
+from .analysis.correlation.critical_path import (
+    analyze_critical_path,
+    find_bottleneck_services,
+    calculate_critical_path_contribution,
+)
+
+# Service Dependency Analysis
+from .analysis.correlation.dependencies import (
+    build_service_dependency_graph,
+    analyze_upstream_downstream_impact,
+    detect_circular_dependencies,
+    find_hidden_dependencies,
+)
+
 __all__ = [
     # Common
     "adk_tool",
@@ -204,4 +245,18 @@ __all__ = [
     "detect_metric_anomalies",
     "compare_metric_windows",
     "calculate_series_stats",
+    # Cross-Signal Correlation
+    "correlate_trace_with_metrics",
+    "correlate_metrics_with_traces_via_exemplars",
+    "build_cross_signal_timeline",
+    "analyze_signal_correlation_strength",
+    # Critical Path Analysis
+    "analyze_critical_path",
+    "find_bottleneck_services",
+    "calculate_critical_path_contribution",
+    # Service Dependency Analysis
+    "build_service_dependency_graph",
+    "analyze_upstream_downstream_impact",
+    "detect_circular_dependencies",
+    "find_hidden_dependencies",
 ]
