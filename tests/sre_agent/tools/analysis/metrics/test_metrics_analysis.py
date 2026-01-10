@@ -54,14 +54,7 @@ def test_compare_metric_windows_shift():
 def test_compare_metric_windows_stable():
     base = [10.0] * 10
     target = [10.1] * 10
-    
-    assert result["comparison"]["mean_shift"] == 10.0
-    assert result["comparison"]["mean_shift_pct"] == 100.0
 
-def test_compare_metric_windows_stable():
-    base = [10.0] * 10
-    target = [10.1] * 10
-    
     result = compare_metric_windows(base, target)
     assert result["comparison"]["is_significant_shift"] is False
     assert result["comparison"]["mean_shift_pct"] < 10.0
