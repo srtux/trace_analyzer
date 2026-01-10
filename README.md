@@ -13,18 +13,7 @@ The agent is built using the Google Agent Development Kit (ADK). It uses a **"Co
 ### System Architecture
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'fontFamily': 'arial',
-    'fontSize': '16px',
-    'lineColor': '#333333',
-    'primaryTextColor': '#000000',
-    'tertiaryColor': '#ffffff',
-    'clusterBkg': '#fafafa',
-    'clusterBorder': '#999999'
-  }
-}}%%
+%%{init: {'theme': 'neutral'}}%%
 flowchart TB
     subgraph ControlRow [ ]
         direction LR
@@ -85,11 +74,11 @@ flowchart TB
     style ControlRow fill:none,stroke:none
     style Specialists fill:none,stroke:none
 
-    classDef userNode fill:#ffffff,stroke:#000000,stroke-width:2px;
-    classDef agentNode fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
-    classDef brainNode fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef userNode fill:#ffffff,stroke:#333,stroke-width:2px;
+    classDef agentNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef brainNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,stroke-dasharray: 5 5;
     classDef squadNode fill:#fff8e1,stroke:#fbc02d,stroke-width:1px;
-    classDef logNode fill:#e8f5e9,stroke:#43a047,stroke-width:1px;
+    classDef logNode fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px;
     classDef metricsNode fill:#e0f7fa,stroke:#006064,stroke-width:1px;
     classDef toolNode fill:#f5f5f5,stroke:#616161,stroke-width:1px;
 
@@ -105,7 +94,7 @@ flowchart TB
 ### Interaction Workflow
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'darkMode': false, 'background': '#ffffff', 'mainBkg': '#ffffff', 'fontFamily': 'arial', 'fontSize': '16px', 'textColor': '#000000', 'primaryTextColor': '#000000'}}}%%
+%%{init: {'theme': 'neutral'}}%%
 sequenceDiagram
     actor User
     participant SRE as 🔧 SRE Agent
