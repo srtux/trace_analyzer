@@ -47,14 +47,19 @@ from .sub_agents import (
 from .tools import (
     # BigQuery tools
     analyze_aggregate_metrics,
-    # Critical path analysis tools (NEW!)
+    # Critical path analysis tools
     analyze_critical_path,
+    # SLO/SLI tools
+    analyze_error_budget_burn,
+    # GKE tools
+    analyze_hpa_events,
     analyze_log_anomalies,
+    analyze_node_conditions,
     analyze_signal_correlation_strength,
     analyze_upstream_downstream_impact,
     build_call_graph,
     build_cross_signal_timeline,
-    # Service dependency tools (NEW!)
+    # Service dependency tools
     build_service_dependency_graph,
     calculate_critical_path_contribution,
     calculate_series_stats,
@@ -63,14 +68,19 @@ from .tools import (
     compare_metric_windows,
     compare_span_timings,
     compare_time_periods,
+    # SLO correlation
+    correlate_incident_with_slo_impact,
     correlate_logs_with_trace,
     correlate_metrics_with_traces_via_exemplars,
-    # Cross-signal correlation tools (NEW!)
+    # Cross-signal correlation tools
+    correlate_trace_with_kubernetes,
     correlate_trace_with_metrics,
     detect_circular_dependencies,
     # Metrics analysis tools
     detect_metric_anomalies,
     detect_trend_changes,
+    # Remediation tools
+    estimate_remediation_risk,
     extract_errors,
     # Log pattern analysis tools
     extract_log_patterns,
@@ -80,15 +90,31 @@ from .tools import (
     find_example_traces,
     find_exemplar_traces,
     find_hidden_dependencies,
+    find_similar_past_incidents,
     find_structural_differences,
+    # Remediation
+    generate_remediation_suggestions,
+    # GKE tools
+    get_container_oom_events,
     get_current_time,
+    get_gcloud_commands,
+    get_gke_cluster_health,
+    # SLO Golden Signals
+    get_golden_signals,
     get_logs_for_trace,
+    get_pod_restart_events,
+    get_slo_status,
     get_trace_by_url,
+    get_workload_health_summary,
     list_error_events,
     # GCP direct API tools
     list_log_entries,
+    # SLO listing
+    list_slos,
     list_time_series,
     list_traces,
+    # SLO prediction
+    predict_slo_violation,
     query_promql,
     # Trace selection tools
     select_traces_from_error_reports,
@@ -500,20 +526,46 @@ base_tools = [
     detect_metric_anomalies,
     compare_metric_windows,
     calculate_series_stats,
-    # Cross-signal correlation tools (NEW!)
+    # Cross-signal correlation tools
     correlate_trace_with_metrics,
     correlate_metrics_with_traces_via_exemplars,
     build_cross_signal_timeline,
     analyze_signal_correlation_strength,
-    # Critical path analysis tools (NEW!)
+    # Critical path analysis tools
     analyze_critical_path,
     find_bottleneck_services,
     calculate_critical_path_contribution,
-    # Service dependency tools (NEW!)
+    # Service dependency tools
     build_service_dependency_graph,
     analyze_upstream_downstream_impact,
     detect_circular_dependencies,
     find_hidden_dependencies,
+    # =================================================================
+    # NEW: SLO/SLI Tools - The SRE Golden Signals Framework
+    # =================================================================
+    list_slos,
+    get_slo_status,
+    analyze_error_budget_burn,
+    get_golden_signals,
+    correlate_incident_with_slo_impact,
+    predict_slo_violation,
+    # =================================================================
+    # NEW: GKE/Kubernetes Tools - Container Orchestration Debugging
+    # =================================================================
+    get_gke_cluster_health,
+    analyze_node_conditions,
+    get_pod_restart_events,
+    analyze_hpa_events,
+    get_container_oom_events,
+    correlate_trace_with_kubernetes,
+    get_workload_health_summary,
+    # =================================================================
+    # NEW: Automated Remediation Tools - From Diagnosis to Treatment
+    # =================================================================
+    generate_remediation_suggestions,
+    get_gcloud_commands,
+    estimate_remediation_risk,
+    find_similar_past_incidents,
 ]
 
 
@@ -526,9 +578,11 @@ sre_agent = LlmAgent(
     name="sre_agent",
     model="gemini-2.5-pro",
     description=(
-        "SRE Agent for Google Cloud Observability and OpenTelemetry. Analyzes traces, logs, and metrics "
-        "with advanced cross-signal correlation using exemplars and trace context. Features include "
-        "critical path analysis, service dependency mapping, and multi-stage investigation pipelines."
+        "The world's most comprehensive SRE Agent for Google Cloud. "
+        "Analyzes traces, logs, and metrics with cross-signal correlation via exemplars. "
+        "Features: SLO/SLI framework with error budget tracking, GKE/Kubernetes debugging, "
+        "critical path analysis, service dependency mapping, and automated remediation suggestions. "
+        "Supports Cloud Trace, Cloud Logging, Cloud Monitoring, BigQuery, GKE, and Cloud Run."
     ),
     instruction=SRE_AGENT_PROMPT,
     tools=base_tools,  # type: ignore

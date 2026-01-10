@@ -47,6 +47,27 @@ Service Dependency Tools (tools.correlation.dependencies):
     - Circular dependency detection
     - Hidden dependency discovery
 
+SLO/SLI Tools (tools.clients.slo):
+    - SLO listing and status
+    - Error budget burn rate analysis
+    - Golden signals (latency, traffic, errors, saturation)
+    - SLO violation prediction
+    - Incident-SLO impact correlation
+
+GKE/Kubernetes Tools (tools.clients.gke):
+    - Cluster health monitoring
+    - Node pressure detection
+    - Pod restart analysis
+    - HPA scaling event tracking
+    - OOM event detection
+    - Trace-to-Kubernetes correlation
+
+Remediation Tools (tools.analysis.remediation):
+    - Automated remediation suggestions
+    - gcloud command generation
+    - Risk assessment
+    - Similar incident lookup
+
 Common Utilities (tools.common):
     - @adk_tool decorator with OpenTelemetry instrumentation
     - Telemetry helpers (tracer, meter)
@@ -144,6 +165,36 @@ from .clients.monitoring import (
     list_time_series,
     query_promql,
 )
+
+# SLO/SLI Tools
+from .clients.slo import (
+    analyze_error_budget_burn,
+    correlate_incident_with_slo_impact,
+    get_golden_signals,
+    get_slo_status,
+    list_slos,
+    predict_slo_violation,
+)
+
+# GKE/Kubernetes Tools
+from .clients.gke import (
+    analyze_hpa_events,
+    analyze_node_conditions,
+    correlate_trace_with_kubernetes,
+    get_container_oom_events,
+    get_gke_cluster_health,
+    get_pod_restart_events,
+    get_workload_health_summary,
+)
+
+# Remediation Tools
+from .analysis.remediation.suggestions import (
+    estimate_remediation_risk,
+    find_similar_past_incidents,
+    generate_remediation_suggestions,
+    get_gcloud_commands,
+)
+
 from .clients.trace import (
     fetch_trace,
     fetch_trace_data,
@@ -188,7 +239,12 @@ __all__ = [
     "analyze_aggregate_metrics",
     # Critical Path Analysis
     "analyze_critical_path",
+    # SLO Analysis
+    "analyze_error_budget_burn",
+    # GKE Analysis
+    "analyze_hpa_events",
     "analyze_log_anomalies",
+    "analyze_node_conditions",
     "analyze_signal_correlation_strength",
     "analyze_upstream_downstream_impact",
     "build_call_graph",
@@ -208,9 +264,12 @@ __all__ = [
     "compare_time_periods",
     # Statistical Analysis
     "compute_latency_statistics",
+    # SLO Correlation
+    "correlate_incident_with_slo_impact",
     "correlate_logs_with_trace",
     "correlate_metrics_with_traces_via_exemplars",
     # Cross-Signal Correlation
+    "correlate_trace_with_kubernetes",
     "correlate_trace_with_metrics",
     # GCP MCP
     "create_bigquery_mcp_toolset",
@@ -221,6 +280,8 @@ __all__ = [
     # Metrics Analysis
     "detect_metric_anomalies",
     "detect_trend_changes",
+    # Remediation
+    "estimate_remediation_risk",
     "extract_errors",
     "extract_log_message",
     "extract_log_patterns",
@@ -232,24 +293,40 @@ __all__ = [
     "find_example_traces",
     "find_exemplar_traces",
     "find_hidden_dependencies",
+    "find_similar_past_incidents",
     "find_structural_differences",
+    # Remediation
+    "generate_remediation_suggestions",
+    # GKE
+    "get_container_oom_events",
     "get_current_time",
     "get_data_cache",
+    "get_gcloud_commands",
+    "get_gke_cluster_health",
+    # SLO Golden Signals
+    "get_golden_signals",
     "get_logs_for_trace",
     "get_meter",
     "get_pattern_summary",
+    "get_pod_restart_events",
     "get_project_id_with_fallback",
+    "get_slo_status",
     "get_trace_by_url",
     "get_tracer",
+    "get_workload_health_summary",
     "list_error_events",
     # GCP Direct API
     "list_log_entries",
+    # SLO
+    "list_slos",
     "list_time_series",
     "list_traces",
     "log_tool_call",
     "mcp_list_log_entries",
     "mcp_list_timeseries",
     "mcp_query_range",
+    # SLO Prediction
+    "predict_slo_violation",
     "query_promql",
     "select_traces_from_error_reports",
     "select_traces_from_monitoring_alerts",

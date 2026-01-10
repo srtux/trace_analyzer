@@ -3,8 +3,9 @@
 [![Status](https://img.shields.io/badge/Status-Active-success)]()
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)]()
 [![Framework](https://img.shields.io/badge/Framework-Google%20ADK-red)]()
+[![GCP](https://img.shields.io/badge/Google%20Cloud-Native-4285F4)]()
 
-An ADK-based agent for analyzing telemetry data from Google Cloud Observability: **traces**, **logs**, and **metrics**. Specializes in distributed trace analysis with multi-stage investigation capabilities.
+**The world's most comprehensive SRE Agent for Google Cloud.** An ADK-based agent for analyzing telemetry data from Google Cloud Observability: **traces**, **logs**, **metrics**, **SLOs**, and **Kubernetes workloads**. Features include SLO/SLI framework integration, GKE debugging, and automated remediation suggestions.
 
 ## Architecture
 
@@ -167,6 +168,26 @@ sequenceDiagram
    - **Bottleneck Detection**: Pinpoint services on the critical path that contribute most to delay
    - **Dependency Mapping**: Automatically build service dependency graphs from traces
    - **Circular Dependency Detection**: Find dangerous feedback loops in service calls
+
+5. **SLO/SLI Framework** (NEW!)
+   - **Golden Signals**: Latency, Traffic, Errors, Saturation for any service
+   - **SLO Status**: Current compliance and error budget remaining
+   - **Error Budget Burn Rate**: Track how fast you're consuming your budget
+   - **SLO Violation Prediction**: Will you breach your SLO in the next 24 hours?
+   - **Incident Impact Analysis**: Quantify how much an incident cost your error budget
+
+6. **GKE/Kubernetes Analysis** (NEW!)
+   - **Cluster Health**: Node pool status, control plane health, active issues
+   - **Node Pressure Detection**: CPU, memory, disk, PID pressure conditions
+   - **Pod Restart Analysis**: Find OOMKilled containers and CrashLoopBackOff
+   - **HPA Scaling Events**: Track autoscaler decisions and detect thrashing
+   - **Trace-to-Pod Correlation**: Link traces to specific Kubernetes workloads
+
+7. **Automated Remediation** (NEW!)
+   - **Smart Suggestions**: Pattern-matched remediation recommendations
+   - **Ready-to-Run Commands**: Generate gcloud commands for common fixes
+   - **Risk Assessment**: Understand risk before making changes
+   - **Similar Incident Lookup**: Learn from past incidents with similar patterns
 
 ### Multi-Stage Trace Analysis Pipeline
 
@@ -408,7 +429,34 @@ Before deploying, ensure your `.env` file is configured with `GOOGLE_CLOUD_PROJE
 | `build_cross_signal_timeline`| Create a unified timeline of traces, logs, and metrics |
 | `analyze_signal_correlation_strength`| Statistically measure how strongly two signals are related |
 
+### SLO/SLI Tools (NEW!)
+| Tool | Description |
+|------|-------------|
+| `list_slos`| List all SLOs defined in a project or service |
+| `get_slo_status`| Get current SLO compliance and error budget status |
+| `analyze_error_budget_burn`| Calculate burn rate and predict budget exhaustion |
+| `get_golden_signals`| Get the 4 SRE golden signals for a service |
+| `correlate_incident_with_slo_impact`| Quantify incident impact on error budget |
+| `predict_slo_violation`| Predict if current error rate will exhaust budget |
 
+### GKE/Kubernetes Tools (NEW!)
+| Tool | Description |
+|------|-------------|
+| `get_gke_cluster_health`| Get comprehensive GKE cluster health status |
+| `analyze_node_conditions`| Check for CPU/memory/disk/PID pressure on nodes |
+| `get_pod_restart_events`| Find pods with high restart counts |
+| `analyze_hpa_events`| Analyze HPA scaling decisions and thrashing |
+| `get_container_oom_events`| Find OOMKilled containers |
+| `correlate_trace_with_kubernetes`| Link traces to Kubernetes pods |
+| `get_workload_health_summary`| Health summary for all workloads in a namespace |
+
+### Remediation Tools (NEW!)
+| Tool | Description |
+|------|-------------|
+| `generate_remediation_suggestions`| Get smart fix recommendations based on findings |
+| `get_gcloud_commands`| Generate ready-to-run gcloud commands |
+| `estimate_remediation_risk`| Assess risk level of proposed changes |
+| `find_similar_past_incidents`| Find past incidents with similar patterns |
 
 ## GCP Observability SRE Agent
 

@@ -56,6 +56,29 @@ Numbers don't lie (usually):
 - **Trend Detection**: "When did things go sideways?"
 - **Anomaly Detection**: Statistical outliers in time-series data
 
+### 6. SLO/SLI Framework (NEW!)
+The SRE Golden Signals at your fingertips:
+- **Golden Signals**: Latency, Traffic, Errors, Saturation for any service
+- **SLO Status**: Current compliance, error budget remaining
+- **Error Budget Burn Rate**: How fast are you consuming your budget?
+- **SLO Violation Prediction**: Will you breach your SLO in the next 24 hours?
+- **Incident Impact**: Quantify how much an incident hurt your SLO
+
+### 7. GKE/Kubernetes Analysis (NEW!)
+Container orchestration debugging made easy:
+- **Cluster Health**: Node pools, control plane, active issues
+- **Node Pressure**: CPU, memory, disk, PID pressure conditions
+- **Pod Restarts**: Find OOMKilled containers and CrashLoopBackOff
+- **HPA Events**: Are your autoscalers thrashing?
+- **Trace Correlation**: Link traces to specific pods and containers
+
+### 8. Automated Remediation (NEW!)
+From diagnosis to treatment:
+- **Smart Suggestions**: Pattern-matched remediation recommendations
+- **gcloud Commands**: Ready-to-run commands for common fixes
+- **Risk Assessment**: Understand the risk before making changes
+- **Similar Incidents**: Learn from past incidents with the same pattern
+
 ## My Advanced Toolkit
 
 ### Cross-Signal Correlation Tools (NEW!)
@@ -105,6 +128,29 @@ Numbers don't lie (usually):
 - `mcp_list_timeseries`: Query metrics
 - `mcp_query_range`: PromQL queries
 
+### SLO/SLI Tools (NEW!)
+- `list_slos`: List all SLOs in a project
+- `get_slo_status`: Current SLO compliance and error budget
+- `analyze_error_budget_burn`: Burn rate and exhaustion prediction
+- `get_golden_signals`: The 4 golden signals for a service
+- `correlate_incident_with_slo_impact`: How much did an incident cost?
+- `predict_slo_violation`: Will you breach your SLO soon?
+
+### GKE/Kubernetes Tools (NEW!)
+- `get_gke_cluster_health`: Cluster status and node pools
+- `analyze_node_conditions`: CPU/memory/disk/PID pressure
+- `get_pod_restart_events`: Find restarting pods
+- `analyze_hpa_events`: HPA scaling activity
+- `get_container_oom_events`: Find OOMKilled containers
+- `correlate_trace_with_kubernetes`: Link traces to pods
+- `get_workload_health_summary`: Namespace health at a glance
+
+### Remediation Tools (NEW!)
+- `generate_remediation_suggestions`: Smart fix recommendations
+- `get_gcloud_commands`: Ready-to-run gcloud commands
+- `estimate_remediation_risk`: Assess change risk
+- `find_similar_past_incidents`: Learn from history
+
 ## Investigation Playbooks
 
 ### Performance Investigation (P95 Spike)
@@ -134,6 +180,27 @@ Numbers don't lie (usually):
 2. **Find Cycles**: Use `detect_circular_dependencies` - cycles are trouble
 3. **Hidden Deps**: Use `find_hidden_dependencies` - what's not in the docs?
 4. **Bottleneck Services**: Use `find_bottleneck_services` for optimization priorities
+
+### SLO-Driven Investigation (NEW!)
+1. **Check SLO Status**: Use `get_slo_status` to see current compliance
+2. **Burn Rate**: Use `analyze_error_budget_burn` - are you burning too fast?
+3. **Golden Signals**: Use `get_golden_signals` for quick health check
+4. **Predict**: Use `predict_slo_violation` - will you miss your target?
+5. **Impact**: Use `correlate_incident_with_slo_impact` for postmortem
+
+### GKE Troubleshooting (NEW!)
+1. **Cluster Health**: Use `get_gke_cluster_health` for cluster overview
+2. **Node Issues**: Use `analyze_node_conditions` for pressure conditions
+3. **Pod Problems**: Use `get_pod_restart_events` for restarting pods
+4. **OOM Hunting**: Use `get_container_oom_events` for memory issues
+5. **Namespace View**: Use `get_workload_health_summary` for workload status
+6. **Link to Traces**: Use `correlate_trace_with_kubernetes` to connect app and infra
+
+### Getting Remediation (NEW!)
+1. **Get Suggestions**: Use `generate_remediation_suggestions` with your findings
+2. **Check History**: Use `find_similar_past_incidents` - solved before?
+3. **Risk Check**: Use `estimate_remediation_risk` before making changes
+4. **Get Commands**: Use `get_gcloud_commands` for ready-to-run fixes
 
 ## Understanding Exemplars
 
