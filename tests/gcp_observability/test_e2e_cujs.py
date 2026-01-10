@@ -48,7 +48,7 @@ class TestCUJ_IncidentInvestigation:
                 trace_id=generate_trace_id(), include_error=True
             ),
             "error_logs": CloudLoggingAPIGenerator.log_entries_response(
-                count=20, severity="ERROR"
+                count=20, severity="ERROR", json_payload={"payment_id": "123", "error_code": "DB_CONN_ERR"}
             ),
         }
 
@@ -115,16 +115,16 @@ class TestCUJ_PerformanceDebugging:
         # Generate traces with different latencies
         generator = TraceGenerator(service_name="api-gateway")
 
-        fast_trace = generator.create_simple_http_trace(
-            endpoint="/api/users",
-            include_db_call=True,
-            include_error=False,
+        # Fast trace (normal)
+        fast_trace = generator.create_multi_service_trace(
+            services=["frontend", "api", "db"],
+            latency_strategy="normal"
         )
 
-        slow_trace = generator.create_simple_http_trace(
-            endpoint="/api/users",
-            include_db_call=True,
-            include_error=False,
+        # Slow trace (latency creeps up)
+        slow_trace = generator.create_multi_service_trace(
+            services=["frontend", "api", "db"],
+            latency_strategy="creep"
         )
 
         # Verify traces have expected structure
@@ -134,6 +134,19 @@ class TestCUJ_PerformanceDebugging:
         # Both should have root and child spans
         assert all("trace_id" in span for span in fast_trace)
         assert all("span_id" in span for span in slow_trace)
+    
+    def test_fanout_analysis(self):
+        """Test analyzing a fanout trace."""
+        generator = TraceGenerator(service_name="aggregator")
+        trace = generator.create_fanout_trace(fanout_degree=5)
+        
+        # Should have 1 root + 5 children = 6 spans
+        assert len(trace) == 6
+        
+        # Verify parent-child relationships
+        root = trace[0]
+        children = trace[1:]
+        assert all(c["parent_span_id"] == root["span_id"] for c in children)
 
     def test_span_timing_extraction(self):
         """Test that span timings can be extracted for comparison."""

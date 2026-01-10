@@ -29,7 +29,8 @@ def generate_timestamp(
     if base_time is None:
         base_time = datetime.now(timezone.utc)
     timestamp = base_time + timedelta(seconds=offset_seconds)
-    return timestamp.isoformat() + "Z"
+    # Ensure simplified ISO format with Z suffix for compatibility
+    return timestamp.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def generate_random_string(length: int = 10) -> str:
@@ -156,7 +157,7 @@ class OtelSpanGenerator:
         start_time = generate_timestamp(self.base_time)
         duration_nano = int(duration_ms * 1_000_000)
         end_time = generate_timestamp(
-            self.base_time, offset_seconds=int(duration_ms / 1000)
+            self.base_time, offset_seconds=duration_ms / 1000.0
         )
 
         # Build attributes
@@ -294,6 +295,7 @@ class OtelSpanGenerator:
         )
 
 
+
 @dataclass
 class TraceGenerator:
     """Generator for complete traces with multiple spans."""
@@ -343,8 +345,106 @@ class TraceGenerator:
 
         return spans
 
+    def create_fanout_trace(
+        self,
+        root_service: str = "api-gateway",
+        child_services: list[str] = None,
+        fanout_degree: int = 3,
+        include_errors: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Generate a trace where one service calls multiple others in parallel."""
+        if child_services is None:
+            child_services = ["service-a", "service-b", "service-c"]
+
+        trace_id = generate_trace_id()
+        spans = []
+        
+        # Root Span
+        root_gen = OtelSpanGenerator(
+            service_name=root_service,
+            trace_id=trace_id,
+            base_time=self.base_time
+        )
+        root_span = root_gen.create_http_server_span(
+            endpoint="/api/fanout",
+            duration_ms=150.0,
+            include_error=False
+        )
+        spans.append(root_span)
+
+        # Fanout Children
+        for i in range(fanout_degree):
+            service_name = child_services[i % len(child_services)]
+            child_gen = OtelSpanGenerator(
+                service_name=service_name,
+                trace_id=trace_id,
+                parent_span_id=root_span["span_id"],
+                base_time=self.base_time + timedelta(milliseconds=20)
+            )
+            
+            # Make one specific child error if requested
+            is_error = include_errors and i == 0
+            
+            child_span = child_gen.create_http_server_span(
+                endpoint=f"/api/{service_name}",
+                duration_ms=50.0 + (i * 10),
+                include_error=is_error
+            )
+            spans.append(child_span)
+            
+        return spans
+
+    def create_async_trace(self, service_chain: list[str] = None) -> list[dict[str, Any]]:
+        """Generate a trace with async span links between disjoint traces."""
+        if service_chain is None:
+            service_chain = ["producer", "consumer"]
+            
+        producer_trace_id = generate_trace_id()
+        consumer_trace_id = generate_trace_id()
+        
+        spans = []
+        
+        # 1. Producer Trace
+        prod_gen = OtelSpanGenerator(
+            service_name=service_chain[0],
+            trace_id=producer_trace_id,
+            base_time=self.base_time
+        )
+        prod_span = prod_gen.create_http_server_span(
+            endpoint="/publish",
+            duration_ms=30.0
+        )
+        spans.append(prod_span)
+        
+        # 2. Consumer Trace (linked to producer)
+        cons_gen = OtelSpanGenerator(
+            service_name=service_chain[1],
+            trace_id=consumer_trace_id,
+            base_time=self.base_time + timedelta(seconds=2) # 2s later
+        )
+        
+        link = SpanLinkGenerator.create_link(
+            linked_trace_id=producer_trace_id,
+            linked_span_id=prod_span["span_id"],
+            link_type="follows_from",
+            reason="async_message_processing"
+        )
+        
+        cons_span = cons_gen.create_span(
+            name="process_message",
+            kind=1, # INTERNAL
+            duration_ms=100.0,
+            links=[link]
+        )
+        spans.append(cons_span)
+        
+        return spans
+
     def create_multi_service_trace(
-        self, services: list[str] | None = None, include_errors: bool = False
+        self,
+        services: list[str] | None = None,
+        include_errors: bool = False,
+        latency_strategy: str = "normal"  # normal, creep, spike
     ) -> list[dict[str, Any]]:
         """Generate a trace spanning multiple services."""
         if services is None:
@@ -365,19 +465,26 @@ class TraceGenerator:
 
             is_last = i == len(services) - 1
             include_error = include_errors and is_last
+            
+            # Calculate duration based on strategy
+            base_duration = 50.0 + (i * 10)
+            if latency_strategy == "spike" and service == "database":
+                base_duration *= 10
+            elif latency_strategy == "creep":
+                base_duration *= (1.5 ** i)
 
             if service == "database":
                 span = generator.create_database_span(
                     operation="SELECT",
                     table="users",
-                    duration_ms=25.0,
+                    duration_ms=base_duration,
                     include_error=include_error,
                 )
             else:
                 span = generator.create_http_server_span(
                     endpoint="/api/users" if service != "frontend" else "/users",
                     method="GET",
-                    duration_ms=50.0 + (i * 10),
+                    duration_ms=base_duration,
                     include_error=include_error,
                 )
 
@@ -421,6 +528,48 @@ class BigQueryResultGenerator:
                 }
             )
 
+        return results
+
+    @staticmethod
+    def time_series_metrics_result(
+        services: list[str] | None = None,
+        duration_hours: int = 24,
+        interval_minutes: int = 60,
+    ) -> list[dict[str, Any]]:
+        """Generate mock BigQuery time-series metrics results."""
+        if services is None:
+            services = ["frontend", "api-gateway", "user-service"]
+
+        results = []
+        
+        # Calculate number of points
+        num_points = int((duration_hours * 60) / interval_minutes)
+        base_time = datetime.now(timezone.utc) - timedelta(hours=duration_hours)
+        
+        for service in services:
+            # Generate a consistent pattern for each service
+            # e.g., sine wave for request count, random spikes for errors
+            phase_shift = random.randint(0, 10)
+            
+            for i in range(num_points):
+                point_time = base_time + timedelta(minutes=i * interval_minutes)
+                
+                # Sinusoidal traffic pattern
+                traffic_factor = 1.0 + 0.5 * (i % 24 - 12) / 12.0  # Daily cycle roughly
+                request_count = int(1000 * traffic_factor)
+                
+                # Random error spikes
+                is_spike = random.random() > 0.95
+                error_count = int(request_count * (0.1 if is_spike else 0.01))
+                
+                results.append({
+                    "service_name": service,
+                    "time_interval": point_time.isoformat(),
+                    "request_count": request_count,
+                    "error_count": error_count,
+                    "avg_latency": 100 + (50 if is_spike else 0) + random.randint(-10, 10)
+                })
+                
         return results
 
     @staticmethod
@@ -568,14 +717,49 @@ class CloudLoggingAPIGenerator:
     """Generator for Cloud Logging API response data."""
 
     @staticmethod
+    def create_structured_log_entry(
+        message: str,
+        payload: dict[str, Any],
+        severity: str = "INFO",
+        timestamp: str | None = None,
+        trace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Generate a structured log entry with jsonPayload."""
+        if timestamp is None:
+            timestamp = generate_timestamp()
+
+        return {
+            "logName": "projects/test-project/logs/application",
+            "resource": {
+                "type": "k8s_container",
+                "labels": {
+                    "pod_name": f"pod-{generate_random_string(5)}",
+                    "namespace_name": "default",
+                },
+            },
+            "jsonPayload": payload,
+            "timestamp": timestamp,
+            "severity": severity,
+            "trace": f"projects/test-project/traces/{trace_id or generate_trace_id()}",
+            "labels": {"service": "test-service"},
+        }
+
+    @staticmethod
     def log_entries_response(
-        count: int = 10, trace_id: str | None = None, severity: str = "ERROR"
+        count: int = 10, trace_id: str | None = None, severity: str = "ERROR", json_payload: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Generate mock Cloud Logging API response."""
         entries = []
         for i in range(count):
-            entries.append(
-                {
+            if json_payload:
+                entry = CloudLoggingAPIGenerator.create_structured_log_entry(
+                    message=f"Log {i}",
+                    payload=json_payload,
+                    severity=severity,
+                    trace_id=trace_id,
+                )
+            else:
+                 entry = {
                     "logName": "projects/test-project/logs/application",
                     "resource": {
                         "type": "gce_instance",
@@ -597,6 +781,8 @@ class CloudLoggingAPIGenerator:
                         )
                     },
                 }
-            )
+            entries.append(entry)
 
         return {"entries": entries}
+
+
