@@ -3,8 +3,6 @@
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestSLOTools:
     """Test suite for SLO/SLI tools."""
@@ -33,31 +31,38 @@ class TestSLOTools:
         # Verify we got a list
         assert isinstance(result_data, list)
 
+    @patch("sre_agent.tools.clients.slo.monitoring_v3.MetricServiceClient")
     @patch("sre_agent.tools.clients.slo._get_authorized_session")
-    def test_get_slo_status_returns_status(self, mock_session_fn):
+    def test_get_slo_status_returns_status(
+        self, mock_auth_session_fn, mock_metric_client_fn
+    ):
         """Test that get_slo_status returns SLO status information."""
         from sre_agent.tools.clients.slo import get_slo_status
 
-        # Mock the session and response
+        # Configure the mock for _get_authorized_session (inner decorator)
         mock_session = MagicMock()
-        mock_session_fn.return_value = mock_session
+        mock_auth_session_fn.return_value = mock_session
 
+        # Configure the mock for MetricServiceClient (outer decorator)
+        mock_metric_client_fn.return_value = MagicMock()
+
+        # Configure the mock response that the session's 'get' method will return
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "name": "projects/test/services/svc/serviceLevelObjectives/slo",
             "displayName": "Test SLO",
             "goal": 0.999,
             "rollingPeriod": {"days": 30},
-            "serviceLevelIndicator": {
-                "basicSli": {"availability": {}}
-            },
+            "serviceLevelIndicator": {"basicSli": {"availability": {}}},
         }
         mock_response.raise_for_status = MagicMock()
         mock_session.get.return_value = mock_response
 
+        # Call the actual function
         result = get_slo_status("test-project", "test-service", "test-slo")
         result_data = json.loads(result)
 
+        # Assert the results
         assert "slo_name" in result_data
         assert "goal" in result_data
         assert result_data["goal"] == 0.999
@@ -88,10 +93,12 @@ class TestSLOTools:
         from sre_agent.tools.clients.slo import correlate_incident_with_slo_impact
 
         with patch("sre_agent.tools.clients.slo.get_slo_status") as mock_status:
-            mock_status.return_value = json.dumps({
-                "goal": 0.999,
-                "rolling_period_days": 30,
-            })
+            mock_status.return_value = json.dumps(
+                {
+                    "goal": 0.999,
+                    "rolling_period_days": 30,
+                }
+            )
 
             result = correlate_incident_with_slo_impact(
                 "test-project",
@@ -111,13 +118,19 @@ class TestSLOTools:
         """Test SLO violation prediction returns expected structure."""
         from sre_agent.tools.clients.slo import predict_slo_violation
 
-        with patch("sre_agent.tools.clients.slo.analyze_error_budget_burn") as mock_burn:
-            mock_burn.return_value = json.dumps({
-                "burn_rate_per_hour": 0.001,
-                "hours_to_budget_exhaustion": 100,
-            })
+        with patch(
+            "sre_agent.tools.clients.slo.analyze_error_budget_burn"
+        ) as mock_burn:
+            mock_burn.return_value = json.dumps(
+                {
+                    "burn_rate_per_hour": 0.001,
+                    "hours_to_budget_exhaustion": 100,
+                }
+            )
 
-            result = predict_slo_violation("test-project", "test-service", "test-slo", 24)
+            result = predict_slo_violation(
+                "test-project", "test-service", "test-slo", 24
+            )
             result_data = json.loads(result)
 
             assert "prediction_window_hours" in result_data

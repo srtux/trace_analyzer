@@ -3,8 +3,6 @@
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestGKETools:
     """Test suite for GKE/Kubernetes tools."""
@@ -30,7 +28,11 @@ class TestGKETools:
                     "status": "RUNNING",
                     "config": {"machineType": "e2-medium"},
                     "initialNodeCount": 3,
-                    "autoscaling": {"enabled": True, "minNodeCount": 1, "maxNodeCount": 5},
+                    "autoscaling": {
+                        "enabled": True,
+                        "minNodeCount": 1,
+                        "maxNodeCount": 5,
+                    },
                 }
             ],
         }
@@ -98,7 +100,9 @@ class TestGKETools:
 
     @patch("sre_agent.tools.clients.gke._get_authorized_session")
     @patch("sre_agent.tools.clients.gke.monitoring_v3.MetricServiceClient")
-    def test_get_container_oom_events_structure(self, mock_client_class, mock_session_fn):
+    def test_get_container_oom_events_structure(
+        self, mock_client_class, mock_session_fn
+    ):
         """Test that get_container_oom_events returns OOM information."""
         from sre_agent.tools.clients.gke import get_container_oom_events
 

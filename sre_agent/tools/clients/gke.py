@@ -217,7 +217,7 @@ def analyze_node_conditions(
                         name=project_name,
                         filter=filter_str,
                         interval=interval,
-                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
                     )
                 )
 
@@ -239,7 +239,9 @@ def analyze_node_conditions(
                             condition = {
                                 "type": f"{metric_name}_pressure",
                                 "value": round(value * 100 if value < 1 else value, 1),
-                                "threshold": threshold * 100 if threshold < 1 else threshold,
+                                "threshold": threshold * 100
+                                if threshold < 1
+                                else threshold,
                                 "severity": "WARNING" if value < 0.95 else "CRITICAL",
                             }
                             result["nodes"][node]["conditions"].append(condition)
@@ -269,7 +271,9 @@ def analyze_node_conditions(
                         "severity": "WARNING" if disk_util < 0.95 else "CRITICAL",
                     }
                     data["conditions"].append(condition)
-                    result["pressure_warnings"].append({"node": node, "condition": condition})
+                    result["pressure_warnings"].append(
+                        {"node": node, "condition": condition}
+                    )
 
             # PID pressure
             if "pid_used" in metrics and "pid_limit" in metrics:
@@ -284,7 +288,9 @@ def analyze_node_conditions(
                         "severity": "WARNING" if pid_util < 0.90 else "CRITICAL",
                     }
                     data["conditions"].append(condition)
-                    result["pressure_warnings"].append({"node": node, "condition": condition})
+                    result["pressure_warnings"].append(
+                        {"node": node, "condition": condition}
+                    )
 
         # Summary
         total_nodes = len(result["nodes"])
@@ -294,8 +300,10 @@ def analyze_node_conditions(
             "total_nodes": total_nodes,
             "nodes_with_pressure": nodes_with_pressure,
             "health": (
-                "CRITICAL" if nodes_with_pressure > total_nodes * 0.5
-                else "WARNING" if nodes_with_pressure > 0
+                "CRITICAL"
+                if nodes_with_pressure > total_nodes * 0.5
+                else "WARNING"
+                if nodes_with_pressure > 0
                 else "HEALTHY"
             ),
         }
@@ -361,7 +369,7 @@ def get_pod_restart_events(
                 name=project_name,
                 filter=filter_str,
                 interval=interval,
-                view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+                view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
             )
         )
 
@@ -392,7 +400,9 @@ def get_pod_restart_events(
                         "restart_count_total": newest,
                         "restarts_in_window": restarts_in_window,
                     }
-                    pod_restarts[pod_key]["total_restarts_in_window"] += restarts_in_window
+                    pod_restarts[pod_key]["total_restarts_in_window"] += (
+                        restarts_in_window
+                    )
 
         # Sort by most restarts
         sorted_pods = sorted(
@@ -406,17 +416,23 @@ def get_pod_restart_events(
             "pods_with_restarts": sorted_pods[:20],  # Top 20
             "summary": {
                 "total_pods_with_restarts": len(sorted_pods),
-                "total_restarts": sum(p["total_restarts_in_window"] for p in sorted_pods),
+                "total_restarts": sum(
+                    p["total_restarts_in_window"] for p in sorted_pods
+                ),
             },
         }
 
         # Add severity assessment
         if result["summary"]["total_restarts"] > 50:
             result["severity"] = "CRITICAL"
-            result["message"] = "High number of pod restarts detected! Check for OOMKilled or CrashLoopBackOff."
+            result["message"] = (
+                "High number of pod restarts detected! Check for OOMKilled or CrashLoopBackOff."
+            )
         elif result["summary"]["total_restarts"] > 10:
             result["severity"] = "WARNING"
-            result["message"] = "Elevated pod restart activity. Investigate the top restarting pods."
+            result["message"] = (
+                "Elevated pod restart activity. Investigate the top restarting pods."
+            )
         else:
             result["severity"] = "NORMAL"
             result["message"] = "Pod restart activity within normal range."
@@ -497,7 +513,7 @@ def analyze_hpa_events(
                         name=project_name,
                         filter=filter_str,
                         interval=interval,
-                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
                     )
                 )
 
@@ -511,15 +527,22 @@ def analyze_hpa_events(
 
                     # Detect scaling events (when value changed)
                     for i in range(len(points) - 1):
-                        if points[i].value.int64_value != points[i + 1].value.int64_value:
+                        if (
+                            points[i].value.int64_value
+                            != points[i + 1].value.int64_value
+                        ):
                             event = {
                                 "timestamp": points[i].interval.end_time.isoformat(),
                                 "metric": metric_name,
                                 "from": points[i + 1].value.int64_value,
                                 "to": points[i].value.int64_value,
-                                "direction": "scale_up" if points[i].value.int64_value > points[i + 1].value.int64_value else "scale_down",
+                                "direction": "scale_up"
+                                if points[i].value.int64_value
+                                > points[i + 1].value.int64_value
+                                else "scale_down",
                             }
-                            result["scaling_activity"].append(event)
+                            if isinstance(result["scaling_activity"], list):
+                                result["scaling_activity"].append(event)
 
             except Exception as e:
                 logger.debug(f"Could not fetch {metric_name}: {e}")
@@ -528,8 +551,12 @@ def analyze_hpa_events(
         result["scaling_activity"].sort(key=lambda x: x["timestamp"], reverse=True)
 
         # Count scaling events
-        scale_ups = sum(1 for e in result["scaling_activity"] if e["direction"] == "scale_up")
-        scale_downs = sum(1 for e in result["scaling_activity"] if e["direction"] == "scale_down")
+        scale_ups = sum(
+            1 for e in result["scaling_activity"] if e["direction"] == "scale_up"
+        )
+        scale_downs = sum(
+            1 for e in result["scaling_activity"] if e["direction"] == "scale_down"
+        )
 
         result["summary"] = {
             "total_scaling_events": len(result["scaling_activity"]),
@@ -545,7 +572,9 @@ def analyze_hpa_events(
                 "2. Adjusting scaling thresholds\n"
                 "3. Checking for oscillating load patterns"
             )
-        elif scale_ups > 0 and result.get("current_replicas_max") == result.get("desired_replicas_max"):
+        elif scale_ups > 0 and result.get("current_replicas_max") == result.get(
+            "desired_replicas_max"
+        ):
             result["recommendation"] = (
                 "HPA reached maximum replicas during this period. "
                 "Consider increasing maxReplicas if capacity is needed."
@@ -593,18 +622,13 @@ def get_container_oom_events(
         # First, check for OOM events in logs
         session = _get_authorized_session()
 
-        from urllib.parse import quote
-
         # Build log filter for OOM events
         log_filter = 'resource.type="k8s_container" AND textPayload:"OOMKilled"'
         if namespace:
             log_filter += f' AND resource.labels.namespace_name="{namespace}"'
 
-        now = datetime.now(timezone.utc)
-        timestamp = now.isoformat()
-
         # Use Cloud Logging API
-        url = f"https://logging.googleapis.com/v2/entries:list"
+        url = "https://logging.googleapis.com/v2/entries:list"
         body = {
             "resourceNames": [f"projects/{project_id}"],
             "filter": log_filter,
@@ -649,7 +673,7 @@ def get_container_oom_events(
                     name=project_name,
                     filter=filter_str,
                     interval=interval,
-                    view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+                    view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
                 )
             )
 
@@ -657,23 +681,29 @@ def get_container_oom_events(
                 labels = series.resource.labels
                 if series.points:
                     max_util = max(p.value.double_value for p in series.points)
-                    avg_util = sum(p.value.double_value for p in series.points) / len(series.points)
+                    avg_util = sum(p.value.double_value for p in series.points) / len(
+                        series.points
+                    )
 
                     if max_util > 0.85:  # >85% memory utilization
-                        high_memory_containers.append({
-                            "namespace": labels.get("namespace_name"),
-                            "pod": labels.get("pod_name"),
-                            "container": labels.get("container_name"),
-                            "max_memory_utilization": round(max_util * 100, 1),
-                            "avg_memory_utilization": round(avg_util * 100, 1),
-                            "risk_level": "HIGH" if max_util > 0.95 else "MEDIUM",
-                        })
+                        high_memory_containers.append(
+                            {
+                                "namespace": labels.get("namespace_name"),
+                                "pod": labels.get("pod_name"),
+                                "container": labels.get("container_name"),
+                                "max_memory_utilization": round(max_util * 100, 1),
+                                "avg_memory_utilization": round(avg_util * 100, 1),
+                                "risk_level": "HIGH" if max_util > 0.95 else "MEDIUM",
+                            }
+                        )
 
         except Exception as e:
             logger.debug(f"Could not fetch memory utilization: {e}")
 
         # Sort by utilization
-        high_memory_containers.sort(key=lambda x: x["max_memory_utilization"], reverse=True)
+        high_memory_containers.sort(
+            key=lambda x: x["max_memory_utilization"], reverse=True
+        )
 
         result = {
             "time_window_minutes": minutes_ago,
@@ -684,12 +714,17 @@ def get_container_oom_events(
 
         # Add sample OOM log entries
         for entry in oom_logs[:5]:
-            result["oom_log_samples"].append({
-                "timestamp": entry.get("timestamp"),
-                "pod": entry.get("resource", {}).get("labels", {}).get("pod_name"),
-                "container": entry.get("resource", {}).get("labels", {}).get("container_name"),
-                "message": entry.get("textPayload", "")[:200],
-            })
+            if isinstance(result["oom_log_samples"], list):
+                result["oom_log_samples"].append(
+                    {
+                        "timestamp": entry.get("timestamp"),
+                        "pod": entry.get("resource", {}).get("labels", {}).get("pod_name"),
+                        "container": entry.get("resource", {})
+                        .get("labels", {})
+                        .get("container_name"),
+                        "message": entry.get("textPayload", "")[:200],
+                    }
+                )
 
         # Recommendations
         if len(oom_logs) > 0:
@@ -708,7 +743,9 @@ def get_container_oom_events(
             )
         else:
             result["severity"] = "NORMAL"
-            result["recommendation"] = "No OOM events or high memory utilization detected."
+            result["recommendation"] = (
+                "No OOM events or high memory utilization detected."
+            )
 
         return json.dumps(result, indent=2)
 
@@ -815,22 +852,25 @@ def correlate_trace_with_kubernetes(
                     pod_key = f"{labels.get('namespace_name')}/{labels.get('pod_name')}"
                     if pod_key not in pods_seen:
                         pods_seen.add(pod_key)
-                        result["kubernetes_context"].append({
-                            "namespace": labels.get("namespace_name"),
-                            "pod_name": labels.get("pod_name"),
-                            "container_name": labels.get("container_name"),
-                            "cluster": labels.get("cluster_name"),
-                        })
+                        result["kubernetes_context"].append(
+                            {
+                                "namespace": labels.get("namespace_name"),
+                                "pod_name": labels.get("pod_name"),
+                                "container_name": labels.get("container_name"),
+                                "cluster": labels.get("cluster_name"),
+                            }
+                        )
 
         except Exception as e:
             logger.debug(f"Could not query logs for trace: {e}")
 
         # Summary
         if result["kubernetes_context"]:
-            result["summary"] = (
-                f"Trace {trace_id} was processed by {len(result['kubernetes_context'])} "
-                f"Kubernetes pods/containers."
-            )
+            if isinstance(result["kubernetes_context"], list):
+                result["summary"] = (
+                    f"Trace {trace_id} was processed by {len(result['kubernetes_context'])} "
+                    f"Kubernetes pods/containers."
+                )
         else:
             result["summary"] = (
                 "Could not find Kubernetes pod information for this trace. "
@@ -905,7 +945,7 @@ def get_workload_health_summary(
                         name=project_name,
                         filter=filter_str,
                         interval=interval,
-                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
                     )
                 )
 
@@ -944,7 +984,9 @@ def get_workload_health_summary(
                         elif metric_key == "restarts":
                             oldest = series.points[-1].value.int64_value
                             newest = series.points[0].value.int64_value
-                            workloads[workload_name]["total_restarts"] += newest - oldest
+                            workloads[workload_name]["total_restarts"] += (
+                                newest - oldest
+                            )
 
             except Exception as e:
                 logger.debug(f"Could not fetch {metric_key}: {e}")
@@ -969,7 +1011,9 @@ def get_workload_health_summary(
             # Determine health status
             if data["total_restarts"] > 5:
                 workload["status"] = "CRITICAL"
-                workload["issues"].append(f"High restart count: {data['total_restarts']}")
+                workload["issues"].append(
+                    f"High restart count: {data['total_restarts']}"
+                )
                 critical_count += 1
             elif data["memory_util_max"] > 0.95:
                 workload["status"] = "CRITICAL"
@@ -985,7 +1029,9 @@ def get_workload_health_summary(
                 warning_count += 1
             elif data["total_restarts"] > 0:
                 workload["status"] = "WARNING"
-                workload["issues"].append(f"Restarts detected: {data['total_restarts']}")
+                workload["issues"].append(
+                    f"Restarts detected: {data['total_restarts']}"
+                )
                 warning_count += 1
 
             result_workloads.append(workload)
@@ -1003,8 +1049,10 @@ def get_workload_health_summary(
                 "warning": warning_count,
                 "healthy": len(workloads) - critical_count - warning_count,
                 "overall_health": (
-                    "CRITICAL" if critical_count > 0
-                    else "WARNING" if warning_count > 0
+                    "CRITICAL"
+                    if critical_count > 0
+                    else "WARNING"
+                    if warning_count > 0
                     else "HEALTHY"
                 ),
             },

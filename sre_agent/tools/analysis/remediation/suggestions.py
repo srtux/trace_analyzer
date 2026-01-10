@@ -92,7 +92,12 @@ REMEDIATION_PATTERNS = {
     },
     # Connection pool exhaustion
     "connection_pool": {
-        "pattern": ["connection pool", "pool exhausted", "max connections", "connection timeout"],
+        "pattern": [
+            "connection pool",
+            "pool exhausted",
+            "max connections",
+            "connection timeout",
+        ],
         "category": "database",
         "severity": "high",
         "suggestions": [
@@ -133,7 +138,13 @@ REMEDIATION_PATTERNS = {
     },
     # High latency / timeout
     "high_latency": {
-        "pattern": ["timeout", "high latency", "slow query", "deadline exceeded", "p99 spike"],
+        "pattern": [
+            "timeout",
+            "high latency",
+            "slow query",
+            "deadline exceeded",
+            "p99 spike",
+        ],
         "category": "performance",
         "severity": "high",
         "suggestions": [
@@ -275,7 +286,12 @@ REMEDIATION_PATTERNS = {
     },
     # Pub/Sub backlog
     "pubsub_backlog": {
-        "pattern": ["message backlog", "oldest unacked", "subscription lag", "dead letter"],
+        "pattern": [
+            "message backlog",
+            "oldest unacked",
+            "subscription lag",
+            "dead letter",
+        ],
         "category": "messaging",
         "severity": "medium",
         "suggestions": [
@@ -383,30 +399,37 @@ def generate_remediation_suggestions(
 
         if not matched_patterns:
             # Generic suggestions if no pattern matched
-            return json.dumps({
-                "matched_patterns": [],
-                "suggestions": [
-                    {
-                        "action": "Enable detailed logging",
-                        "description": "Increase log verbosity to gather more diagnostic information.",
-                        "steps": ["Set log level to DEBUG", "Reproduce the issue", "Analyze detailed logs"],
-                        "risk": "low",
-                        "effort": "low",
-                    },
-                    {
-                        "action": "Create a minimal reproduction",
-                        "description": "Isolate the issue to identify root cause.",
-                        "steps": [
-                            "Identify affected component",
-                            "Create test case that reproduces issue",
-                            "Systematically eliminate variables",
-                        ],
-                        "risk": "low",
-                        "effort": "medium",
-                    },
-                ],
-                "note": "No specific pattern matched. Please provide more details about the issue.",
-            }, indent=2)
+            return json.dumps(
+                {
+                    "matched_patterns": [],
+                    "suggestions": [
+                        {
+                            "action": "Enable detailed logging",
+                            "description": "Increase log verbosity to gather more diagnostic information.",
+                            "steps": [
+                                "Set log level to DEBUG",
+                                "Reproduce the issue",
+                                "Analyze detailed logs",
+                            ],
+                            "risk": "low",
+                            "effort": "low",
+                        },
+                        {
+                            "action": "Create a minimal reproduction",
+                            "description": "Isolate the issue to identify root cause.",
+                            "steps": [
+                                "Identify affected component",
+                                "Create test case that reproduces issue",
+                                "Systematically eliminate variables",
+                            ],
+                            "risk": "low",
+                            "effort": "medium",
+                        },
+                    ],
+                    "note": "No specific pattern matched. Please provide more details about the issue.",
+                },
+                indent=2,
+            )
 
         # Collect all suggestions from matched patterns
         all_suggestions = []
@@ -415,7 +438,7 @@ def generate_remediation_suggestions(
         for pattern_name, pattern_data in matched_patterns:
             categories.add(pattern_data["category"])
             for suggestion in pattern_data["suggestions"]:
-                suggestion_copy = suggestion.copy()
+                suggestion_copy = dict(suggestion)
                 suggestion_copy["source_pattern"] = pattern_name
                 suggestion_copy["category"] = pattern_data["category"]
                 all_suggestions.append(suggestion_copy)
@@ -437,7 +460,11 @@ def generate_remediation_suggestions(
             "finding_summary": finding_summary,
             "suggestions": all_suggestions,
             "recommended_first_action": all_suggestions[0] if all_suggestions else None,
-            "quick_wins": [s for s in all_suggestions if s.get("risk") == "low" and s.get("effort") == "low"],
+            "quick_wins": [
+                s
+                for s in all_suggestions
+                if s.get("risk") == "low" and s.get("effort") == "low"
+            ],
         }
 
         return json.dumps(result, indent=2)
@@ -499,7 +526,7 @@ def get_gcloud_commands(
                     "command": f"gcloud run revisions list --service={resource_name} --region={region} --project={project_id}",
                 },
                 {
-                    "description": f"Rollback to previous revision",
+                    "description": "Rollback to previous revision",
                     "command": f"gcloud run services update-traffic {resource_name} --to-revisions={revision}=100 --region={region} --project={project_id}",
                 },
             ]
@@ -555,23 +582,25 @@ def get_gcloud_commands(
             commands = [
                 {
                     "description": "Update HPA with kubectl (requires cluster credentials)",
-                    "command": f"kubectl patch hpa {resource_name} -n {namespace} -p '{{\"spec\":{{\"minReplicas\":{min_replicas},\"maxReplicas\":{max_replicas}}}}}'",
+                    "command": f'kubectl patch hpa {resource_name} -n {namespace} -p \'{{"spec":{{"minReplicas":{min_replicas},"maxReplicas":{max_replicas}}}}}\'',
                 },
             ]
 
         else:
-            return json.dumps({
-                "error": f"Unknown remediation type: {remediation_type}",
-                "available_types": [
-                    "scale_up",
-                    "rollback",
-                    "increase_memory",
-                    "scale_gke_nodepool",
-                    "increase_sql_connections",
-                    "enable_min_instances",
-                    "update_hpa",
-                ],
-            })
+            return json.dumps(
+                {
+                    "error": f"Unknown remediation type: {remediation_type}",
+                    "available_types": [
+                        "scale_up",
+                        "rollback",
+                        "increase_memory",
+                        "scale_gke_nodepool",
+                        "increase_sql_connections",
+                        "enable_min_instances",
+                        "update_hpa",
+                    ],
+                }
+            )
 
         result = {
             "remediation_type": remediation_type,
@@ -621,16 +650,31 @@ def estimate_remediation_risk(
 
         # Risk levels for different action types
         low_risk_actions = [
-            "scale up", "increase replicas", "add instances", "increase memory",
-            "increase cpu", "enable logging", "add monitoring",
+            "scale up",
+            "increase replicas",
+            "add instances",
+            "increase memory",
+            "increase cpu",
+            "enable logging",
+            "add monitoring",
         ]
         medium_risk_actions = [
-            "rollback", "scale down", "modify config", "update timeout",
-            "change pool size", "restart", "redeploy",
+            "rollback",
+            "scale down",
+            "modify config",
+            "update timeout",
+            "change pool size",
+            "restart",
+            "redeploy",
         ]
         high_risk_actions = [
-            "delete", "remove", "disable", "migration", "schema change",
-            "database migration", "breaking change",
+            "delete",
+            "remove",
+            "disable",
+            "migration",
+            "schema change",
+            "database migration",
+            "breaking change",
         ]
 
         risk_level = "medium"  # default
@@ -640,6 +684,11 @@ def estimate_remediation_risk(
         for keyword in low_risk_actions:
             if keyword in action_lower:
                 risk_level = "low"
+                break
+
+        for keyword in medium_risk_actions:
+            if keyword in action_lower:
+                risk_level = "medium"
                 break
 
         for keyword in high_risk_actions:
@@ -653,7 +702,9 @@ def estimate_remediation_risk(
             mitigations.append("Take a backup before proceeding")
 
         if "rollback" in action_lower:
-            risk_factors.append("Rollback may lose features or data written by newer version")
+            risk_factors.append(
+                "Rollback may lose features or data written by newer version"
+            )
             mitigations.append("Verify backward compatibility of data")
 
         if "restart" in action_lower:
@@ -669,11 +720,13 @@ def estimate_remediation_risk(
             mitigations.append("Monitor closely after change")
 
         # Add general mitigations
-        mitigations.extend([
-            "Have a rollback plan ready",
-            "Monitor error rates during and after change",
-            "Communicate change to relevant stakeholders",
-        ])
+        mitigations.extend(
+            [
+                "Have a rollback plan ready",
+                "Monitor error rates during and after change",
+                "Communicate change to relevant stakeholders",
+            ]
+        )
 
         result = {
             "action": action,
@@ -682,7 +735,9 @@ def estimate_remediation_risk(
             "risk_assessment": {
                 "level": risk_level,
                 "confidence": "medium",
-                "factors": risk_factors if risk_factors else ["No specific risk factors identified"],
+                "factors": risk_factors
+                if risk_factors
+                else ["No specific risk factors identified"],
             },
             "recommendations": {
                 "proceed": risk_level != "high",
@@ -800,15 +855,24 @@ def find_similar_past_incidents(
         # Find matching incidents
         matches = []
         for incident in known_incidents:
-            if incident["pattern"] in pattern_lower or pattern_lower in incident["pattern"]:
-                if service_name is None or service_name.lower() in incident["service"].lower():
+            if (
+                str(incident["pattern"]) in pattern_lower
+                or pattern_lower in str(incident["pattern"])
+            ):
+                if (
+                    service_name is None
+                    or service_name.lower() in str(incident["service"]).lower()
+                ):
                     matches.append(incident)
 
         if not matches:
             # Partial matching
             for incident in known_incidents:
                 for word in pattern_lower.split():
-                    if word in incident["title"].lower() or word in incident["root_cause"].lower():
+                    if (
+                        word in str(incident["title"]).lower()
+                        or word in str(incident["root_cause"]).lower()
+                    ):
                         if incident not in matches:
                             matches.append(incident)
 
@@ -822,12 +886,15 @@ def find_similar_past_incidents(
 
         if matches:
             # Summarize learnings
-            result["key_learnings"] = []
+            key_learnings = []
             for inc in matches:
-                result["key_learnings"].append({
-                    "incident": inc["title"],
-                    "lesson": inc.get("prevention", inc["resolution"]),
-                })
+                key_learnings.append(
+                    {
+                        "incident": inc["title"],
+                        "lesson": inc.get("prevention", inc["resolution"]),
+                    }
+                )
+            result["key_learnings"] = key_learnings
 
         else:
             result["note"] = (

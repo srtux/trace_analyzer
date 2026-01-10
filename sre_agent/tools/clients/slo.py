@@ -64,9 +64,7 @@ def list_slos(
         else:
             # First, list all services
             services_parent = f"projects/{project_id}"
-            services_request = monitoring_v3.ListServicesRequest(
-                parent=services_parent
-            )
+            services_request = monitoring_v3.ListServicesRequest(parent=services_parent)
             services = list(client.list_services(request=services_request))
 
             # Then list SLOs for each service
@@ -152,20 +150,7 @@ def get_slo_status(
         response.raise_for_status()
         slo = response.json()
 
-        # Calculate time series for error budget
-        # Query the SLO's compliance ratio using Cloud Monitoring API
-        client = monitoring_v3.MetricServiceClient()
-
         # Get the error budget metric
-        now = datetime.now(timezone.utc)
-        end_time = now
-        start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        # The SLO generates metrics automatically
-        filter_str = f'select_slo_budget("{slo_name}")'
-
-        # Alternative: Use REST API for error budget
-        budget_url = f"https://monitoring.googleapis.com/v3/{slo_name}/errorBudget"
 
         result = {
             "slo_name": slo_name,
@@ -230,7 +215,6 @@ def analyze_error_budget_burn(
         analyze_error_budget_burn("my-project", "api-service", "availability-slo", 24)
     """
     try:
-        session = _get_authorized_session()
         slo_name = f"projects/{project_id}/services/{service_id}/serviceLevelObjectives/{slo_id}"
 
         # Get time series data for the SLO
@@ -260,7 +244,7 @@ def analyze_error_budget_burn(
                 name=project_name,
                 filter=filter_str,
                 interval=interval,
-                view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+                view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
             )
 
             compliance_points = []
@@ -317,7 +301,9 @@ def analyze_error_budget_burn(
                         )
                     else:
                         result["risk_level"] = "LOW"
-                        result["recommendation"] = "Error budget consumption within normal range."
+                        result["recommendation"] = (
+                            "Error budget consumption within normal range."
+                        )
                 else:
                     result["risk_level"] = "HEALTHY"
                     result["recommendation"] = "Error budget is stable or recovering."
@@ -402,7 +388,7 @@ def get_golden_signals(
                         name=project_name,
                         filter=filter_str,
                         interval=interval,
-                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
                     )
                 )
                 if results:
@@ -423,7 +409,9 @@ def get_golden_signals(
                             "status": (
                                 "GOOD"
                                 if avg_latency < 200
-                                else "WARNING" if avg_latency < 500 else "CRITICAL"
+                                else "WARNING"
+                                if avg_latency < 500
+                                else "CRITICAL"
                             ),
                         }
                         break
@@ -441,7 +429,7 @@ def get_golden_signals(
         traffic_filters = [
             f'metric.type="run.googleapis.com/request_count" AND resource.labels.service_name="{service_name}"',
             f'metric.type="istio.io/service/server/request_count" AND metric.labels.destination_service_name="{service_name}"',
-            f'metric.type="loadbalancing.googleapis.com/https/request_count"',
+            'metric.type="loadbalancing.googleapis.com/https/request_count"',
         ]
 
         for filter_str in traffic_filters:
@@ -451,7 +439,7 @@ def get_golden_signals(
                         name=project_name,
                         filter=filter_str,
                         interval=interval,
-                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
                     )
                 )
                 if results:
@@ -490,7 +478,7 @@ def get_golden_signals(
                         name=project_name,
                         filter=filter_str,
                         interval=interval,
-                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
                     )
                 )
                 if results:
@@ -513,7 +501,9 @@ def get_golden_signals(
                         "status": (
                             "GOOD"
                             if error_rate < 0.1
-                            else "WARNING" if error_rate < 1 else "CRITICAL"
+                            else "WARNING"
+                            if error_rate < 1
+                            else "CRITICAL"
                         ),
                     }
                     break
@@ -530,8 +520,8 @@ def get_golden_signals(
         # 4. SATURATION - Resource utilization
         saturation_filters = [
             f'metric.type="run.googleapis.com/container/cpu/utilizations" AND resource.labels.service_name="{service_name}"',
-            f'metric.type="kubernetes.io/container/cpu/limit_utilization"',
-            f'metric.type="compute.googleapis.com/instance/cpu/utilization"',
+            'metric.type="kubernetes.io/container/cpu/limit_utilization"',
+            'metric.type="compute.googleapis.com/instance/cpu/utilization"',
         ]
 
         for filter_str in saturation_filters:
@@ -541,7 +531,7 @@ def get_golden_signals(
                         name=project_name,
                         filter=filter_str,
                         interval=interval,
-                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+                        view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
                     )
                 )
                 if results:
@@ -564,7 +554,9 @@ def get_golden_signals(
                             "status": (
                                 "GOOD"
                                 if avg_cpu < 70
-                                else "WARNING" if avg_cpu < 85 else "CRITICAL"
+                                else "WARNING"
+                                if avg_cpu < 85
+                                else "CRITICAL"
                             ),
                         }
                         break
@@ -578,7 +570,9 @@ def get_golden_signals(
             }
 
         # Overall health assessment
-        statuses = [s.get("status", "NO_DATA") for s in golden_signals["signals"].values()]
+        statuses = [
+            s.get("status", "NO_DATA") for s in golden_signals["signals"].values()
+        ]
         if "CRITICAL" in statuses:
             golden_signals["overall_health"] = "CRITICAL"
         elif "WARNING" in statuses:

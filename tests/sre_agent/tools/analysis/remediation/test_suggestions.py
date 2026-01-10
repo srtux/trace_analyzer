@@ -2,8 +2,6 @@
 
 import json
 
-import pytest
-
 
 class TestRemediationSuggestions:
     """Test suite for remediation suggestion tools."""
@@ -34,15 +32,11 @@ class TestRemediationSuggestions:
             generate_remediation_suggestions,
         )
 
-        result = generate_remediation_suggestions(
-            "Database connection pool exhausted"
-        )
+        result = generate_remediation_suggestions("Database connection pool exhausted")
         result_data = json.loads(result)
 
         assert "connection_pool" in result_data["matched_patterns"]
-        assert any(
-            s["category"] == "database" for s in result_data["suggestions"]
-        )
+        assert any(s["category"] == "database" for s in result_data["suggestions"])
 
     def test_generate_remediation_for_high_latency(self):
         """Test that latency pattern generates performance suggestions."""
@@ -56,9 +50,7 @@ class TestRemediationSuggestions:
         result_data = json.loads(result)
 
         assert "high_latency" in result_data["matched_patterns"]
-        assert any(
-            s["category"] == "performance" for s in result_data["suggestions"]
-        )
+        assert any(s["category"] == "performance" for s in result_data["suggestions"])
 
     def test_generate_remediation_for_unknown_pattern(self):
         """Test that unknown patterns get generic suggestions."""
@@ -66,9 +58,7 @@ class TestRemediationSuggestions:
             generate_remediation_suggestions,
         )
 
-        result = generate_remediation_suggestions(
-            "Some unknown issue with xyz"
-        )
+        result = generate_remediation_suggestions("Some unknown issue with xyz")
         result_data = json.loads(result)
 
         assert len(result_data["matched_patterns"]) == 0
@@ -81,9 +71,7 @@ class TestRemediationSuggestions:
             generate_remediation_suggestions,
         )
 
-        result = generate_remediation_suggestions(
-            "Container is repeatedly OOMKilled"
-        )
+        result = generate_remediation_suggestions("Container is repeatedly OOMKilled")
         result_data = json.loads(result)
 
         assert "quick_wins" in result_data
