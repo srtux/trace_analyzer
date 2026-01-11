@@ -19,10 +19,14 @@ except ImportError:
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from google.adk.cli.fast_api import get_fast_api_app
 
 # 2. INTERNAL IMPORTS
+from sre_agent.agent import root_agent
 from sre_agent.tools import (
+    extract_log_patterns,
     fetch_trace,
+    list_log_entries,
 )
 
 app = FastAPI(title="SRE Agent Toolbox API")
@@ -35,24 +39,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# HELPER: Create ToolContext
+async def get_tool_context():
+    """Create a ToolContext with a dummy session/invocation."""
+    from google.adk.agents.invocation_context import InvocationContext
+    from google.adk.sessions.session import Session
+    from google.adk.tools import ToolContext
+
+    # Create a minimal session
+    session = Session(app_name="sre_agent", user_id="system", session_id="api-session")
+
+    # Create invocation context
+    inv_ctx = InvocationContext(
+        session=session, agent=root_agent, user_id="system", invocation_id="api-inv"
+    )
+
+    return ToolContext(invocation_context=inv_ctx)
+
+
 # 3. TOOL ENDPOINTS
 
 
 @app.get("/api/tools/trace/{trace_id}")
-async def get_trace(trace_id: str, project_id: str | None = None):
+async def get_trace(trace_id: str, project_id: Any | None = None):
     """Fetch and summarize a trace."""
     try:
-        # Note: ToolContext is required by ADK tools
-        from google.adk.tools import ToolContext
-
-        # We need a runner to provide context if the tool requires it
-        # But fetch_trace might work with a dummy context
-        ctx = ToolContext()
+        ctx = await get_tool_context()
         result = await fetch_trace(
             trace_id=trace_id, project_id=project_id, tool_context=ctx
         )
         return result
     except Exception as e:
+        import traceback
+
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -60,11 +81,7 @@ async def get_trace(trace_id: str, project_id: str | None = None):
 async def analyze_logs(payload: dict[str, Any]):
     """Fetch logs and extract patterns."""
     try:
-        from google.adk.tools import ToolContext
-
-        from sre_agent.tools import extract_log_patterns, list_log_entries
-
-        ctx = ToolContext()
+        ctx = await get_tool_context()
         # 1. Fetch logs from Cloud Logging
         entries = await list_log_entries(
             filter=payload.get("filter"),
@@ -82,14 +99,11 @@ async def analyze_logs(payload: dict[str, Any]):
 
 
 # 4. MOUNT ADK AGENT
-from google.adk.cli.adk_web_server import AdkWebServer  # noqa: E402
 
-# Mimic 'adk web sre_agent'
-agents_dir = "sre_agent"
-adk_web_server = AdkWebServer(agents_dir=agents_dir)
 # This creates the FastAPI app with /copilotkit and other routes
-adk_app = adk_web_server.get_fast_api_app(
-    web_assets_dir=None  # We don't need the internal ADK React UI
+adk_app = get_fast_api_app(
+    agents_dir="sre_agent",
+    web=False,  # We don't need the internal ADK React UI
 )
 
 # Mount the ADK app into our main app
