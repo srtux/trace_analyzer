@@ -158,6 +158,11 @@ web/
 │   │   ├── LogPatternViewer.tsx  # Drain3 pattern table
 │   │   ├── MetricCorrelationChart.tsx  # Time-series with anomalies
 │   │   ├── RemediationPlan.tsx   # Action cards with commands
+│   │   ├── GKEClusterHealth.tsx  # GKE cluster dashboard (NEW)
+│   │   ├── CloudRunDashboard.tsx # Cloud Run service dashboard (NEW)
+│   │   ├── SLODashboard.tsx      # SLO/SLI with error budgets (NEW)
+│   │   ├── ServiceDependencyGraph.tsx  # Service topology graph (NEW)
+│   │   ├── CrossSignalTimeline.tsx     # Multi-signal timeline (NEW)
 │   │   └── index.ts              # Barrel export
 │   │
 │   └── ui/                       # Shadcn UI primitives
@@ -175,10 +180,18 @@ web/
 │
 ├── lib/
 │   ├── utils.ts                  # Utility functions (cn, formatDuration, etc.)
-│   └── mock-data.ts              # Realistic test data for all widgets
+│   ├── mock-data.ts              # Realistic test data for all widgets
+│   ├── api-client.ts             # Backend API client
+│   ├── ag-ui/                    # AG-UI Protocol implementation (NEW)
+│   │   └── hooks.ts              # React hooks for AG-UI state
+│   └── a2ui/                     # A2UI Protocol implementation (NEW)
+│       ├── registry.tsx          # Component registry (widget catalog)
+│       └── renderer.tsx          # A2UI JSON renderer
 │
 ├── types/
-│   └── adk-schema.ts             # TypeScript interfaces matching backend
+│   ├── adk-schema.ts             # TypeScript interfaces matching backend
+│   ├── ag-ui.ts                  # AG-UI protocol types (NEW)
+│   └── a2ui.ts                   # A2UI protocol types (NEW)
 │
 ├── public/
 │   └── favicon.ico
@@ -821,6 +834,272 @@ When adding new features:
 3. **Component**: Build widget with Shadcn UI primitives
 4. **Integration**: Add Canvas case and CopilotKit action
 5. **Test**: Verify with mock data before backend integration
+
+---
+
+## AG-UI and A2UI Protocol Integration
+
+This dashboard implements two emerging protocols for agent-driven UIs:
+
+### AG-UI Protocol (Agent-User Interaction)
+
+AG-UI is an open, lightweight, event-based protocol that standardizes how AI agents connect to user-facing applications.
+
+**Key Features:**
+- Real-time streaming of agent events
+- Shared state between agent and frontend
+- Human-in-the-loop patterns
+- Tool call visualization
+
+**Files:**
+- `types/ag-ui.ts` - Protocol type definitions
+- `lib/ag-ui/hooks.ts` - React hooks for AG-UI state management
+
+**Event Types:**
+```typescript
+type AGUIEventType =
+  | "RUN_STARTED" | "RUN_FINISHED" | "RUN_ERROR"
+  | "TEXT_MESSAGE_START" | "TEXT_MESSAGE_CONTENT" | "TEXT_MESSAGE_END"
+  | "TOOL_CALL_START" | "TOOL_CALL_ARGS" | "TOOL_CALL_END"
+  | "STATE_SNAPSHOT" | "STATE_DELTA"
+  | "STEP_STARTED" | "STEP_FINISHED"
+  | "CUSTOM" | "RAW";
+```
+
+**Usage:**
+```tsx
+import { useAGUI } from "@/lib/ag-ui/hooks";
+
+const { state, isRunning, startRun, activeToolCalls } = useAGUI({
+  endpoint: "/api/copilotkit",
+  onEvent: (event) => console.log(event),
+});
+```
+
+### A2UI Protocol (Agent-to-User Interface)
+
+A2UI is a declarative UI protocol for agent-driven interfaces. Agents output JSON describing UI intent, and clients render using native widgets.
+
+**Key Features:**
+- Declarative component definitions
+- Data model binding
+- Incremental UI updates
+- Security-first (no executable code)
+
+**Files:**
+- `types/a2ui.ts` - Protocol type definitions
+- `lib/a2ui/registry.tsx` - Component registry (the "catalog")
+- `lib/a2ui/renderer.tsx` - A2UI JSON renderer
+
+**Registered Components:**
+- Basic: `text`, `heading`, `button`, `badge`, `progress`, `stat`, `code`
+- Layout: `card`, `table`
+- SRE Widgets: `trace-waterfall`, `log-viewer`, `metric-chart`, `dependency-graph`, `timeline`, `health-status`
+
+**Usage:**
+```tsx
+import { A2UIRenderer } from "@/lib/a2ui/renderer";
+import { registerWidget } from "@/lib/a2ui/registry";
+
+// Register custom widget
+registerWidget("my-widget", MyWidgetComponent);
+
+// Render A2UI response
+<A2UIRenderer
+  response={a2uiPayload}
+  onAction={(action) => handleAction(action)}
+/>
+```
+
+---
+
+## Advanced SRE Widgets
+
+### GKE Cluster Health Dashboard
+
+Comprehensive visualization of GKE cluster health.
+
+```tsx
+import { GKEClusterHealth } from "@/components/sre-widgets/GKEClusterHealth";
+
+<GKEClusterHealth
+  cluster={clusterData}
+  onNodePoolClick={(pool) => console.log(pool)}
+/>
+```
+
+**Features:**
+- Cluster status overview
+- Node pool health with conditions
+- Pod status distribution chart
+- Resource utilization gauges (CPU, Memory, Storage)
+- Recent cluster events timeline
+
+**Tabs:**
+- Overview: Resource utilization and pod status
+- Node Pools: Individual pool cards with autoscaling info
+- Workloads: Deployment and service counts
+- Events: Warning and normal events
+
+---
+
+### Cloud Run Service Dashboard
+
+Comprehensive Cloud Run service monitoring.
+
+```tsx
+import { CloudRunDashboard } from "@/components/sre-widgets/CloudRunDashboard";
+
+<CloudRunDashboard
+  service={serviceData}
+  onRevisionClick={(rev) => console.log(rev)}
+/>
+```
+
+**Features:**
+- Service status and URL
+- Key metrics: RPS, error rate, P95 latency, instance count
+- Latency over time chart
+- Traffic split visualization
+- Cold start analysis with hourly distribution
+- Revision history
+
+**Tabs:**
+- Overview: Latency chart and recent requests
+- Traffic: Traffic split by revision
+- Cold Starts: Cold start rate and configuration
+- Revisions: Revision history with status
+
+---
+
+### SLO/SLI Dashboard
+
+SRE golden signals and error budget tracking.
+
+```tsx
+import { SLODashboard } from "@/components/sre-widgets/SLODashboard";
+
+<SLODashboard
+  slo={sloData}
+  goldenSignals={goldenSignalsData}
+/>
+```
+
+**Features:**
+- Error budget gauge with projected exhaustion
+- Burn rate tracking (1h, 6h, 24h windows)
+- SLO compliance chart over time
+- Fast/slow burn alert thresholds
+- Golden signals panel (Latency, Traffic, Errors, Saturation)
+
+**Tabs:**
+- Error Budget: Budget remaining and consumption
+- Burn Rate: Burn rate over time chart
+- Compliance: SLO compliance trend
+- Alerts: Active SLO-based alerts
+
+---
+
+### Service Dependency Graph
+
+Interactive service topology visualization.
+
+```tsx
+import { ServiceDependencyGraph } from "@/components/sre-widgets/ServiceDependencyGraph";
+
+<ServiceDependencyGraph
+  graph={graphData}
+  showCriticalPath={true}
+  onNodeSelect={(node) => console.log(node)}
+/>
+```
+
+**Features:**
+- DAG layout for service topology
+- Latency and error rate on edges
+- Critical path highlighting
+- Node health status (healthy/degraded/unhealthy)
+- Zoom and pan controls
+- Popover with detailed node metrics
+
+---
+
+### Cross-Signal Correlation Timeline
+
+Unified timeline correlating multiple signal types.
+
+```tsx
+import { CrossSignalTimeline } from "@/components/sre-widgets/CrossSignalTimeline";
+
+<CrossSignalTimeline
+  data={timelineData}
+  showCorrelations={true}
+  onEventSelect={(event) => console.log(event)}
+/>
+```
+
+**Event Types:**
+- `trace` - Distributed traces
+- `log` - Log entries
+- `metric` - Metric anomalies
+- `alert` - Firing/resolved alerts
+- `deployment` - Service deployments
+- `incident` - Incident lifecycle
+
+**Features:**
+- Lane-based event display by type
+- Time markers and zoom controls
+- Event filtering by type
+- Correlation lines between related events
+- Detailed popovers for each event type
+
+---
+
+## Future Roadmap
+
+### Planned Features
+
+1. **Agent Tool Execution Flow Visualization**
+   - Real-time tool call tree
+   - Argument streaming display
+   - Result visualization
+
+2. **Human-in-the-Loop (HITL) Dialogs**
+   - Approval workflows for remediation
+   - Risk assessment confirmation
+   - Escalation to human operators
+
+3. **Real-time Metrics Streaming**
+   - WebSocket/SSE for live metrics
+   - Auto-refreshing dashboards
+   - Alert push notifications
+
+4. **Vertex Agent Engine Integration**
+   - Agent execution trace visualization
+   - Sub-agent orchestration view
+   - Conversation branching
+
+5. **Enhanced Visualizations**
+   - Heatmaps for latency distribution
+   - Flame graphs for trace analysis
+   - Network topology maps
+
+### Architecture Improvements
+
+1. **State Management**
+   - Consider Zustand for complex state
+   - Implement optimistic updates
+   - Add offline support
+
+2. **Performance**
+   - Virtualization for large traces
+   - Web Worker for data processing
+   - Incremental rendering
+
+3. **Testing**
+   - Visual regression testing
+   - E2E tests with Playwright
+   - Performance benchmarks
 
 ---
 
