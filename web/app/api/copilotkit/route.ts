@@ -7,6 +7,11 @@ import { NextRequest } from "next/server";
 
 // Create the CopilotKit runtime
 const runtime = new CopilotRuntime({
+  remoteEndpoints: [
+    {
+      url: process.env.SRE_AGENT_URL || "http://127.0.0.1:8000/copilotkit",
+    },
+  ],
   actions: [
     // System prompt for the SRE agent
     {

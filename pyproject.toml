@@ -107,6 +107,7 @@ example_question = "Analyze traces and logs in project my-gcp-project to find pe
 agent_directory = "sre_agent"
 
 [tool.poe.tasks]
+dev = { help = "Run the full dev stack (backend + frontend)", cmd = "python scripts/start_dev.py", envfile = ".env" }
 sync = { help = "Sync dependencies with uv", cmd = "uv sync" }
 run = { help = "Run agent in terminal", cmd = "adk run sre_agent", envfile = ".env" }
 web = { help = "Run agent web UI", cmd = "adk web sre_agent", envfile = ".env" }

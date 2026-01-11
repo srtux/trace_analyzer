@@ -109,3 +109,9 @@
   --copilot-kit-text-color: hsl(210 40% 98%);
   --copilot-kit-border-color: hsl(217 33% 17%);
 }
+
+/* Fix overlap between announcement toast and Web Inspector button */
+.announcement-preview {
+  top: 80px !important;
+  right: 20px !important;
+}

@@ -6,7 +6,7 @@ import {
   useCopilotAction,
   useCopilotReadable,
 } from "@copilotkit/react-core";
-import { CopilotSidebar } from "@copilotkit/react-ui";
+import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 
 import type {
@@ -352,7 +352,7 @@ function MissionControlDashboard() {
       <div className="flex-1 flex overflow-hidden">
         {/* Chat Sidebar (25%) */}
         <div className="w-[25%] min-w-[300px] border-r border-border">
-          <CopilotSidebar
+          <CopilotChat
             labels={{
               title: "SRE Agent",
               initial:
@@ -360,8 +360,6 @@ function MissionControlDashboard() {
               placeholder: "Describe the issue or ask for analysis...",
             }}
             className="h-full"
-            clickOutsideToClose={false}
-            defaultOpen={true}
           />
         </div>
 

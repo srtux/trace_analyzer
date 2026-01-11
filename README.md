@@ -238,7 +238,11 @@ sequenceDiagram
    - **Smart Suggestions**: Pattern-matched remediation recommendations
    - **Ready-to-Run Commands**: Generate gcloud commands for common fixes
    - **Risk Assessment**: Understand risk before making changes
-   - **Similar Incident Lookup**: Learn from past incidents with similar patterns
+8. **Web Dashboard (Mission Control)**
+   - **GenAI Interface**: A modern Chat UX powered by Vercel AI SDK & CopilotKit
+   - **Generative UI**: Dynamic React components generated on-the-fly for traces, logs, and metrics
+   - **Interactive Visualizations**: Trace waterfalls, log clusters, and metric charts
+   - **Full Source**: Located in `web/` directory. See [web/README.md](web/README.md) for details.
 
 ### Multi-Stage Trace Analysis Pipeline
 
@@ -329,11 +333,17 @@ GOOGLE_CLOUD_LOCATION=us-central1
 ### Running the Agent
 
 ```bash
-# Interactive terminal
-uv run poe run
+# Run the full stack (Backend + Frontend) [Recommended]
+uv run poe dev
+# Functionality:
+# - Starts ADK Agent (Backend) on http://localhost:8000
+# - Starts Next.js Dashboard (Frontend) on http://localhost:3000
 
-# Web interface
+# Backend only (ADK Agent Server)
 uv run poe web
+
+# Interactive Terminal Mode
+uv run poe run
 ```
 
 ### Modern Task Management (Recommended)
