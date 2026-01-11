@@ -163,6 +163,7 @@ web/
 │   │   ├── SLODashboard.tsx      # SLO/SLI with error budgets (NEW)
 │   │   ├── ServiceDependencyGraph.tsx  # Service topology graph (NEW)
 │   │   ├── CrossSignalTimeline.tsx     # Multi-signal timeline (NEW)
+│   │   ├── AgentToolFlow.tsx     # Tool execution flow tree (NEW)
 │   │   └── index.ts              # Barrel export
 │   │
 │   └── ui/                       # Shadcn UI primitives
@@ -183,10 +184,13 @@ web/
 │   ├── mock-data.ts              # Realistic test data for all widgets
 │   ├── api-client.ts             # Backend API client
 │   ├── ag-ui/                    # AG-UI Protocol implementation (NEW)
-│   │   └── hooks.ts              # React hooks for AG-UI state
+│   │   ├── hooks.ts              # React hooks for AG-UI state
+│   │   ├── useToolFlowState.ts   # Tool flow state management (NEW)
+│   │   └── index.ts              # Barrel export
 │   └── a2ui/                     # A2UI Protocol implementation (NEW)
 │       ├── registry.tsx          # Component registry (widget catalog)
-│       └── renderer.tsx          # A2UI JSON renderer
+│       ├── renderer.tsx          # A2UI JSON renderer
+│       └── index.ts              # Barrel export
 │
 ├── types/
 │   ├── adk-schema.ts             # TypeScript interfaces matching backend
@@ -1055,16 +1059,57 @@ import { CrossSignalTimeline } from "@/components/sre-widgets/CrossSignalTimelin
 
 ---
 
+### Agent Tool Execution Flow
+
+Real-time visualization of agent tool calls with hierarchical tree.
+
+```tsx
+import { AgentToolFlow } from "@/components/sre-widgets/AgentToolFlow";
+import { useToolFlowState, useAGUIToolFlow } from "@/lib/ag-ui";
+
+// Option 1: Use with AG-UI state directly
+const run = useAGUIToolFlow(aguiState);
+<AgentToolFlow run={run} showStats={true} />
+
+// Option 2: Use with streaming events
+const { run, processEvent, reset } = useToolFlowState({
+  onToolStart: (call) => console.log("Tool started:", call.toolName),
+  onToolEnd: (call) => console.log("Tool ended:", call.toolName),
+});
+
+// Feed events from AG-UI stream
+processEvent(aguiEvent);
+
+<AgentToolFlow
+  run={run}
+  onToolCallClick={(call) => console.log(call)}
+  autoSelectLatest={true}
+/>
+```
+
+**Features:**
+- Hierarchical tool call tree with expand/collapse
+- Real-time status updates (pending, running, streaming, completed, error)
+- Streaming argument display with cursor animation
+- JSON viewer for arguments and results with copy/expand
+- Duration tracking with live elapsed time
+- Run statistics (total, completed, errors, success rate)
+- Parent-child relationship visualization
+
+**Tool Call States:**
+- `pending` - Queued for execution
+- `running` - Currently executing
+- `streaming` - Receiving streaming arguments
+- `completed` - Successfully finished
+- `error` - Failed with error
+
+---
+
 ## Future Roadmap
 
 ### Planned Features
 
-1. **Agent Tool Execution Flow Visualization**
-   - Real-time tool call tree
-   - Argument streaming display
-   - Result visualization
-
-2. **Human-in-the-Loop (HITL) Dialogs**
+1. **Human-in-the-Loop (HITL) Dialogs**
    - Approval workflows for remediation
    - Risk assessment confirmation
    - Escalation to human operators
