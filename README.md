@@ -13,131 +13,182 @@ The agent is built using the Google Agent Development Kit (ADK). It uses a **"Co
 
 ### System Architecture
 
+![System Architecture](architecture.jpg)
+
+<details>
+<summary>Mermaid Diagram Source</summary>
+
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'background': '#ffffff'}}}%%
-flowchart TB
-    subgraph ControlRow [ ]
-        direction LR
-        User([👤 User])
-        Agent["🔧 <b>SRE Agent</b><br/>(Orchestrator)"]
-        Gemini{{"🧠 <b>Gemini 2.5 Pro</b>"}}
+graph TD
+    %% Styling
+    classDef agent fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef subagent fill:#e0f2f1,stroke:#00695c,stroke-width:2px;
+    classDef llm fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+    classDef tool fill:#fff3e0,stroke:#e65100,stroke-width:1px;
+    classDef user fill:#fff,stroke:#333,stroke-width:2px;
+    classDef orchestration fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,stroke-dasharray: 5 5;
 
-        User <==> Agent
-        Agent <==> Gemini
+    %% User Layer
+    User((User)) --> SRE_Agent
+
+    %% Main Agent Layer
+    subgraph "Orchestration Layer"
+        SRE_Agent["SRE Agent<br/>(Manager)"]:::agent
+        LLM["Gemini 2.5 Pro<br/>(LLM)"]:::llm
+        SRE_Agent <--> LLM
     end
 
-    subgraph Orchestration [Orchestrator Tools]
-        direction LR
-        TRIAGE["🛡️ Triage<br/>Analysis"]
-        DEEP["🕵️ Deep Dive<br/>Analysis"]
-        AGG_TOOL["📊 Aggregate<br/>Analysis"]
+    %% Orchestration Tools (The bridge to sub-agents)
+    subgraph "Orchestration Tools"
+        RunAgg[run_aggregate_analysis]:::orchestration
+        RunTriage[run_triage_analysis]:::orchestration
+        RunDeep[run_deep_dive_analysis]:::orchestration
+        RunLog[run_log_pattern_analysis]:::orchestration
     end
 
-    subgraph Specialists [Specialists]
-        direction LR
+    SRE_Agent --> RunAgg
+    SRE_Agent --> RunTriage
+    SRE_Agent --> RunDeep
+    SRE_Agent --> RunLog
 
-        subgraph TraceExperts [Trace Specialists]
-            direction TB
-            L["⏱️ Latency"]
-            E["💥 Error"]
-            S["🏗️ Structure"]
-            ST["📉 Stats"]
-            C["🔗 Causality"]
-            SI["🌊 Impact"]
-            CP["🛤️ Critical<br/>Path"]
+    %% Sub-Agents (Council of Experts)
+    subgraph "Council of Experts (Sub-Agents)"
+        direction TB
+
+        subgraph "Stage 0: Analysis"
+            Aggregate["Aggregate Analyzer<br/>(Data Analyst)"]:::subagent
         end
 
-        subgraph LogExperts [Log Specialists]
-            direction TB
-            LP["🔍 Log Pattern<br/>Extractor"]
+        subgraph "Stage 1: Triage (Parallel)"
+            Latency[Latency Specialist]:::subagent
+            Error[Error Detective]:::subagent
+            Structure[Structure Mapper]:::subagent
+            Statistics[Statistics Analyst]:::subagent
         end
 
-        subgraph MetricsExperts [Metrics Specialists]
-            direction TB
-            MA["📈 Metrics<br/>Analyzer"]
+        subgraph "Stage 2: Deep Dive"
+            Causality[Causality Expert]:::subagent
+            Impact[Impact Assessor]:::subagent
+        end
+
+        subgraph "Specialists"
+            LogPattern[Log Pattern Extractor]:::subagent
+            Metrics[Metrics Analyzer]:::subagent
         end
     end
 
-    subgraph ToolLayer [Integrated Tools]
-        direction LR
-        TraceAPI["☁️ Cloud Trace API"]
-        LogAPI["📋 Cloud Logging"]
-        MetricsAPI["📊 Cloud Monitoring"]
-        BQ["🗄️ BigQuery"]
+    %% Orchestration Flow
+    RunAgg --> Aggregate
+    RunTriage --> Latency & Error & Structure & Statistics
+    RunDeep --> Causality & Impact
+    RunLog --> LogPattern
+    SRE_Agent -- "Direct Delegation" --> Metrics
+
+    %% Tools Layer
+    subgraph "Tooling Ecosystem"
+        direction TB
+
+        subgraph "GCP Observability APIs"
+            TraceAPI[Cloud Trace API]:::tool
+            LogAPI[Cloud Logging API]:::tool
+            MonitorAPI[Cloud Monitoring API]:::tool
+        end
+
+        subgraph "Analysis Engines"
+            BigQuery[BigQuery Engine]:::tool
+            Drain3[Drain3 Pattern Engine]:::tool
+            StatsEngine[Statistical Engine]:::tool
+            GraphEngine["Graph/Topology Engine"]:::tool
+        end
+
+        subgraph "Model Context Protocol (MCP)"
+            MCP_BQ[MCP BigQuery]:::tool
+            MCP_Logs[MCP Logging]:::tool
+            MCP_Metrics[MCP Monitoring]:::tool
+        end
+
+        subgraph "Domain Capabilities"
+            SLO_Tools["SLO/SLI Tools"]:::tool
+            K8s_Tools["GKE/Kubernetes Tools"]:::tool
+            Remediation[Remediation Tools]:::tool
+            Depend_Tools[Dependency Tools]:::tool
+        end
     end
 
-    Agent ==> Orchestration
-    Orchestration ==> Specialists
-    Agent -.-> ToolLayer
-    Specialists -.-> ToolLayer
-    Orchestration -.-> ToolLayer
+    %% Tool Usage Connections
+    Aggregate --> BigQuery & TraceAPI & Depend_Tools
+    Latency --> TraceAPI & StatsEngine & Depend_Tools
+    Error --> TraceAPI
+    Structure --> GraphEngine & TraceAPI
+    Statistics --> StatsEngine & TraceAPI
+    Causality --> TraceAPI & LogAPI & MonitorAPI & GraphEngine & Depend_Tools
+    Impact --> GraphEngine & TraceAPI & Depend_Tools
+    LogPattern --> Drain3 & LogAPI
+    Metrics --> MonitorAPI & MCP_Metrics & StatsEngine
 
-    style ControlRow fill:none,stroke:none
-    style Specialists fill:none,stroke:none
+    %% Main Agent Direct Tool Access
+    SRE_Agent --> TraceAPI & LogAPI & MonitorAPI
+    SRE_Agent --> MCP_BQ & MCP_Logs & MCP_Metrics
+    SRE_Agent --> SLO_Tools & K8s_Tools & Remediation
+```
 
-    classDef userNode fill:#ffffff,stroke:#333,stroke-width:2px;
-    classDef agentNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef brainNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,stroke-dasharray: 5 5;
-    classDef squadNode fill:#fff8e1,stroke:#fbc02d,stroke-width:1px;
-    classDef logNode fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px;
-    classDef metricsNode fill:#e0f7fa,stroke:#006064,stroke-width:1px;
-    classDef toolNode fill:#f5f5f5,stroke:#616161,stroke-width:1px;
-
-    class User userNode;
-    class Agent agentNode;
-    class Gemini brainNode;
-    class AGG_TOOL,L,E,S,ST,C,SI squadNode;
-    class LP logNode;
-    class MA metricsNode;
-    class TraceAPI,LogAPI,MetricsAPI,BQ toolNode;
-``````
+</details>
 
 ### Interaction Workflow
 
+![Interaction Workflow](flow.jpg)
+
+<details>
+<summary>Mermaid Diagram Source</summary>
+
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'background': '#ffffff'}}}%%
 sequenceDiagram
+    autonumber
     actor User
     participant SRE as 🔧 SRE Agent
-    participant Orch as 🛡️ Orchestrator Tools
-    participant Expert as 📊 Specialist Experts
-    participant Tools as 🛠️ GCP Infrastructure
+    participant Orch as 🛡️ Orchestrator
+    participant Squad as 📊 Specialist Squad
+    participant Cloud as ☁️ GCP Infra
 
-    Note over User, Tools: 🔎 PHASE 1: EVIDENCE GATHERING
-
-    User->>SRE: 1. "Investigate high latency..."
-    SRE->>Orch: 2. run_aggregate_analysis()
-    Orch->>Tools: 3. Query BigQuery / Trace API
-    Tools-->>Orch: 4. Health metrics + exemplar traces
-    Orch-->>SRE: 5. Aggregate Findings
-
-    Note over User, Tools: ⚡ PHASE 2: PARALLEL TRIAGE
-
-    SRE->>Orch: 6. run_triage_analysis()
-    activate Orch
-    par Parallel Investigation
-        Orch->>Expert: 7a. Latency Expert
-        Orch->>Expert: 7b. Error Expert
-        Orch->>Expert: 7c. Structure Expert
+    rect rgba(0, 0, 0, 0.1)
+        Note over User, Cloud: 🔎 PHASE 1: GATHERING
+        User->>SRE: "Why is latency high?"
+        SRE->>Orch: Aggregate Analysis
+        Orch->>Squad: Delegate to Data Analyst
+        Squad->>Cloud: Fetch Health Metrics
+        Cloud-->>Squad: Metrics + Exemplars
+        Squad-->>Orch: Analysis Report
     end
-    Expert-->>Orch: 8. Specialist insights
-    Orch-->>SRE: 9. Unified Triage Report
-    deactivate Orch
 
-    SRE->>User: 10. "Found 3 new error patterns..."
+    rect rgba(0, 0, 0, 0.1)
+        Note over User, Cloud: ⚡ PHASE 2: TRIAGE
+        SRE->>Orch: Start Triage
+        par Parallel Analysis
+            Orch->>Squad: Analyze Latency
+            Squad->>Cloud: Fetch Trace Data
+            Cloud-->>Squad: Traces
+            Orch->>Squad: Analyze Errors
+            Squad->>Cloud: Fetch Logs
+            Cloud-->>Squad: Logs
+            Orch->>Squad: Analyze Structure
+        end
+        Squad-->>Orch: Anomalies Detected
+        Orch-->>SRE: Unified Report
+    end
 
-    Note over User, Tools: 🕵️ PHASE 3: ROOT CAUSE
-
-    User->>SRE: 11. "What's the root cause?"
-    SRE->>Orch: 12. run_deep_dive_analysis()
-    Orch->>Expert: 13. Causality + Impact Experts
-    Expert-->>Orch: 14. Root cause identified
-    Orch-->>SRE: 15. Deep Dive Findings
-
-    Note over User, Tools: 📝 PHASE 4: REPORT
-
-    SRE->>User: 16. 📂 Investigation Summary
+    rect rgba(0, 0, 0, 0.1)
+        Note over User, Cloud: 🕵️ PHASE 3: ROOT CAUSE (Autonomous)
+        Note over SRE: SRE Agent decides to investigate anomalies
+        SRE->>Orch: Deep Dive
+        Orch->>Squad: Causality Analysis
+        Squad->>Cloud: Correlate Signals
+        Cloud-->>Squad: Correlation Data
+        Squad-->>Orch: Root Cause Identified
+        SRE->>User: 📂 Full Investigation Summary
+    end
 ```
+
+</details>
 
 ## Features
 
