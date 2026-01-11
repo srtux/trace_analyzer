@@ -121,7 +121,7 @@ agent_directory = "sre_agent"
 dev = { help = "Run the full dev stack (backend + frontend)", cmd = "python scripts/start_dev.py", envfile = ".env" }
 sync = { help = "Sync dependencies with uv", cmd = "uv sync" }
 run = { help = "Run agent in terminal", cmd = "adk run sre_agent", envfile = ".env" }
-web = { help = "Run agent web UI", cmd = "adk web sre_agent", envfile = ".env" }
+web = { help = "Run agent web UI & Tools API", cmd = "python server.py", envfile = ".env" }
 list = { help = "List deployed agents", cmd = "python deploy/deploy.py --list", envfile = ".env" }
 lint = { help = "Run all linters", sequence = ["format", "_lint_only", "typecheck", "spell", "deptry"] }
 _lint_only = { cmd = "ruff check .", envfile = ".env" }
@@ -135,7 +135,8 @@ eval = { help = "Run agent evaluations", cmd = "python deploy/run_eval.py", envf
 deploy = { help = "Deploy agent to Agent Engine", sequence = ["sync", "_deploy_only"] }
 _deploy_only = { cmd = "python deploy/deploy.py --create", envfile = ".env" }
 
-deploy-web = { help = "Deploy web frontend to Cloud Run", cmd = "python deploy/deploy_web.py", envfile = "web/.env" }
+deploy-web = { help = "Deploy web frontend to Cloud Run", cmd = "python deploy/deploy_web.py", envfile = ".env" }
+deploy-gateway = { help = "Deploy ADK Gateway Proxy to Cloud Run", cmd = "python deploy/deploy_gateway.py", envfile = ".env" }
 deploy-all = { help = "Deploy both backend (Vertex) and frontend (Cloud Run)", cmd = "python deploy/deploy_all.py", envfile = ".env" }
 
 delete = { help = "Delete agent (usage: uv run poe delete --resource_id ID)", cmd = "python deploy/deploy.py --delete", envfile = ".env" }

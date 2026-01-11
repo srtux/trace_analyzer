@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+# Install system dependencies for some python packages
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ADK and Cloud AI Platform
+RUN pip install --no-cache-dir \
+    google-adk>=1.0.0 \
+    google-cloud-aiplatform>=1.93.0 \
+    gunicorn \
+    uvicorn \
+    fastapi
+
+WORKDIR /app
+
+# Copy the agent code (ADK needs to see the agent to serve metadata)
+COPY sre_agent /app/sre_agent
+COPY pyproject.toml /app/
+
+# Environment variables will be injected at runtime
+# REMOTE_AGENT_ID=projects/.../reasoningEngines/...
+
+# We use 'adk web' as the entrypoint.
+# It internally starts a FastAPI server with the /copilotkit endpoint.
+CMD adk web --host 0.0.0.0 --port $PORT --session_service_uri agentengine://$REMOTE_AGENT_ID /app

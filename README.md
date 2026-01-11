@@ -372,14 +372,15 @@ The easiest way to deploy the entire system and ensure they are connected:
 uv run poe deploy-all
 ```
 This script:
-1. Deploys the backend to Vertex AI.
-2. Captures the new `ReasoningEngine` resource ID.
-3. Deploys the frontend to Cloud Run, automatically pointing it to the new backend version using an `agentengine://` URI.
+1. Deploys the **Backend** to Vertex AI Agent Engine.
+2. Deploys an **ADK Gateway Proxy** to Cloud Run. This is required because browsers cannot talk to the `agentengine://` protocol directly; the Gateway acts as an authenticated bridge.
+3. Deploys the **Frontend** to Cloud Run, automatically pointing it to the Gateway URL.
 
 #### 2. Individual Component Deployment
 If you only need to update one part of the stack:
 
 *   **Backend Only**: `uv run poe deploy`
+*   **Gateway Only**: `uv run poe deploy-gateway`
 *   **Frontend Only**: `uv run poe deploy-web`
 
 #### 3. Configuration & Versioning

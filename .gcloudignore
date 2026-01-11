@@ -1,0 +1,36 @@
+.git
+.gitignore
+.gcloudignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node.js
+web/node_modules/
+web/.next/
+web/out/
+web/build/
+
+# Frontend builds
+web/public/
+web/.env
+web/.env.local
+
+# Project artifacts
+artifacts/
+knowledge/
+brain/
+logs/
+tests/
+evals/
+
+# Local env
+.env
+.env.example
+*.env

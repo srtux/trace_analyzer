@@ -22,7 +22,9 @@ import type {
 import { StatusBar } from "@/components/layout/StatusBar";
 import { Canvas } from "@/components/layout/Canvas";
 
-// Import mock data for demo
+import { sreClient } from "@/lib/api-client";
+
+// Import mock data for demo (fallback)
 import {
   mockTrace,
   mockErrorTrace,
@@ -74,26 +76,25 @@ function MissionControlDashboard() {
       },
     ],
     handler: async ({ traceId, projectId }) => {
-      // Simulate agent working
       setAgentStatus(mockAgentStatuses.analyzing_trace);
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      try {
+        const trace = await sreClient.getTrace(traceId, projectId);
+        setCanvasView({ type: "trace", data: trace });
+        setAgentStatus(mockAgentStatuses.idle);
 
-      // Use error trace if trace ID contains "error"
-      const trace =
-        traceId?.toLowerCase().includes("error") || traceId?.includes("789")
-          ? mockErrorTrace
-          : mockTrace;
-
-      setCanvasView({ type: "trace", data: trace });
-      setAgentStatus(mockAgentStatuses.idle);
-
-      return {
-        success: true,
-        message: `Analyzed trace ${traceId}. Found ${trace.spans.length} spans, ${
-          trace.spans.filter((s) => s.has_error).length
-        } errors. Total duration: ${trace.total_duration_ms.toFixed(1)}ms.`,
-      };
+        return {
+          success: true,
+          message: `Analyzed trace ${traceId}. Found ${trace.spans.length} spans. Total duration: ${trace.total_duration_ms.toFixed(1)}ms.`,
+        };
+      } catch (error) {
+        console.error("Error analyzing trace:", error);
+        setAgentStatus(mockAgentStatuses.idle);
+        return {
+          success: false,
+          message: `Failed to analyze trace ${traceId}: ${error instanceof Error ? error.message : String(error)}`,
+        };
+      }
     },
   });
 
@@ -115,24 +116,44 @@ function MissionControlDashboard() {
         description: "Time range (e.g., '1h', '24h', '7d')",
         required: false,
       },
+      {
+        name: "projectId",
+        type: "string",
+        description: "GCP project ID",
+        required: false,
+      },
     ],
-    handler: async ({ service, timeRange }) => {
+    handler: async ({ service, timeRange, projectId }) => {
       setAgentStatus(mockAgentStatuses.processing_logs);
 
-      await new Promise((resolve) => setTimeout(resolve, 2500));
+      try {
+        // Construct filter based on service/timeRange if needed
+        const filter = service ? `resource.labels.service_name="${service}"` : "";
 
-      setCanvasView({ type: "log_patterns", data: mockLogPatternSummary });
-      setAgentStatus(mockAgentStatuses.idle);
+        const result = await sreClient.analyzeLogs({
+          filter,
+          baseline_start: "1h-ago", // Placeholder; would ideally be dynamic
+          baseline_end: "30m-ago",
+          comparison_start: "30m-ago",
+          comparison_end: "now",
+          project_id: projectId
+        });
 
-      const errorCount =
-        mockLogPatternSummary.severity_distribution["ERROR"] || 0;
-      const criticalCount =
-        mockLogPatternSummary.severity_distribution["CRITICAL"] || 0;
+        setCanvasView({ type: "log_patterns", data: result });
+        setAgentStatus(mockAgentStatuses.idle);
 
-      return {
-        success: true,
-        message: `Analyzed ${mockLogPatternSummary.total_logs_processed.toLocaleString()} logs. Found ${mockLogPatternSummary.unique_patterns} unique patterns. ${errorCount} errors, ${criticalCount} critical. Compression ratio: ${mockLogPatternSummary.compression_ratio.toFixed(1)}x.`,
-      };
+        return {
+          success: true,
+          message: `Analyzed log patterns. Found ${result.unique_patterns} unique clusters.`,
+        };
+      } catch (error) {
+        console.error("Error analyzing logs:", error);
+        setAgentStatus(mockAgentStatuses.idle);
+        return {
+          success: false,
+          message: `Failed to analyze log patterns: ${error instanceof Error ? error.message : String(error)}`,
+        };
+      }
     },
   });
 
