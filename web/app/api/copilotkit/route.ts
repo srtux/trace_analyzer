@@ -1,6 +1,6 @@
 import {
   CopilotRuntime,
-  OpenAIAdapter,
+  GoogleGenerativeAIAdapter,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
 import { NextRequest } from "next/server";
@@ -49,8 +49,10 @@ Always explain your findings in clear, technical terms. Reference specific spans
 export const POST = async (req: NextRequest) => {
   const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
     runtime,
-    serviceAdapter: new OpenAIAdapter({
-      model: "gpt-4-turbo-preview",
+    serviceAdapter: new GoogleGenerativeAIAdapter({
+      model: "gemini-2.5-pro",
+      // Allow using either GOOGLE_API_KEY or GEMINI_API_KEY
+      apiKey: process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY,
     }),
     endpoint: "/api/copilotkit",
   });
