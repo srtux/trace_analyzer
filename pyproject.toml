@@ -130,6 +130,9 @@ typecheck = { help = "Run type checking", cmd = "mypy .", envfile = ".env" }
 spell = { help = "Check spelling", cmd = "codespell", envfile = ".env" }
 deptry = { help = "Check for unused/missing dependencies", cmd = "deptry .", envfile = ".env" }
 test = { help = "Run tests with coverage guard", cmd = "pytest tests --cov=sre_agent --cov-report=term-missing --cov-fail-under=70", env = { GOOGLE_CLOUD_PROJECT = "" }, envfile = ".env" }
+test-web = { help = "Run frontend tests", cmd = "npm test", cwd = "web" }
+test-integration = { help = "Run frontend integration tests (requires running backend)", cmd = "npm run test:integration", cwd = "web" }
+test-all = { help = "Run both backend and frontend tests", sequence = ["test", "test-web"] }
 eval = { help = "Run agent evaluations", cmd = "python deploy/run_eval.py", envfile = ".env" }
 
 deploy = { help = "Deploy agent to Agent Engine", sequence = ["sync", "_deploy_only"] }
