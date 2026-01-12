@@ -26,6 +26,8 @@ dependencies = [
     "drain3>=0.9.11",
     "opentelemetry-semantic-conventions>=0.58b0",
     "opentelemetry-instrumentation-logging>=0.58b0",
+    "fastapi>=0.111.0",
+    "uvicorn>=0.29.0",
 ]
 
 requires-python = ">=3.10,<3.13"

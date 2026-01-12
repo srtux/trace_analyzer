@@ -2,6 +2,7 @@
 
 import json
 import logging
+from typing import Any
 
 from ..common import adk_tool
 from ..common.telemetry import get_tracer
@@ -66,9 +67,9 @@ def list_log_entries(
             first_page = next(pages_iterator, None)
 
             if first_page:
-                for entry in first_page:
+                for entry in first_page.entries:
                     # Handle payload fields safely
-                    payload_data = None
+                    payload_data: str | dict[str, Any] | None = None
                     # Check for standard payload fields in GAPIC objects
                     if entry.text_payload:
                         payload_data = entry.text_payload
