@@ -43,8 +43,8 @@ async def test_run_triage_analysis_success():
             results = result["results"]
             assert results["latency"]["status"] == "success"
             assert results["error"]["status"] == "success"
-            # 4 agents called in parallel
-            assert mock_instance.run_async.await_count == 4
+            # 5 agents called in parallel
+            assert mock_instance.run_async.await_count == 5
 
 
 @pytest.mark.asyncio
@@ -85,5 +85,5 @@ async def test_run_deep_dive_analysis_success():
 
             assert result["stage"] == "deep_dive"
             assert result["results"]["causality"]["status"] == "success"
-            # 2 agents called
-            assert mock_instance.run_async.await_count == 2
+            # 3 agents called
+            assert mock_instance.run_async.await_count == 3

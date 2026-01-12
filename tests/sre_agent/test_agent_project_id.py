@@ -27,9 +27,9 @@ async def test_run_triage_analysis_accepts_project_id():
             tool_context=mock_context,
         )
 
-        # Verify it ran the triage agents (4 of them)
-        assert MockAgentTool.call_count == 4
-        assert mock_tool_instance.run_async.call_count == 4
+        # Verify it ran the triage agents (5 of them)
+        assert MockAgentTool.call_count == 5
+        assert mock_tool_instance.run_async.call_count == 5
 
         # Verify project_id was passed in request
         call_args = mock_tool_instance.run_async.call_args_list[0]
@@ -61,9 +61,9 @@ async def test_run_deep_dive_analysis_accepts_project_id():
             tool_context=mock_context,
         )
 
-        # Verify it ran the deep dive agents (2 of them)
-        assert MockAgentTool.call_count == 2
-        assert mock_tool_instance.run_async.call_count == 2
+        # Verify it ran the deep dive agents (3 of them)
+        assert MockAgentTool.call_count == 3
+        assert mock_tool_instance.run_async.call_count == 3
 
         # Verify project_id was passed in request
         call_args = mock_tool_instance.run_async.call_args_list[0]

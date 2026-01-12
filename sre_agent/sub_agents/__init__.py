@@ -1,20 +1,6 @@
-"""Sub-agents for specialized SRE analysis tasks.
+"""Sub-agents for the SRE Agent."""
 
-This module provides specialized sub-agents for observability analysis:
-
-Trace Analysis Sub-agents:
-    - aggregate_analyzer: BigQuery-powered aggregate analysis
-    - latency_analyzer: Span timing comparison
-    - error_analyzer: Error detection and comparison
-    - structure_analyzer: Call graph topology analysis
-    - statistics_analyzer: Statistical outlier detection
-    - causality_analyzer: Root cause determination
-    - service_impact_analyzer: Blast radius assessment
-
-Log Analysis Sub-agents:
-    - log_pattern_extractor: Drain3-powered log pattern extraction
-"""
-
+from .change import change_detective
 from .logs import log_pattern_extractor
 from .metrics import metrics_analyzer
 from .trace import (
@@ -22,22 +8,26 @@ from .trace import (
     causality_analyzer,
     error_analyzer,
     latency_analyzer,
+    resiliency_architect,
     service_impact_analyzer,
     statistics_analyzer,
     structure_analyzer,
 )
 
 __all__ = [
-    # Trace analysis
+    # Trace Squad
     "aggregate_analyzer",
-    "causality_analyzer",
-    "error_analyzer",
     "latency_analyzer",
-    # Log analysis
-    "log_pattern_extractor",
-    # Metrics analysis
-    "metrics_analyzer",
-    "service_impact_analyzer",
-    "statistics_analyzer",
+    "error_analyzer",
     "structure_analyzer",
+    "statistics_analyzer",
+    "causality_analyzer",
+    "service_impact_analyzer",
+    "resiliency_architect",
+    # Change Squad
+    "change_detective",
+    # Log Squad
+    "log_pattern_extractor",
+    # Metrics Squad
+    "metrics_analyzer",
 ]

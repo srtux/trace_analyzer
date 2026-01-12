@@ -370,3 +370,10 @@ def mock_bigquery_client():
     """Mock BigQuery client."""
     mock = MagicMock()
     return mock
+
+
+@pytest.fixture
+def mock_tool_context():
+    """Mock ADK ToolContext."""
+    mock = MagicMock()
+    return mock

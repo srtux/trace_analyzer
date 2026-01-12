@@ -35,12 +35,15 @@ from .sub_agents import (
     # Trace analysis sub-agents
     aggregate_analyzer,
     causality_analyzer,
+    # New Sub-Agents
+    change_detective,
     error_analyzer,
     latency_analyzer,
     # Log analysis sub-agents
     log_pattern_extractor,
     # Metrics analysis sub-agents
     metrics_analyzer,
+    resiliency_architect,
     service_impact_analyzer,
     statistics_analyzer,
     structure_analyzer,
@@ -80,6 +83,8 @@ from .tools import (
     # Metrics analysis tools
     detect_metric_anomalies,
     detect_trend_changes,
+    # Discovery tools
+    discover_telemetry_sources,
     # Remediation tools
     estimate_remediation_risk,
     extract_errors,
@@ -136,6 +141,7 @@ from .tools.mcp.gcp import (
     mcp_list_timeseries,
     mcp_query_range,
 )
+from .tools.reporting import synthesize_report
 
 logger = logging.getLogger(__name__)
 
@@ -300,10 +306,13 @@ Compare them and report your findings.
         AgentTool(statistics_analyzer).run_async(
             args={"request": prompt}, tool_context=tool_context
         ),
+        AgentTool(resiliency_architect).run_async(
+            args={"request": prompt}, tool_context=tool_context
+        ),
         return_exceptions=True,
     )
 
-    agent_names = ["latency", "error", "structure", "statistics"]
+    agent_names = ["latency", "error", "structure", "statistics", "resiliency"]
     triage_results: dict[str, dict[str, Any]] = {}
 
     for name, result in zip(agent_names, results, strict=False):
@@ -453,10 +462,13 @@ Determine root cause and assess impact.
         AgentTool(service_impact_analyzer).run_async(
             args={"request": prompt}, tool_context=tool_context
         ),
+        AgentTool(change_detective).run_async(
+            args={"request": prompt}, tool_context=tool_context
+        ),
         return_exceptions=True,
     )
 
-    agent_names = ["causality", "service_impact"]
+    agent_names = ["causality", "service_impact", "change_detective"]
     deep_dive_results: dict[str, dict[str, Any]] = {}
 
     for name, result in zip(agent_names, results, strict=False):
@@ -567,6 +579,10 @@ base_tools: list[Any] = [
     get_gcloud_commands,
     estimate_remediation_risk,
     find_similar_past_incidents,
+    # Discovery
+    discover_telemetry_sources,
+    # Reporting
+    synthesize_report,
 ]
 
 
@@ -601,6 +617,9 @@ sre_agent = LlmAgent(
         log_pattern_extractor,
         # Metrics analysis sub-agents
         metrics_analyzer,
+        # New Sub-Agents
+        change_detective,
+        resiliency_architect,
     ],
 )
 
@@ -657,5 +676,7 @@ async def get_agent_with_mcp_tools() -> LlmAgent:
             log_pattern_extractor,
             # Metrics analysis sub-agents
             metrics_analyzer,
+            change_detective,
+            resiliency_architect,
         ],
     )

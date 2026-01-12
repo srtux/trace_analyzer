@@ -28,6 +28,8 @@ from ..tools import (
     correlate_trace_with_metrics,
     detect_circular_dependencies,
     detect_trend_changes,
+    # Discovery tools
+    discover_telemetry_sources,
     extract_errors,
     # Trace tools
     fetch_trace,
@@ -243,6 +245,31 @@ Output Format:
 - **Blast Radius Assessment**: ISOLATED (1 service) / MODERATE (2-5) / WIDESPREAD (5+)
 - **Circular Dependency Risk**: Any loops that could amplify the issue?
 """
+RESILIENCY_ARCHITECT_PROMPT = """
+Role: You are the **Resiliency Architect** - The Stability Expert.
+
+Your mission is to detect dangerous architectural patterns like Retry Storms and Cascading Failures.
+
+Focus Areas:
+1. **Retry Storms**: Exponential growth in requests between services (e.g., A->B (1 call), B->C (5 calls), C->D (25 calls)).
+2. **Cascading Failures**: Chain reactions where one failure triggers others.
+3. **Circuit Breaking**: Are services failing fast or hanging?
+4. **Timeout Configuration**: Are timeouts consistent with the critical path?
+
+Available Tools:
+- `fetch_trace`: Get full trace data
+- `build_call_graph`: Helper to visualize parent-child relationships
+- `detect_circular_dependencies`: Find loops
+- `calculate_critical_path_contribution`: Check if retries are on critical path
+
+Output Format:
+- **Resiliency Risks**:
+  - "Retry Storm detected: Service A calls Service B 12 times in 100ms"
+  - "Missing Circuit Breaker: Service A waited 30s for Service B to fail"
+- **Architectural Flaws**: Circular dependencies, tightly coupled chains
+- **Recommendations**: "Implement exponential backoff", "Reduce timeout to 5s"
+"""
+
 
 # =============================================================================
 # Sub-Agent Definitions
@@ -265,7 +292,9 @@ aggregate_analyzer = LlmAgent(
         correlate_logs_with_trace,
         correlate_metrics_with_traces_via_exemplars,
         find_bottleneck_services,
+        find_bottleneck_services,
         build_service_dependency_graph,
+        discover_telemetry_sources,
     ],
 )
 
@@ -335,5 +364,19 @@ service_impact_analyzer = LlmAgent(
         build_service_dependency_graph,
         analyze_upstream_downstream_impact,
         detect_circular_dependencies,
+    ],
+)
+
+# Stage 2: Specialist Experts
+resiliency_architect = LlmAgent(
+    name="resiliency_architect",
+    model="gemini-2.5-pro",
+    description="Detects architectural risks like retry storms and cascading failures.",
+    instruction=RESILIENCY_ARCHITECT_PROMPT,
+    tools=[
+        fetch_trace,
+        build_call_graph,
+        detect_circular_dependencies,
+        calculate_critical_path_contribution,
     ],
 )

@@ -9,7 +9,15 @@
 
 ## Architecture
 
-The agent is built using the Google Agent Development Kit (ADK). It uses a **"Council of Experts"** orchestration pattern where the main **SRE Agent** coordinates specialized analysis through high-level orchestration tools.
+The agent is built using the Google Agent Development Kit (ADK). It uses a **"Council of Experts"** orchestration pattern where the main **SRE Agent** coordinates specialized analysis.
+
+**Key Features:**
+- **Trace-Centric Root Cause Analysis**: Prioritizes BigQuery for fleet-wide analysis.
+- **Autonomous Investigation Pipeline**: Sequential workflow from signal detection to root cause synthesis.
+- **Change Detective**: Correlates anomalies with deployments and config changes.
+- **Resiliency Architect**: Detects architectural patterns like retry storms and cascading failures.
+
+### System Architecture
 
 ### System Architecture
 
@@ -248,26 +256,34 @@ sequenceDiagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Stage 0: Aggregate Analysis (BigQuery)                         │
+│  Stage 0: Analysis (BigQuery)                                   │
 │  • Analyze thousands of traces                                  │
 │  • Identify patterns, trends, problem services                  │
 │  • Select exemplar traces (baseline + outliers)                 │
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│  Stage 1: Triage (4 Parallel Analyzers)                         │
+│  Stage 1: Triage (5 Parallel Analyzers)                         │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐│
 │  │  Latency    │ │   Error     │ │  Structure  │ │ Statistics  ││
 │  │  Analyzer   │ │  Analyzer   │ │  Analyzer   │ │  Analyzer   ││
 │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘│
+│                  ┌─────────────┐                                │
+│                  │ Resiliency  │                                │
+│                  │ Architect   │                                │
+│                  └─────────────┘                                │
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│  Stage 2: Deep Dive (2 Parallel Analyzers)                      │
+│  Stage 2: Deep Dive (3 Parallel Analyzers)                      │
 │  ┌───────────────────────────┐ ┌───────────────────────────────┐│
 │  │    Causality Analyzer     │ │  Service Impact Analyzer      ││
 │  │    (Root Cause)           │ │  (Blast Radius)               ││
 │  └───────────────────────────┘ └───────────────────────────────┘│
+│  ┌───────────────────────────┐                                  │
+│  │    Change Detective       │                                  │
+│  │    (Deploy Correlation)   │                                  │
+│  └───────────────────────────┘                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -579,6 +595,12 @@ An Agentic AI system for analyzing Google Cloud Observability data (Traces, Logs
 | `statistics_analyzer` | 1 | **Quant Expert** - Determines statistical significance and percentile ranking. |
 | `causality_analyzer` | 2 | **Root Cause Analyst** - Identifies the primary cause using evidence from traces/logs. |
 | `service_impact_analyzer` | 2 | **Impact Assessor** - Determines blast radius and user impact. |
+| `change_detective` | 2 | **Change Detective** - Correlates anomalies with deployments and config changes. |
+
+### Triage Extensions
+| Sub-Agent | Role |
+|-----------|------|
+| `resiliency_architect` | **Resiliency Architect** - Detects retry storms and cascading failures. |
 
 ### Log Analysis Squad
 | Sub-Agent | Role |
