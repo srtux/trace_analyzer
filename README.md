@@ -16,6 +16,7 @@ The agent is built using the Google Agent Development Kit (ADK). It uses a **"Co
 - **Autonomous Investigation Pipeline**: Sequential workflow from signal detection to root cause synthesis.
 - **Change Detective**: Correlates anomalies with deployments and config changes.
 - **Resiliency Architect**: Detects architectural patterns like retry storms and cascading failures.
+- **Friendly Expert Persona**: Combines deep technical expertise with a fun, approachable response style. 🕵️‍♂️✨
 
 ### System Architecture
 
@@ -44,7 +45,7 @@ graph TD
         SRE_Agent <--> LLM
     end
 
-    %% Orchestration Tools
+    %% Orchestration Tools (The bridge to sub-agents)
     subgraph "Orchestration Tools"
         RunAgg[run_aggregate_analysis]:::orchestration
         RunTriage[run_triage_analysis]:::orchestration
@@ -70,29 +71,27 @@ graph TD
             Error[Error Detective]:::subagent
             Structure[Structure Mapper]:::subagent
             Statistics[Statistics Analyst]:::subagent
-            Resiliency[Resiliency Architect]:::subagent
-            LogAnalyst[Log Analyst]:::subagent
         end
 
         subgraph "Stage 2: Deep Dive"
             Causality[Causality Expert]:::subagent
             Impact[Impact Assessor]:::subagent
-            Change[Change Detective]:::subagent
         end
 
         subgraph "Specialists"
+            LogPattern[Log Pattern Extractor]:::subagent
             Metrics[Metrics Analyzer]:::subagent
         end
     end
 
     %% Orchestration Flow
     RunAgg --> Aggregate
-    RunTriage --> Latency & Error & Structure & Statistics & Resiliency & LogAnalyst
-    RunDeep --> Causality & Impact & Change
-    RunLog --> LogAnalyst
+    RunTriage --> Latency & Error & Structure & Statistics
+    RunDeep --> Causality & Impact
+    RunLog --> LogPattern
     SRE_Agent -- "Direct Delegation" --> Metrics
 
-    %% Tooling Ecosystem
+    %% Tools Layer
     subgraph "Tooling Ecosystem"
         direction TB
 
@@ -106,10 +105,13 @@ graph TD
             BigQuery[BigQuery Engine]:::tool
             Drain3[Drain3 Pattern Engine]:::tool
             StatsEngine[Statistical Engine]:::tool
+            GraphEngine["Graph/Topology Engine"]:::tool
         end
 
         subgraph "Model Context Protocol (MCP)"
             MCP_BQ[MCP BigQuery]:::tool
+            MCP_Logs[MCP Logging]:::tool
+            MCP_Metrics[MCP Monitoring]:::tool
         end
 
         subgraph "Domain Capabilities"
@@ -123,13 +125,17 @@ graph TD
     %% Tool Usage Connections
     Aggregate --> BigQuery & TraceAPI & Depend_Tools
     Latency --> TraceAPI & StatsEngine & Depend_Tools
-    LogAnalyst --> BigQuery & Drain3 & LogAPI
-    Metrics --> MonitorAPI & StatsEngine
-    Change --> LogAPI & MonitorAPI
+    Error --> TraceAPI
+    Structure --> GraphEngine & TraceAPI
+    Statistics --> StatsEngine & TraceAPI
+    Causality --> TraceAPI & LogAPI & MonitorAPI & GraphEngine & Depend_Tools
+    Impact --> GraphEngine & TraceAPI & Depend_Tools
+    LogPattern --> Drain3 & LogAPI
+    Metrics --> MonitorAPI & MCP_Metrics & StatsEngine
 
     %% Main Agent Direct Tool Access
     SRE_Agent --> TraceAPI & LogAPI & MonitorAPI
-    SRE_Agent --> MCP_BQ
+    SRE_Agent --> MCP_BQ & MCP_Logs & MCP_Metrics
     SRE_Agent --> SLO_Tools & K8s_Tools & Remediation
 ```
 
@@ -152,26 +158,26 @@ sequenceDiagram
     participant Cloud as ☁️ GCP Infra
 
     rect rgba(0, 0, 0, 0.1)
-        Note over User, Cloud: 🔎 PHASE 1: GATHERING (Metric-First)
+        Note over User, Cloud: 🔎 PHASE 1: GATHERING
         User->>SRE: "Why is latency high?"
         SRE->>Orch: Aggregate Analysis
-        Orch->>Squad: Delegate to Metrics & Data Analyst
-        Squad->>Cloud: Fetch Metrics & Exemplars
-        Cloud-->>Squad: Metrics + Trace IDs
-        Squad->>Cloud: Fetch Exemplar Traces (BQ/Trace API)
-        Cloud-->>Squad: Traces
-        Squad-->>Orch: Analysis Report (Baseline vs Anomaly)
+        Orch->>Squad: Delegate to Data Analyst
+        Squad->>Cloud: Fetch Health Metrics
+        Cloud-->>Squad: Metrics + Exemplars
+        Squad-->>Orch: Analysis Report
     end
 
     rect rgba(0, 0, 0, 0.1)
         Note over User, Cloud: ⚡ PHASE 2: TRIAGE
         SRE->>Orch: Start Triage
         par Parallel Analysis
-            Orch->>Squad: Analyze Latency (Critical Path)
-            Squad->>Cloud: Fetch Trace Details
-            Orch->>Squad: Analyze Logs (BigQuery/Drain3)
-            Squad->>Cloud: Cluster Logs via SQL
-            Orch->>Squad: Analyze Resiliency
+            Orch->>Squad: Analyze Latency
+            Squad->>Cloud: Fetch Trace Data
+            Cloud-->>Squad: Traces
+            Orch->>Squad: Analyze Errors
+            Squad->>Cloud: Fetch Logs
+            Cloud-->>Squad: Logs
+            Orch->>Squad: Analyze Structure
         end
         Squad-->>Orch: Anomalies Detected
         Orch-->>SRE: Unified Report
@@ -181,8 +187,8 @@ sequenceDiagram
         Note over User, Cloud: 🕵️ PHASE 3: ROOT CAUSE (Autonomous)
         Note over SRE: SRE Agent decides to investigate anomalies
         SRE->>Orch: Deep Dive
-        Orch->>Squad: Causality & Change Detective
-        Squad->>Cloud: Correlate Deployments & Configs
+        Orch->>Squad: Causality Analysis
+        Squad->>Cloud: Correlate Signals
         Cloud-->>Squad: Correlation Data
         Squad-->>Orch: Root Cause Identified
         SRE->>User: 📂 Full Investigation Summary

@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import google.auth
+import httpx
 from google.adk.tools import ToolContext  # type: ignore[attr-defined]
 from google.adk.tools.api_registry import ApiRegistry
 
@@ -259,7 +260,10 @@ async def call_mcp_tool_with_retry(
                 "error": f"{tool_name} tool not found in MCP toolset",
             }
 
-        except Exception as e:
+        except (httpx.HTTPStatusError, Exception) as e:
+            logger.error(
+                f"MCP Tool execution failed: {tool_name} error={e!s}", exc_info=True
+            )
             error_str = str(e)
             is_session_error = "Session terminated" in error_str or (
                 "session" in error_str.lower() and "error" in error_str.lower()

@@ -21,7 +21,6 @@ dependencies = [
     "google-cloud-logging>=3.10.0",
     "google-cloud-monitoring>=2.21.0",
     "google-cloud-error-reporting>=1.14.0",
-    "google-cloud-bigquery>=3.17.0",
     "requests>=2.31.0",
     # Log pattern analysis
     "drain3>=0.9.11",
