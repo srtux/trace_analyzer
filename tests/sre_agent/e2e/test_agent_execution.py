@@ -24,11 +24,11 @@ async def test_run_triage_analysis_flow():
             baseline_trace_id="b1", target_trace_id="t1", tool_context=mock_tool_context
         )
 
-        # Verify AgentTool instantiation (5 sub-agents)
-        assert MockAgentTool.call_count == 5
+        # Verify AgentTool instantiation (6 sub-agents)
+        assert MockAgentTool.call_count == 6
 
         # Verify run_async calls
-        assert mock_tool_instance.run_async.call_count == 5
+        assert mock_tool_instance.run_async.call_count == 6
 
         # Verify result structure
         assert result["stage"] == "triage"

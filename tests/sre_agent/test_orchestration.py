@@ -43,8 +43,8 @@ async def test_run_triage_analysis_success():
             results = result["results"]
             assert results["latency"]["status"] == "success"
             assert results["error"]["status"] == "success"
-            # 5 agents called in parallel
-            assert mock_instance.run_async.await_count == 5
+            # 6 agents called in parallel
+            assert mock_instance.run_async.await_count == 6
 
 
 @pytest.mark.asyncio

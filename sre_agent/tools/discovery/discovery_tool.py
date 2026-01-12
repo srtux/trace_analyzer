@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from google.adk.tools import ToolContext
+from google.adk.tools import ToolContext  # type: ignore[attr-defined]
 
 from ..common import adk_tool
 from ..mcp.gcp import (

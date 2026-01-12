@@ -189,11 +189,10 @@ class TestSubAgentConfiguration:
 
     def test_subagent_has_required_tools(self):
         """Test that sub-agent has all required tools configured."""
-        from sre_agent.sub_agents.logs import log_pattern_extractor
+        from sre_agent.sub_agents.logs import log_analyst
 
         tool_names = [
-            t.__name__ if hasattr(t, "__name__") else str(t)
-            for t in log_pattern_extractor.tools
+            t.__name__ if hasattr(t, "__name__") else str(t) for t in log_analyst.tools
         ]
 
         # Should have log fetching tools
@@ -204,23 +203,23 @@ class TestSubAgentConfiguration:
 
     def test_subagent_has_instruction(self):
         """Test that sub-agent has proper instruction configured."""
-        from sre_agent.sub_agents.logs import log_pattern_extractor
+        from sre_agent.sub_agents.logs import log_analyst
 
-        assert log_pattern_extractor.instruction is not None
-        assert len(log_pattern_extractor.instruction) > 100
+        assert log_analyst.instruction is not None
+        assert len(log_analyst.instruction) > 100
 
         # Should mention key capabilities
-        instruction = log_pattern_extractor.instruction.lower()
-        assert "drain3" in instruction or "pattern" in instruction
+        instruction = log_analyst.instruction.lower()
+        assert "bigquery" in instruction or "cluster" in instruction
         assert "log" in instruction
 
     def test_subagent_model_configuration(self):
         """Test that sub-agent uses appropriate model."""
-        from sre_agent.sub_agents.logs import log_pattern_extractor
+        from sre_agent.sub_agents.logs import log_analyst
 
-        assert log_pattern_extractor.model is not None
+        assert log_analyst.model is not None
         # Should use Gemini model
-        assert "gemini" in log_pattern_extractor.model.lower()
+        assert "gemini" in log_analyst.model.lower()
 
 
 class TestMainAgentIntegration:
@@ -231,7 +230,7 @@ class TestMainAgentIntegration:
         from sre_agent.agent import sre_agent
 
         sub_agent_names = [sa.name for sa in sre_agent.sub_agents]
-        assert "log_pattern_extractor" in sub_agent_names
+        assert "log_analyst" in sub_agent_names
 
     def test_main_agent_has_log_pattern_tools(self):
         """Test that main agent has log pattern tools."""

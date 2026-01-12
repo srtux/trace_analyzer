@@ -162,6 +162,7 @@ class TestGetLogsForTrace:
 
         mock_pager = MagicMock()
         mock_page = MagicMock()
+        mock_page.entries = mock_entries
         mock_page.__iter__.return_value = iter(mock_entries)
         mock_page.next_page_token = None
         mock_pager.pages = iter([mock_page])
@@ -308,6 +309,7 @@ class TestListLogEntries:
 
         mock_pager = MagicMock()
         mock_page = MagicMock()
+        mock_page.entries = mock_entries
         mock_page.__iter__.return_value = iter(mock_entries)
         mock_page.next_page_token = None
         mock_pager.pages = iter([mock_page])
@@ -355,6 +357,7 @@ class TestIntegration:
 
         mock_pager = MagicMock()
         mock_page = MagicMock()
+        mock_page.entries = [mock_log_entry]
         mock_page.__iter__.return_value = iter([mock_log_entry])
         mock_page.next_page_token = None
         mock_pager.pages = iter([mock_page])

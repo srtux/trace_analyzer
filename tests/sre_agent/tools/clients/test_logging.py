@@ -6,6 +6,7 @@ from sre_agent.tools.clients.logging import list_log_entries
 
 def create_mock_page(entries, next_token=None):
     page = MagicMock()
+    page.entries = entries
     page.__iter__.return_value = entries
     page.next_page_token = next_token if next_token else ""
     return page

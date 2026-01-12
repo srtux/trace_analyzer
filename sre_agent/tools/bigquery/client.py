@@ -1,9 +1,9 @@
 """BigQuery Client wrapper using MCP."""
 
 import logging
-from typing import Any
+from typing import Any, cast
 
-from google.adk.tools import ToolContext
+from google.adk.tools import ToolContext  # type: ignore[attr-defined]
 
 from ..mcp.gcp import (
     call_mcp_tool_with_retry,
@@ -44,6 +44,8 @@ class BigQueryClient:
             logger.error("No project ID for BigQuery execution")
             raise ValueError("No project ID")
 
+        assert self.tool_context is not None, "ToolContext required"
+
         result = await call_mcp_tool_with_retry(
             create_bigquery_mcp_toolset,
             "execute_sql",
@@ -68,7 +70,7 @@ class BigQueryClient:
         data = result.get("result", {})
         # If 'rows' key exists, return that. fallback to the result itself if it is a list.
         if isinstance(data, dict):
-            return data.get("rows", [])
+            return cast(list[dict[str, Any]], data.get("rows", []))
         if isinstance(data, list):
             return data
 
@@ -89,6 +91,8 @@ class BigQueryClient:
         if not self.project_id:
             raise ValueError("No project ID")
 
+        assert self.tool_context is not None, "ToolContext required"
+
         result = await call_mcp_tool_with_retry(
             create_bigquery_mcp_toolset,
             "get_table_info",
@@ -103,4 +107,4 @@ class BigQueryClient:
 
         # result['result'] should contain 'schema'
         info = result.get("result", {})
-        return info.get("schema", {}).get("fields", [])
+        return cast(list[dict[str, Any]], info.get("schema", {}).get("fields", []))

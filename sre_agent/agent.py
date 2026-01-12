@@ -40,7 +40,7 @@ from .sub_agents import (
     error_analyzer,
     latency_analyzer,
     # Log analysis sub-agents
-    log_pattern_extractor,
+    log_analyst,
     # Metrics analysis sub-agents
     metrics_analyzer,
     resiliency_architect,
@@ -309,10 +309,20 @@ Compare them and report your findings.
         AgentTool(resiliency_architect).run_async(
             args={"request": prompt}, tool_context=tool_context
         ),
+        AgentTool(log_analyst).run_async(
+            args={"request": prompt}, tool_context=tool_context
+        ),
         return_exceptions=True,
     )
 
-    agent_names = ["latency", "error", "structure", "statistics", "resiliency"]
+    agent_names = [
+        "latency",
+        "error",
+        "structure",
+        "statistics",
+        "resiliency",
+        "log_analyst",
+    ]
     triage_results: dict[str, dict[str, Any]] = {}
 
     for name, result in zip(agent_names, results, strict=False):
@@ -366,7 +376,7 @@ async def run_log_pattern_analysis(
         raise ValueError("tool_context is required")
 
     try:
-        result = await AgentTool(log_pattern_extractor).run_async(
+        result = await AgentTool(log_analyst).run_async(
             args={
                 "request": f"""
 Analyze log patterns and find anomalies:
@@ -614,7 +624,7 @@ sre_agent = LlmAgent(
         causality_analyzer,
         service_impact_analyzer,
         # Log analysis sub-agents
-        log_pattern_extractor,
+        log_analyst,
         # Metrics analysis sub-agents
         metrics_analyzer,
         # New Sub-Agents
@@ -673,7 +683,7 @@ async def get_agent_with_mcp_tools() -> LlmAgent:
             causality_analyzer,
             service_impact_analyzer,
             # Log analysis sub-agents
-            log_pattern_extractor,
+            log_analyst,
             # Metrics analysis sub-agents
             metrics_analyzer,
             change_detective,

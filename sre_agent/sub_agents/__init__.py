@@ -1,7 +1,7 @@
 """Sub-agents for the SRE Agent."""
 
 from .change import change_detective
-from .logs import log_pattern_extractor
+from .logs import log_analyst
 from .metrics import metrics_analyzer
 from .trace import (
     aggregate_analyzer,
@@ -27,7 +27,7 @@ __all__ = [
     # Change Squad
     "change_detective",
     # Log Squad
-    "log_pattern_extractor",
+    "log_analyst",
     # Metrics Squad
     "metrics_analyzer",
 ]

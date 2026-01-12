@@ -10,6 +10,7 @@ This module provides tools for interacting with GCP Observability services:
 
 # Client Tools
 # Analysis Tools - BigQuery
+from .analysis.bigquery.logs import analyze_bigquery_log_patterns
 from .analysis.bigquery.otel import (
     analyze_aggregate_metrics,
     compare_time_periods,
@@ -167,6 +168,7 @@ __all__ = [
     "correlate_logs_with_trace",
     "compare_time_periods",
     "detect_trend_changes",
+    "analyze_bigquery_log_patterns",
     # Analysis - Trace
     "extract_errors",
     "build_call_graph",

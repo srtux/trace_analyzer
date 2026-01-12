@@ -27,9 +27,9 @@ async def test_run_triage_analysis_accepts_project_id():
             tool_context=mock_context,
         )
 
-        # Verify it ran the triage agents (5 of them)
-        assert MockAgentTool.call_count == 5
-        assert mock_tool_instance.run_async.call_count == 5
+        # Verify it ran the triage agents (6 of them)
+        assert MockAgentTool.call_count == 6
+        assert mock_tool_instance.run_async.call_count == 6
 
         # Verify project_id was passed in request
         call_args = mock_tool_instance.run_async.call_args_list[0]

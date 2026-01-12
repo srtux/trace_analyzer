@@ -19,8 +19,6 @@ The agent is built using the Google Agent Development Kit (ADK). It uses a **"Co
 
 ### System Architecture
 
-### System Architecture
-
 ![System Architecture](architecture.jpg)
 
 <details>
@@ -605,7 +603,7 @@ An Agentic AI system for analyzing Google Cloud Observability data (Traces, Logs
 ### Log Analysis Squad
 | Sub-Agent | Role |
 |-----------|------|
-| `log_pattern_extractor`| **Log Whisperer** - Uses Drain3 to compress thousands of logs into patterns to find "spicy" anomalies. |
+| `log_analyst`| **Log Analyst** - Uses BigQuery SQL Regex (for scale) and Drain3 (for precision) to cluster logs. |
 
 ### Metrics Analysis Squad
 | Sub-Agent | Role |
