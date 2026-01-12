@@ -80,6 +80,7 @@ from .analysis.trace.filters import (
     select_traces_from_statistical_outliers,
     select_traces_manually,
 )
+from .clients.alerts import get_alert, list_alert_policies, list_alerts
 from .clients.gke import (
     analyze_hpa_events,
     analyze_node_conditions,
@@ -137,6 +138,10 @@ __all__ = [
     # Clients - Monitoring
     "list_time_series",
     "query_promql",
+    # Clients - Alerts
+    "list_alerts",
+    "get_alert",
+    "list_alert_policies",
     # Clients - Trace
     "get_current_time",
     "fetch_trace",

@@ -1,5 +1,6 @@
 """Sub-agents for the SRE Agent."""
 
+from .alerts import alert_analyst
 from .change import change_detective
 from .logs import log_analyst
 from .metrics import metrics_analyzer
@@ -28,6 +29,8 @@ __all__ = [
     "change_detective",
     # Log Squad
     "log_analyst",
+    # Alert Squad
+    "alert_analyst",
     # Metrics Squad
     "metrics_analyzer",
 ]

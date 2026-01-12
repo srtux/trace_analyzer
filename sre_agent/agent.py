@@ -34,6 +34,8 @@ from .prompt import SRE_AGENT_PROMPT
 from .sub_agents import (
     # Trace analysis sub-agents
     aggregate_analyzer,
+    # Alert analysis sub-agents
+    alert_analyst,
     causality_analyzer,
     # New Sub-Agents
     change_detective,
@@ -100,6 +102,7 @@ from .tools import (
     find_structural_differences,
     # Remediation
     generate_remediation_suggestions,
+    get_alert,
     # GKE tools
     get_container_oom_events,
     get_current_time,
@@ -112,6 +115,9 @@ from .tools import (
     get_slo_status,
     get_trace_by_url,
     get_workload_health_summary,
+    list_alert_policies,
+    # Alerting tools
+    list_alerts,
     list_error_events,
     # GCP direct API tools
     list_log_entries,
@@ -119,6 +125,7 @@ from .tools import (
     list_slos,
     list_time_series,
     list_traces,
+    # SLO prediction
     # SLO prediction
     predict_slo_violation,
     query_promql,
@@ -518,6 +525,9 @@ base_tools: list[Any] = [
     list_log_entries,
     list_time_series,
     query_promql,
+    list_alerts,
+    get_alert,
+    list_alert_policies,
     list_error_events,
     get_logs_for_trace,
     get_current_time,
@@ -627,6 +637,7 @@ sre_agent = LlmAgent(
         log_analyst,
         # Metrics analysis sub-agents
         metrics_analyzer,
+        alert_analyst,
         # New Sub-Agents
         change_detective,
         resiliency_architect,
@@ -686,6 +697,7 @@ async def get_agent_with_mcp_tools() -> LlmAgent:
             log_analyst,
             # Metrics analysis sub-agents
             metrics_analyzer,
+            alert_analyst,
             change_detective,
             resiliency_architect,
         ],

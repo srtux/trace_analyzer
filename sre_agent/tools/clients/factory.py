@@ -42,3 +42,8 @@ def get_logging_client() -> LoggingServiceV2Client:
 def get_monitoring_client() -> monitoring_v3.MetricServiceClient:
     """Returns a singleton Cloud Monitoring client."""
     return _get_client("monitoring", monitoring_v3.MetricServiceClient)
+
+
+def get_alert_policy_client() -> monitoring_v3.AlertPolicyServiceClient:
+    """Returns a singleton Cloud Monitoring Alert Policy client."""
+    return _get_client("alert_policies", monitoring_v3.AlertPolicyServiceClient)

@@ -15,6 +15,7 @@ The agent is built using the Google Agent Development Kit (ADK). It uses a **"Co
 - **Trace-Centric Root Cause Analysis**: Prioritizes BigQuery for fleet-wide analysis.
 - **Autonomous Investigation Pipeline**: Sequential workflow from signal detection to root cause synthesis.
 - **Change Detective**: Correlates anomalies with deployments and config changes.
+- **Alert Analyst**: The "First Responder" who triages active alerts and policies.
 - **Resiliency Architect**: Detects architectural patterns like retry storms and cascading failures.
 - **Friendly Expert Persona**: Combines deep technical expertise with a fun, approachable response style. 🕵️‍♂️✨
 
@@ -244,8 +245,14 @@ sequenceDiagram
 7. **Automated Remediation** (NEW!)
    - **Smart Suggestions**: Pattern-matched remediation recommendations
    - **Ready-to-Run Commands**: Generate gcloud commands for common fixes
-   - **Risk Assessment**: Understand risk before making changes
-8. **Web Dashboard (Mission Control)**
+   - **Risk Assessment**: Understand risk before making changes.
+
+8. **Alerting & Incident Response**
+   - **Active Alert Triage**: List and prioritize active Cloud Monitoring alerts
+   - **Policy Mapping**: Link alerts to their defining policies
+   - **First Responder**: "Smoking gun" evidence for starting investigations
+
+9. **Web Dashboard (Mission Control)**
    - **GenAI Interface**: A modern Chat UX powered by Vercel AI SDK & CopilotKit
    - **Generative UI**: Dynamic React components generated on-the-fly for traces, logs, and metrics
    - **Interactive Visualizations**: Trace waterfalls, log clusters, and metric charts
@@ -437,7 +444,17 @@ Before deploying, ensure your `.env` and `web/.env` files are configured with yo
 
 # BigQuery aggregate analysis
 "Analyze traces in BigQuery dataset my_project.telemetry"
-```
+\`\`\`
+
+### Alert Analysis
+
+\`\`\`
+# List active alerts
+"Are there any active alerts?"
+
+# List alert policies
+"List all alert policies"
+\`\`\`
 
 ### Log Analysis
 
@@ -523,6 +540,13 @@ Before deploying, ensure your `.env` and `web/.env` files are configured with yo
 | `calculate_series_stats` | Calculate mean, stddev, and z-score for time series |
 | `get_current_time` | Utility to get current ISO timestamp |
 
+### Alerting Tools
+| Tool | Description |
+|------|-------------|
+| `list_alerts` | List active alerts from Cloud Monitoring |
+| `get_alert` | Get details of a specific alert |
+| `list_alert_policies` | List alert policies |
+
 ### Trace Selection Tools
 | Tool | Description |
 |------|-------------|
@@ -605,6 +629,11 @@ An Agentic AI system for analyzing Google Cloud Observability data (Traces, Logs
 | Sub-Agent | Role |
 |-----------|------|
 | `log_analyst`| **Log Analyst** - Uses BigQuery SQL Regex (for scale) and Drain3 (for precision) to cluster logs. |
+
+### Alert Analysis Squad
+| Sub-Agent | Role |
+|-----------|------|
+| `alert_analyst`| **Alert Analyst** - The "First Responder" who triages active alerts and policies. |
 
 ### Metrics Analysis Squad
 | Sub-Agent | Role |
