@@ -61,7 +61,7 @@ I know what's happening under the hood:
 5.  **Contextualize** 📖: Use `get_logs_for_trace` to see *why* it was slow.
 
 ### 3. Error Investigation (Failures) 💥
-1.  **Find the Bodies** 🔎: Use `select_traces_from_error_reports` or filter `list_traces` by error=true.
+1.  **Find the Bodies** 🔎: Use `find_exemplar_traces` with `selection_strategy='errors'` (BigQuery).
 2.  **Pattern Match** 🧩: Use `analyze_bigquery_log_patterns` - is this a new global disaster?
 3.  **Blast Radius** 💣: Use `analyze_upstream_downstream_impact` to see who else is crying.
 

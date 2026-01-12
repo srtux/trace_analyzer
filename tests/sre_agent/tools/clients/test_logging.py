@@ -1,6 +1,8 @@
 import json
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
 from sre_agent.tools.clients.logging import list_log_entries
 
 
@@ -13,7 +15,8 @@ def create_mock_page(entries, next_token=None):
 
 
 @patch("sre_agent.tools.clients.logging.get_logging_client")
-def test_list_log_entries_success_text_payload(mock_get_client):
+@pytest.mark.asyncio
+async def test_list_log_entries_success_text_payload(mock_get_client):
     mock_client = mock_get_client.return_value
 
     mock_entry = Mock(
@@ -41,7 +44,7 @@ def test_list_log_entries_success_text_payload(mock_get_client):
     mock_pager.pages = iter([mock_page])
     mock_client.list_log_entries.return_value = mock_pager
 
-    result = list_log_entries("my-project", "filter")
+    result = await list_log_entries("my-project", "filter")
     data = json.loads(result)
 
     assert "entries" in data
@@ -57,7 +60,8 @@ def test_list_log_entries_success_text_payload(mock_get_client):
 
 
 @patch("sre_agent.tools.clients.logging.get_logging_client")
-def test_list_log_entries_pagination(mock_get_client):
+@pytest.mark.asyncio
+async def test_list_log_entries_pagination(mock_get_client):
     mock_client = mock_get_client.return_value
 
     mock_pager = MagicMock()
@@ -65,12 +69,12 @@ def test_list_log_entries_pagination(mock_get_client):
     mock_pager.pages = iter([mock_page])
     mock_client.list_log_entries.return_value = mock_pager
 
-    result = list_log_entries("my-project", "filter", limit=5)
+    result = await list_log_entries("my-project", "filter", limit=5)
     data = json.loads(result)
 
     assert data["next_page_token"] == "token-abc"
 
-    list_log_entries("my-project", "filter", limit=5, page_token="token-abc")
+    await list_log_entries("my-project", "filter", limit=5, page_token="token-abc")
 
     call_args_list = mock_client.list_log_entries.call_args_list
     assert len(call_args_list) == 2
@@ -79,7 +83,8 @@ def test_list_log_entries_pagination(mock_get_client):
 
 
 @patch("sre_agent.tools.clients.logging.get_logging_client")
-def test_list_log_entries_json_payload(mock_get_client):
+@pytest.mark.asyncio
+async def test_list_log_entries_json_payload(mock_get_client):
     mock_client = mock_get_client.return_value
 
     mock_entry = Mock(
@@ -107,14 +112,15 @@ def test_list_log_entries_json_payload(mock_get_client):
     mock_pager.pages = iter([mock_page])
     mock_client.list_log_entries.return_value = mock_pager
 
-    result = list_log_entries("p", "f")
+    result = await list_log_entries("p", "f")
     data = json.loads(result)
 
     assert data["entries"][0]["payload"] == {"key": "value"}
 
 
 @patch("google.cloud.errorreporting_v1beta1.ErrorStatsServiceClient")
-def test_list_error_events_success(mock_client_cls):
+@pytest.mark.asyncio
+async def test_list_error_events_success(mock_client_cls):
     mock_client = mock_client_cls.return_value
 
     mock_event = Mock()
@@ -126,7 +132,7 @@ def test_list_error_events_success(mock_client_cls):
 
     from sre_agent.tools.clients.logging import list_error_events
 
-    result = list_error_events("p")
+    result = await list_error_events("p")
     data = json.loads(result)
 
     assert len(data) == 1
@@ -134,12 +140,13 @@ def test_list_error_events_success(mock_client_cls):
 
 
 @patch("google.cloud.errorreporting_v1beta1.ErrorStatsServiceClient")
-def test_list_error_events_error(mock_client_cls):
+@pytest.mark.asyncio
+async def test_list_error_events_error(mock_client_cls):
     mock_client = mock_client_cls.return_value
     mock_client.list_events.side_effect = Exception("fail")
 
     from sre_agent.tools.clients.logging import list_error_events
 
-    result = list_error_events("p")
+    result = await list_error_events("p")
     data = json.loads(result)
     assert "error" in data

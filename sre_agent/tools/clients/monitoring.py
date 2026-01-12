@@ -1,4 +1,13 @@
-"""Direct API client for Cloud Monitoring."""
+"""Direct API client for Cloud Monitoring.
+
+This module provides tools for fetching metrics via the Cloud Monitoring API.
+It allows the agent to:
+- List time series data (raw metrics).
+- Execute PromQL queries (Managed Prometheus).
+
+It is used primarily by the `metrics_analyzer` sub-agent to correlate metric spikes
+with trace data using Exemplars.
+"""
 
 import json
 import logging

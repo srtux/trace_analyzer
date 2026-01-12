@@ -1,4 +1,13 @@
-"""Log Analysis sub-agent configuration."""
+"""Log Analysis Sub-Agent ("The Log Whisperer").
+
+This sub-agent specializes in mining error patterns from massive log streams.
+Instead of reading logs one by one (which is inefficient), it uses a hierarchy
+of analysis tools:
+
+1.  **BigQuery Pattern Mining**: Clusters millions of logs into "Signatures" (e.g., "Connection refused to X").
+2.  **Drain3 Algorithms**: Extracts templates from raw log text for specific services.
+3.  **Cross-Signal Correlation**: Maps log clusters to Trace IDs.
+"""
 
 from google.adk.agents import LlmAgent
 

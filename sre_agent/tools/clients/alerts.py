@@ -1,4 +1,13 @@
-"""Direct API client for Cloud Monitoring Alerts."""
+"""Direct API client for Cloud Monitoring Alerts.
+
+This module allows the agent to interact with the Google Cloud Alerting API.
+It allows the agent to:
+- List active incidents (fires).
+- Inspect alert policies (why the fire started).
+- Retrieve full metadata about alert resources.
+
+This is the primary toolset for the `alert_analyst` sub-agent.
+"""
 
 import json
 import logging

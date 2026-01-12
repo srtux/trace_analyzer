@@ -1,4 +1,13 @@
-"""Change Detective sub-agent for correlating anomalies with deployments."""
+"""Change Detective Sub-Agent ("The Blame Game Champion").
+
+This sub-agent is obsessed with answering one question: "What changed?"
+It operates on the SRE truism that 85% of incidents are caused by recent changes.
+
+Workflow:
+1.  **Pinpoint**: Find the EXACT minute the anomaly started.
+2.  **Audit**: Scan Cloud Audit Logs for 'UpdateService', 'Deploy', 'SetIAM'.
+3.  **Indict**: Propose a "Suspect Change" that correlates perfectly with the failure.
+"""
 
 from google.adk.agents import LlmAgent
 

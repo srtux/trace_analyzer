@@ -1,23 +1,53 @@
 """SRE Agent - Google Cloud Observability Analysis Agent.
 
-This is the main agent for SRE tasks, specializing in analyzing telemetry data
-from Google Cloud Observability: traces, logs, and metrics.
+This is the main orchestration agent for SRE tasks, designed to analyze telemetry data
+from Google Cloud Observability (Traces, Logs, Metrics) to identify root causes of
+production issues.
 
-Capabilities:
+## Architecture: "Council of Experts"
 
-Trace Analysis (Multi-Stage Pipeline):
-- Stage 0 (Aggregate): BigQuery-powered analysis of thousands of traces
-- Stage 1 (Triage): Parallel analysis with 4 specialized sub-agents
-- Stage 2 (Deep Dive): Root cause and impact analysis
+The agent uses a "Council of Experts" orchestration pattern where a central
+**SRE Agent** delegates specialized tasks to domain-specific sub-agents.
 
-Log Analysis:
-- Pattern extraction using Drain3 algorithm
-- Time period comparison for anomaly detection
-- Smart message extraction from various payload formats
+### The 3-Stage Analysis Pipeline
 
-Metrics Analysis:
-- Direct API and MCP tools for Cloud Monitoring
-- PromQL queries for complex aggregations
+1.  **Stage 0: Aggregate Analysis (Data Analyst)**
+    -   **Sub-Agent**: `aggregate_analyzer`
+    -   **Goal**: Analyze thousands of traces in BigQuery to identify trends,
+        patterns, and outlier services without manual inspection.
+    -   **Output**: A list of "Exemplar Traces" (baselines and anomalies) to investigate.
+
+2.  **Stage 1: Triage (The Squad)**
+    -   **Goal**: Parallel inspection of specific traces to identify *what* is wrong.
+    -   **Sub-Agents**:
+        -   `latency_analyzer`: Finds critical path and bottlenecks.
+        -   `error_analyzer`: Diagnoses specific error codes and failure points.
+        -   `structure_analyzer`: Detects changes in call graph topology (e.g., new dependencies).
+        -   `statistics_analyzer`: Calculates z-scores and statistical significance of anomalies.
+        -   `resiliency_architect`: Detects anti-patterns like retry storms and cascading failures.
+
+3.  **Stage 2: Deep Dive (Root Cause)**
+    -   **Goal**: Synthesize findings to determine *why* it happened and *who* is impacted.
+    -   **Sub-Agents**:
+        -   `causality_analyzer`: Correlates traces, logs, and metrics to find the "smoking gun".
+        -   `service_impact_analyzer`: Assesses the "blast radius" (upstream/downstream impact).
+        -   `change_detective`: Correlates incidents with recent deployments or config changes.
+
+## Capabilities
+
+-   **Trace Analysis**: Full-spectrum analysis from aggregate BigQuery stats to individual span inspection.
+-   **Log Analysis**: Pattern extraction (Drain3), anomaly detection, and correlation with traces.
+-   **Metrics Analysis**: PromQL querying, anomaly detection, and cross-signal correlation.
+-   **SLO/SLI Support**: Error budget tracking, burn rate analysis, and violation prediction.
+-   **Kubernetes/GKE**: Cluster health, node pressure, and workload debugging.
+-   **Automated Remediation**: Actionable suggestions and risk-assessed gcloud commands.
+
+## Tooling Strategy
+
+The agent employs a hybrid tooling strategy:
+-   **MCP (Model Context Protocol)**: For heavy-lifting, stateful operations (BigQuery, complex queries).
+-   **Direct API Clients**: For low-latency, stateless operations (Trace fetching, light logging).
+-   **Analysis Engines**: Python-based logic for statistical analysis, graph traversal, and pattern matching.
 """
 
 import asyncio
@@ -129,11 +159,6 @@ from .tools import (
     # SLO prediction
     predict_slo_violation,
     query_promql,
-    # Trace selection tools
-    select_traces_from_error_reports,
-    select_traces_from_monitoring_alerts,
-    select_traces_from_statistical_outliers,
-    select_traces_manually,
     summarize_trace,
     validate_trace_quality,
 )
@@ -204,18 +229,24 @@ async def run_aggregate_analysis(
 ) -> dict[str, Any]:
     """Run Stage 0: Aggregate analysis using BigQuery.
 
-    This stage analyzes thousands of traces to identify patterns, trends,
-    and select exemplar traces for detailed investigation.
+    This is the entry point for fleet-wide analysis. It queries BigQuery telemetry tables
+    to find statistical anomalies across thousands of traces.
 
     Args:
-        dataset_id: BigQuery dataset ID (e.g., 'project.dataset')
-        table_name: Table name containing OTel traces
-        time_window_hours: Time window for analysis
-        service_name: Optional service filter
-        tool_context: ADK tool context
+        dataset_id: BigQuery dataset ID (e.g., 'your_project.telemetry_dataset').
+        table_name: Table name containing OTel spans (e.g., '_AllSpans').
+        time_window_hours: Lookback window in hours (default: 24).
+        service_name: Optional filter to restrict analysis to a specific service.
+        tool_context: ADK tool context (required for sub-agent execution).
 
     Returns:
-        Aggregate analysis results with recommended traces.
+        A dictionary containing:
+        - "stage": "aggregate"
+        - "status": "success" or "error"
+        - "result": The output from the `aggregate_analyzer` sub-agent, which typically includes:
+            - Detected high-latency or high-error-rate services.
+            - Trend analysis (did latency jump at a specific time?).
+            - Selected "Exemplar Traces" (trace IDs) for further investigation.
     """
     logger.info(f"Running aggregate analysis on {dataset_id}.{table_name}")
 
@@ -265,22 +296,37 @@ async def run_triage_analysis(
     project_id: str | None = None,
     tool_context: ToolContext | None = None,
 ) -> dict[str, Any]:
-    """Run Stage 1: Parallel triage analysis with 4 specialized sub-agents.
+    """Run Stage 1: Parallel triage analysis with the "Squad".
 
-    This stage compares two traces in parallel using:
-    - Latency Analyzer: Timing comparison
-    - Error Analyzer: Error detection
-    - Structure Analyzer: Call graph comparison
-    - Statistics Analyzer: Statistical anomaly detection
+    This stage executes multiple specialized sub-agents in parallel to analyze
+    specific traces. It acts as a "Council of Experts" where each agent looks
+    at the problem through a different lens.
+
+    Active Sub-Agents:
+    - **Latency Analyzer**: Identifies critical path and bottlenecks.
+    - **Error Analyzer**:  Investigates error codes, stack traces, and failure points.
+    - **Structure Analyzer**: Compares call graph topology (new/missing spans).
+    - **Statistics Analyzer**: Calculates z-scores and anomaly significance.
+    - **Resiliency Architect**: Checks for retry storms, timeouts, and cascading failures.
+    - **Log Analyst**: Checks for correlated log errors and anomalies.
 
     Args:
-        baseline_trace_id: ID of the reference (good) trace
-        target_trace_id: ID of the trace to investigate
-        project_id: GCP project ID (optional, uses env if not provided)
-        tool_context: ADK tool context
+        baseline_trace_id: ID of a "good" trace (reference baseline).
+        target_trace_id: ID of the "bad" trace (anomaly to investigate).
+        project_id: GCP project ID (optional, uses env if not provided).
+        tool_context: ADK tool context (required).
 
     Returns:
-        Combined results from all triage analyzers.
+        A dictionary containing combined results from all sub-agents:
+        {
+            "stage": "triage",
+            "results": {
+                "latency": {...},
+                "error": {...},
+                "structure": {...},
+                ...
+            }
+        }
     """
     if tool_context is None:
         raise ValueError("tool_context is required")
@@ -551,10 +597,6 @@ base_tools: list[Any] = [
     run_log_pattern_analysis,
     run_deep_dive_analysis,
     # Trace Selection tools
-    select_traces_from_error_reports,
-    select_traces_from_monitoring_alerts,
-    select_traces_from_statistical_outliers,
-    select_traces_manually,
     # Metrics analysis tools
     detect_metric_anomalies,
     compare_metric_windows,

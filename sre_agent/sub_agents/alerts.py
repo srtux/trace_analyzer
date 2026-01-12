@@ -1,4 +1,11 @@
-"""Alert Analyst sub-agent configuration."""
+"""Alert Analyst Sub-Agent ("The First Responder").
+
+This sub-agent acts as the initial triage interface for active incidents.
+Its goal is NOT to solve the problem, but to classify it rapidly:
+1.  **Triage**: Is the house on fire? (Critical vs Info).
+2.  **Context**: Which policy triggered this?
+3.  **Routing**: Who should investigate? (Latency -> Latency Analyzer, OOM -> GKE Tool).
+"""
 
 from google.adk.agents import LlmAgent
 

@@ -65,6 +65,7 @@ graph TD
 
         subgraph "Stage 0: Analysis"
             Aggregate["Aggregate Analyzer<br/>(Data Analyst)"]:::subagent
+            Alert["Alert Analyst<br/>(First Responder)"]:::subagent
         end
 
         subgraph "Stage 1: Triage (Parallel)"
@@ -72,11 +73,13 @@ graph TD
             Error[Error Detective]:::subagent
             Structure[Structure Mapper]:::subagent
             Statistics[Statistics Analyst]:::subagent
+            Resiliency[Resiliency Architect]:::subagent
         end
 
         subgraph "Stage 2: Deep Dive"
             Causality[Causality Expert]:::subagent
             Impact[Impact Assessor]:::subagent
+            Change[Change Detective]:::subagent
         end
 
         subgraph "Specialists"
@@ -87,8 +90,9 @@ graph TD
 
     %% Orchestration Flow
     RunAgg --> Aggregate
-    RunTriage --> Latency & Error & Structure & Statistics
-    RunDeep --> Causality & Impact
+    SRE_Agent --> Alert
+    RunTriage --> Latency & Error & Structure & Statistics & Resiliency
+    RunDeep --> Causality & Impact & Change
     RunLog --> LogPattern
     SRE_Agent -- "Direct Delegation" --> Metrics
 
@@ -100,6 +104,7 @@ graph TD
             TraceAPI[Cloud Trace API]:::tool
             LogAPI[Cloud Logging API]:::tool
             MonitorAPI[Cloud Monitoring API]:::tool
+            AlertAPI[Cloud Alerts API]:::tool
         end
 
         subgraph "Analysis Engines"
@@ -125,17 +130,20 @@ graph TD
 
     %% Tool Usage Connections
     Aggregate --> BigQuery & TraceAPI & Depend_Tools
+    Alert --> AlertAPI & MonitorAPI
     Latency --> TraceAPI & StatsEngine & Depend_Tools
     Error --> TraceAPI
     Structure --> GraphEngine & TraceAPI
     Statistics --> StatsEngine & TraceAPI
+    Resiliency --> GraphEngine & TraceAPI
     Causality --> TraceAPI & LogAPI & MonitorAPI & GraphEngine & Depend_Tools
     Impact --> GraphEngine & TraceAPI & Depend_Tools
+    Change --> LogAPI & MonitorAPI & StatsEngine
     LogPattern --> Drain3 & LogAPI
     Metrics --> MonitorAPI & MCP_Metrics & StatsEngine
 
     %% Main Agent Direct Tool Access
-    SRE_Agent --> TraceAPI & LogAPI & MonitorAPI
+    SRE_Agent --> TraceAPI & LogAPI & MonitorAPI & AlertAPI
     SRE_Agent --> MCP_BQ & MCP_Logs & MCP_Metrics
     SRE_Agent --> SLO_Tools & K8s_Tools & Remediation
 ```
@@ -548,13 +556,6 @@ Before deploying, ensure your `.env` and `web/.env` files are configured with yo
 | `get_alert` | Get details of a specific alert |
 | `list_alert_policies` | List alert policies |
 
-### Trace Selection Tools
-| Tool | Description |
-|------|-------------|
-| `select_traces_from_error_reports` | Discovery: find traces associated with recent Error Reporting events |
-| `select_traces_from_monitoring_alerts` | Discovery: find traces linked to Cloud Monitoring incidents |
-| `select_traces_from_statistical_outliers` | Discovery: find traces that are p99+ outliers for a service |
-| `select_traces_manually` | User-driven: select traces by specific criteria or list of IDs |
 
 ### Critical Path & Dependency Tools
 | Tool | Description |

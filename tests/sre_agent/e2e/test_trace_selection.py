@@ -55,10 +55,11 @@ def test_statistical_outlier_tool():
     pass
 
 
+@pytest.mark.asyncio
 @patch("sre_agent.tools.clients.trace.list_traces")
-def test_hybrid_selection_includes_stats(mock_list_traces):
+async def test_hybrid_selection_includes_stats(mock_list_traces):
     """Test hybrid selection returns statistics."""
-    # Mock return values
+    # Mock return values for async list_traces
     mock_list_traces.return_value = json.dumps(
         [
             {"trace_id": "t1", "duration_ms": 100, "project_id": "p1"},
@@ -72,7 +73,7 @@ def test_hybrid_selection_includes_stats(mock_list_traces):
     with patch(
         "sre_agent.tools.clients.trace._get_project_id", return_value="test-project"
     ):
-        result_json = find_example_traces(project_id="test-project")
+        result_json = await find_example_traces(project_id="test-project")
         result = json.loads(result_json)
 
     assert "stats" in result

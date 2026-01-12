@@ -75,8 +75,6 @@ from .analysis.trace.comparison import (
     find_structural_differences,
 )
 from .analysis.trace.filters import (
-    select_traces_from_error_reports,
-    select_traces_from_monitoring_alerts,
     select_traces_from_statistical_outliers,
     select_traces_manually,
 )
@@ -182,8 +180,6 @@ __all__ = [
     "find_structural_differences",
     "summarize_trace",
     "validate_trace_quality",
-    "select_traces_from_error_reports",
-    "select_traces_from_monitoring_alerts",
     "select_traces_from_statistical_outliers",
     "select_traces_manually",
     # Analysis - Logs

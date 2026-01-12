@@ -33,13 +33,10 @@ async def test_agent_initialization(mock_env):
     assert "run_triage_analysis" in tool_names
     assert "run_deep_dive_analysis" in tool_names
 
-    # Check for selection tools
-    assert "select_traces_from_error_reports" in tool_names
-    assert "select_traces_manually" in tool_names
 
-
+@pytest.mark.asyncio
 @patch("sre_agent.tools.clients.trace.trace_v1.TraceServiceClient")
-def test_agent_finds_logs_for_trace(mock_trace_client):
+async def test_agent_finds_logs_for_trace(mock_trace_client):
     """Test that agent can find logs for a specific trace."""
     from sre_agent.tools.clients.trace import list_traces
 
@@ -54,14 +51,16 @@ def test_agent_finds_logs_for_trace(mock_trace_client):
     mock_trace.project_id = "p"
 
     mock_span = MagicMock()
+    mock_span.name = "root"
     mock_span.start_time = datetime(2023, 1, 1, 12, 0, 0)
     mock_span.end_time = datetime(2023, 1, 1, 12, 0, 1)
+    mock_span.labels = {}
     mock_trace.spans = [mock_span]
 
     mock_client.list_traces.return_value = [mock_trace]
 
     # Run
-    result = list_traces("p", limit=1, min_latency_ms=500)
+    result = await list_traces("p", limit=1, min_latency_ms=500)
 
     # Verify request args
     call_args = mock_client.list_traces.call_args

@@ -30,8 +30,9 @@ def mock_logging_client():
 class TestFetchTrace:
     """Tests for fetch_trace function."""
 
+    @pytest.mark.asyncio
     @patch("sre_agent.tools.clients.trace.get_trace_client")
-    def test_fetch_trace_success(self, mock_get_client):
+    async def test_fetch_trace_success(self, mock_get_client):
         """Test successful trace fetch."""
         # Setup mock
         mock_client = MagicMock()
@@ -48,7 +49,7 @@ class TestFetchTrace:
         mock_client.get_trace.return_value = mock_trace
 
         # Execute
-        result_json = trace_client.fetch_trace(
+        result_json = await trace_client.fetch_trace(
             project_id="test-project", trace_id=trace_id
         )
 
@@ -58,8 +59,9 @@ class TestFetchTrace:
         assert result["trace_id"] == trace_id
         mock_client.get_trace.assert_called_once()
 
+    @pytest.mark.asyncio
     @patch("sre_agent.tools.clients.trace.get_trace_client")
-    def test_fetch_trace_with_invalid_trace_id(self, mock_get_client):
+    async def test_fetch_trace_with_invalid_trace_id(self, mock_get_client):
         """Test fetch trace with invalid trace ID."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
@@ -70,7 +72,7 @@ class TestFetchTrace:
         mock_client.get_trace.side_effect = exceptions.NotFound("Trace not found")
 
         # Execute
-        result_json = trace_client.fetch_trace(
+        result_json = await trace_client.fetch_trace(
             project_id="test-project", trace_id="invalid-trace-id"
         )
 
@@ -83,8 +85,9 @@ class TestFetchTrace:
 class TestListTraces:
     """Tests for list_traces function."""
 
+    @pytest.mark.asyncio
     @patch("sre_agent.tools.clients.trace.get_trace_client")
-    def test_list_traces_success(self, mock_get_client):
+    async def test_list_traces_success(self, mock_get_client):
         """Test successful trace listing."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
@@ -101,7 +104,9 @@ class TestListTraces:
         mock_client.list_traces.return_value = mock_traces
 
         # Execute
-        result_json = trace_client.list_traces(project_id="test-project", limit=10)
+        result_json = await trace_client.list_traces(
+            project_id="test-project", limit=10
+        )
 
         # Verify
         assert result_json is not None
@@ -109,8 +114,9 @@ class TestListTraces:
         assert len(result) <= 5
         mock_client.list_traces.assert_called_once()
 
+    @pytest.mark.asyncio
     @patch("sre_agent.tools.clients.trace.get_trace_client")
-    def test_list_traces_with_time_filter(self, mock_get_client):
+    async def test_list_traces_with_time_filter(self, mock_get_client):
         """Test trace listing with time filter."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
@@ -118,7 +124,7 @@ class TestListTraces:
         mock_client.list_traces.return_value = []
 
         # Execute with time filter
-        trace_client.list_traces(
+        await trace_client.list_traces(
             project_id="test-project",
             start_time="2024-01-01T00:00:00Z",
             end_time="2024-01-02T00:00:00Z",
@@ -132,8 +138,9 @@ class TestListTraces:
 class TestGetLogsForTrace:
     """Tests for get_logs_for_trace function."""
 
+    @pytest.mark.asyncio
     @patch("sre_agent.tools.clients.logging.get_logging_client")
-    def test_get_logs_for_trace_success(self, mock_get_client):
+    async def test_get_logs_for_trace_success(self, mock_get_client):
         """Test successful log retrieval for trace."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
@@ -169,7 +176,7 @@ class TestGetLogsForTrace:
         mock_client.list_log_entries.return_value = mock_pager
 
         # Execute
-        result_json = list_log_entries(
+        result_json = await list_log_entries(
             project_id="test-project",
             filter_str=f'trace="projects/test-project/traces/{trace_id}"',
         )
@@ -184,8 +191,9 @@ class TestGetLogsForTrace:
 class TestFindExampleTraces:
     """Tests for find_example_traces function."""
 
+    @pytest.mark.asyncio
     @patch("sre_agent.tools.clients.trace.get_trace_client")
-    def test_find_example_traces_with_error_filter(self, mock_get_client):
+    async def test_find_example_traces_with_error_filter(self, mock_get_client):
         """Test finding example traces with error filter."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
@@ -198,15 +206,18 @@ class TestFindExampleTraces:
             mock_trace.project_id = "test-project"
             # Give them some span to avoid duration errors
             mock_span = MagicMock()
+            mock_span.name = "root"
             mock_span.start_time.timestamp.return_value = 1000
+            mock_span.start_time.isoformat.return_value = "2024-01-01T00:00:00Z"
             mock_span.end_time.timestamp.return_value = 2000
+            mock_span.labels = {}
             mock_trace.spans = [mock_span]
             mock_traces.append(mock_trace)
 
         mock_client.list_traces.return_value = mock_traces
 
         # Execute
-        result_json = trace_client.find_example_traces(
+        result_json = await trace_client.find_example_traces(
             project_id="test-project", prefer_errors=True
         )
 
@@ -221,7 +232,8 @@ class TestFindExampleTraces:
 class TestGetTraceByURL:
     """Tests for get_trace_by_url function."""
 
-    def test_extract_trace_id_from_url(self):
+    @pytest.mark.asyncio
+    async def test_extract_trace_id_from_url(self):
         """Test extracting trace ID from Cloud Console URL."""
         # Use a long enough hex string to satisfy the fallback parser if needed,
         # but here we test the 'trace-details' part.
@@ -233,18 +245,19 @@ class TestGetTraceByURL:
                 {"trace_id": "4fb09ce68979116e0ca143d225695000"}
             )
 
-            trace_client.get_trace_by_url(url)
+            await trace_client.get_trace_by_url(url)
 
             # Verify trace was fetched with correct ID
             mock_fetch.assert_called_once()
             args, _kwargs = mock_fetch.call_args
             assert args[1] == "4fb09ce68979116e0ca143d225695000"
 
-    def test_get_trace_by_url_invalid_url(self):
+    @pytest.mark.asyncio
+    async def test_get_trace_by_url_invalid_url(self):
         """Test handling of invalid URL."""
         invalid_url = "https://example.com/invalid"
 
-        result_json = trace_client.get_trace_by_url(invalid_url)
+        result_json = await trace_client.get_trace_by_url(invalid_url)
         result = json.loads(result_json)
         assert "error" in result
 
@@ -252,8 +265,9 @@ class TestGetTraceByURL:
 class TestListErrorEvents:
     """Tests for list_error_events function."""
 
+    @pytest.mark.asyncio
     @patch("google.cloud.errorreporting_v1beta1.ErrorStatsServiceClient")
-    def test_list_error_events_success(self, mock_client_class):
+    async def test_list_error_events_success(self, mock_client_class):
         """Test successful error event listing."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
@@ -271,7 +285,7 @@ class TestListErrorEvents:
         mock_client.list_events.return_value = mock_events
 
         # Execute
-        result_json = list_error_events(project_id="test-project", minutes_ago=60)
+        result_json = await list_error_events(project_id="test-project", minutes_ago=60)
 
         # Verify
         assert result_json is not None
@@ -283,8 +297,9 @@ class TestListErrorEvents:
 class TestListLogEntries:
     """Tests for list_log_entries function."""
 
+    @pytest.mark.asyncio
     @patch("sre_agent.tools.clients.logging.get_logging_client")
-    def test_list_log_entries_success(self, mock_get_client):
+    async def test_list_log_entries_success(self, mock_get_client):
         """Test successful log entry listing."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
@@ -316,7 +331,7 @@ class TestListLogEntries:
         mock_client.list_log_entries.return_value = mock_pager
 
         # Execute
-        result_json = list_log_entries(
+        result_json = await list_log_entries(
             project_id="test-project", filter_str='severity="ERROR"', limit=10
         )
 
@@ -330,9 +345,12 @@ class TestListLogEntries:
 class TestIntegration:
     """Integration tests for trace client tools."""
 
+    @pytest.mark.asyncio
     @patch("sre_agent.tools.clients.trace.get_trace_client")
     @patch("sre_agent.tools.clients.logging.get_logging_client")
-    def test_fetch_trace_and_logs_workflow(self, mock_get_logging, mock_get_trace):
+    async def test_fetch_trace_and_logs_workflow(
+        self, mock_get_logging, mock_get_trace
+    ):
         """Test complete workflow of fetching trace and its logs."""
         # Setup trace mock
         trace_id = generate_trace_id()
@@ -364,11 +382,11 @@ class TestIntegration:
         mock_get_logging.return_value.list_log_entries.return_value = mock_pager
 
         # Execute workflow
-        trace_result = trace_client.fetch_trace(
+        trace_result = await trace_client.fetch_trace(
             project_id="test-project", trace_id=trace_id
         )
 
-        log_result = list_log_entries(
+        log_result = await list_log_entries(
             project_id="test-project",
             filter_str=f'trace="projects/test-project/traces/{trace_id}"',
         )
@@ -407,3 +425,14 @@ class TestIntegration:
             assert "logName" in entry
             assert "timestamp" in entry
             assert "severity" in entry
+
+
+def test_fetch_trace_data_uses_sync_impl():
+    """Verify that fetch_trace_data uses the synchronous implementation."""
+    from sre_agent.tools.clients.trace import fetch_trace_data
+
+    with patch(
+        "sre_agent.tools.clients.trace._fetch_trace_sync", return_value="{}"
+    ) as mock_sync:
+        fetch_trace_data("12345", "test-project")
+        mock_sync.assert_called_once_with("test-project", "12345")

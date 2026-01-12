@@ -1,7 +1,11 @@
-"""Metrics analysis sub-agents for the SRE Agent.
+"""Metrics Analysis Sub-Agent ("The Metrics Maestro").
 
-Specialized agents for intelligent metrics analysis:
-- metrics_analyzer: Analyzes time-series data for anomalies and trends
+This sub-agent is responsible for all time-series analysis. It follows a strict
+workflow to ensure precise and actionable findings:
+
+1.  **Quantify**: Measure the magnitude of the problem using PromQL (RATES are king!).
+2.  **Correlate**: Use Exemplars to jump from a Metric Spike -> Trace ID.
+3.  **Contextualize**: Compare current metrics with historical baselines.
 """
 
 from google.adk.agents import LlmAgent

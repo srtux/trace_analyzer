@@ -1,4 +1,14 @@
-"""Discovery tool for BigQuery telemetry sources using MCP."""
+"""Discovery tool for BigQuery telemetry sources using MCP.
+
+This tool acts as the "Entry Point" for Stage 0 analysis. It intelligently scans
+the project's BigQuery datasets to find the standard Cloud Observability export tables:
+- `_AllSpans`: For trace data.
+- `_AllLogs`: For log data.
+
+It bridges the gap between the agent knowing *what* to query and *where* to query it.
+If BigQuery tables are not found, it signals to the agent to fall back to the direct
+Trace/Logging APIs (which are slower for aggregate analysis but always available).
+"""
 
 import logging
 from typing import Any

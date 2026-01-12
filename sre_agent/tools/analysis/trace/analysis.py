@@ -1,4 +1,15 @@
-"""Trace analysis utilities for span-level analysis."""
+"""Span-level Trace Analysis Tools.
+
+This module contains the core logic for inspecting the internal structure of traces.
+These tools are "pure functions" that take a trace ID, fetch the data, and return
+derived insights. They are heavily used by the Stage 1 Triage Agents.
+
+Key Functions:
+- `calculate_span_durations`: The raw timing data (Statement of Facts).
+- `extract_errors`: The forensics report (What broke?).
+- `build_call_graph`: The structural blueprint (Who called whom?).
+- `validate_trace_quality`: The quality assurance check (Is this data junk?).
+"""
 
 import logging
 import time

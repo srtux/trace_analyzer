@@ -1,4 +1,14 @@
-"""BigQuery Client wrapper using MCP."""
+"""BigQuery Client wrapper using Model Context Protocol (MCP).
+
+This client acts as a bridge to the BigQuery MCP server. Instead of using the
+Google Cloud BigQuery client library directly in this process, it delegates
+SQL execution and schema inspection to the MCP server.
+
+This architecture allows:
+- **Separation of Concerns**: The MCP server handles connection pooling and auth.
+- **Sandboxing**: The agent integration is lightweight and stateless.
+- **Consistency**: All BigQuery operations go through the same controlled interface.
+"""
 
 import logging
 from typing import Any, cast

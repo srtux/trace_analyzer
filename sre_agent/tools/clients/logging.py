@@ -1,4 +1,16 @@
-"""Direct API client for Cloud Logging and Error Reporting."""
+"""Direct API client for Cloud Logging and Error Reporting.
+
+This module provides lightweight, synchronous wrappers around the Google Cloud Logging
+and Error Reporting client libraries. Unlike the MCP-based tools (which are stateful
+and run in a separate server process), these tools are designed for low-latency
+direct access to the APIs, ideal for:
+- Fetching small batches of logs for a specific trace.
+- Listing recent error events.
+- Creating ephemeral log queries.
+
+Note: These functions are wrapped with `@adk_tool` for agent exposure, but they
+execute locally within the agent's process (via threadpool for async compatibility).
+"""
 
 import json
 import logging
@@ -79,25 +91,7 @@ def _list_log_entries_sync(
 
             if first_page:
                 for entry in first_page.entries:
-                    # Handle payload fields safely
-                    payload_data: str | dict[str, Any] | None = None
-                    # Check for standard payload fields in GAPIC objects
-                    if entry.text_payload:
-                        payload_data = entry.text_payload
-                    elif hasattr(entry, "json_payload") and entry.json_payload:
-                        # Convert Proto Struct/Map to dict
-                        try:
-                            payload_data = dict(entry.json_payload)
-                        except (ValueError, TypeError):
-                            payload_data = str(entry.json_payload)
-                    elif hasattr(entry, "proto_payload") and entry.proto_payload:
-                        payload_data = f"[ProtoPayload] {entry.proto_payload.type_url}"
-                    else:
-                        payload_data = ""
-
-                    # Truncate if string and too long
-                    if isinstance(payload_data, str) and len(payload_data) > 2000:
-                        payload_data = payload_data[:2000] + "...(truncated)"
+                    payload_data = _extract_log_payload(entry)
 
                     results.append(
                         {
@@ -194,3 +188,26 @@ def get_logs_for_trace(project_id: str, trace_id: str, limit: int = 100) -> str:
     filter_str = f'trace="projects/{project_id}/traces/{trace_id}"'
 
     return _list_log_entries_sync(project_id, filter_str, limit)
+
+
+def _extract_log_payload(entry: Any) -> str | dict[str, Any]:
+    """Extracts and normalizes payload from a log entry."""
+    payload_data: str | dict[str, Any] | None = None
+
+    if entry.text_payload:
+        payload_data = entry.text_payload
+    elif hasattr(entry, "json_payload") and entry.json_payload:
+        try:
+            payload_data = dict(entry.json_payload)
+        except (ValueError, TypeError):
+            payload_data = str(entry.json_payload)
+    elif hasattr(entry, "proto_payload") and entry.proto_payload:
+        payload_data = f"[ProtoPayload] {entry.proto_payload.type_url}"
+    else:
+        payload_data = ""
+
+    # Truncate if string and too long
+    if isinstance(payload_data, str) and len(payload_data) > 2000:
+        payload_data = payload_data[:2000] + "...(truncated)"
+
+    return payload_data

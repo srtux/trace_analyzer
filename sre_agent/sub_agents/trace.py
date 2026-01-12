@@ -1,9 +1,20 @@
-"""Trace analysis sub-agents for the SRE Agent.
+"""Trace analysis sub-agents for the SRE Agent ("The Council of Experts").
 
-These sub-agents work together in a multi-stage pipeline:
-- Stage 0: Aggregate analysis (BigQuery)
-- Stage 1: Triage (4 parallel analyzers)
-- Stage 2: Deep dive (2 parallel analyzers)
+This module attempts to codify SRE expertise into distinct "personas" or sub-agents,
+each with a specific focus and set of tools. They work together in a multi-stage pipeline:
+
+Stage 0: Aggregate Analysis (The Data Analyst)
+- `aggregate_analyzer`: Uses BigQuery to analyze thousands of traces. Finds trends.
+
+Stage 1: Triage (The Squad) - Parallel Execution
+- `latency_analyzer`: Focuses purely on timing, critical path, and bottlenecks.
+- `error_analyzer`: Focuses on failure forensics and error correlations.
+- `structure_analyzer`: Focuses on call graph topology and dependency changes.
+- `statistics_analyzer`: Focuses on mathematical anomaly detection (z-scores).
+
+Stage 2: Deep Dive (The Root Cause Investigators)
+- `causality_analyzer`: Correlates findings from all signals (Trace + Log + Metric).
+- `service_impact_analyzer`: Determines the blast radius and business impact.
 """
 
 from google.adk.agents import LlmAgent
@@ -242,7 +253,6 @@ aggregate_analyzer = LlmAgent(
         detect_trend_changes,
         correlate_logs_with_trace,
         correlate_metrics_with_traces_via_exemplars,
-        find_bottleneck_services,
         find_bottleneck_services,
         build_service_dependency_graph,
         discover_telemetry_sources,

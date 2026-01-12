@@ -12,24 +12,6 @@ logger = logging.getLogger(__name__)
 class TraceSelector:
     """Provides different strategies for selecting traces for analysis."""
 
-    def from_error_reports(self, project_id: str) -> list[str]:
-        """Selects traces associated with recent error reports.
-
-        (Placeholder - requires Error Reporting API client).
-        """
-        # TODO: Implement trace selection from error reports
-        logger.warning("Trace selection from error reports is not yet implemented.")
-        return []
-
-    def from_monitoring_alerts(self, project_id: str) -> list[str]:
-        """Selects traces associated with active monitoring alerts.
-
-        (Placeholder - requires Monitoring API client).
-        """
-        # TODO: Implement trace selection from monitoring alerts
-        logger.warning("Trace selection from monitoring alerts is not yet implemented.")
-        return []
-
     def from_statistical_outliers(self, traces: list[dict[str, Any]]) -> list[str]:
         """Selects traces that are statistical outliers based on latency.
 
@@ -53,34 +35,6 @@ class TraceSelector:
     def from_manual_override(self, trace_ids: list[str]) -> list[str]:
         """Allows manually specifying a list of trace IDs."""
         return trace_ids
-
-
-@adk_tool
-def select_traces_from_error_reports(project_id: str) -> list[str]:
-    """Selects traces to analyze based on recent error reports.
-
-    Args:
-        project_id: The Google Cloud project ID.
-
-    Returns:
-        A list of trace IDs.
-    """
-    selector = TraceSelector()
-    return selector.from_error_reports(project_id)
-
-
-@adk_tool
-def select_traces_from_monitoring_alerts(project_id: str) -> list[str]:
-    """Selects traces to analyze based on active monitoring alerts.
-
-    Args:
-        project_id: The Google Cloud project ID.
-
-    Returns:
-        A list of trace IDs.
-    """
-    selector = TraceSelector()
-    return selector.from_monitoring_alerts(project_id)
 
 
 @adk_tool

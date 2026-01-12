@@ -1,10 +1,15 @@
-"""GKE (Google Kubernetes Engine) client for Kubernetes-specific debugging.
+"""GKE (Google Kubernetes Engine) Forensics Client.
 
-This module provides tools for:
-- Pod status and container health analysis
-- Node pressure and resource conditions
-- HPA (Horizontal Pod Autoscaler) events and decisions
-- Workload troubleshooting
+This module provides specialized tools for debugging Kubernetes clusters
+without needing `kubectl` access. It uses the Cloud Monitoring and Container APIs
+to infer cluster state.
+
+Capabilities:
+- **Health Checks**: Cluster status, node versions, and maintenance windows.
+- **Node Pressure**: CPU/Mem/Disk pressure detection without SSH access.
+- **Pod Forensics**: Restart loop detection (CrashLoopBackOff analysis).
+- **HPA Analysis**: Autoscaler decision auditing (thrashing, maxed out).
+- **OOM Detection**: Finding containers that were killed by memory limits.
 
 Kubernetes Wisdom: "Cattle, not pets" - but we still care when the herd is sick!
 """
