@@ -1,11 +1,17 @@
-# SRE Agent
+# Auto SRE
 
-[![Status](https://img.shields.io/badge/Status-Active-success)]()
+[![Status](https://img.shields.io/badge/Status-Experimental-orange)]()
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)]()
 [![Framework](https://img.shields.io/badge/Framework-Google%20ADK-red)]()
+[![Frontend](https://img.shields.io/badge/Frontend-Flutter-02569B)]()
 [![GCP](https://img.shields.io/badge/Google%20Cloud-Native-4285F4)]()
+[![Code Style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
+[![Tests](https://img.shields.io/badge/Tests-Passing-success)]()
 
-**The world's most comprehensive SRE Agent for Google Cloud.** An ADK-based agent for analyzing telemetry data from Google Cloud Observability: **traces**, **logs**, **metrics**, **SLOs**, and **Kubernetes workloads**. Features include SLO/SLI framework integration, GKE debugging, and automated remediation suggestions.
+**Auto SRE is an experimental SRE Agent for Google Cloud.** It analyzes telemetry data from Google Cloud Observability: **traces**, **logs**, **metrics**.
 
 ## Architecture
 
