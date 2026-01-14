@@ -110,19 +110,29 @@ class _MetricCorrelationChartState extends State<MetricCorrelationChart>
     final sortedValues = List<double>.from(values)..sort();
 
     final anomalyCount = sortedPoints.where((p) => p.isAnomaly).length;
-    final maxValue = sortedValues.last;
-    final minValue = sortedValues.first;
-    final avgValue = values.reduce((a, b) => a + b) / values.length;
+    final maxValue = sortedValues.isNotEmpty ? sortedValues.last : 0.0;
+    final minValue = sortedValues.isNotEmpty ? sortedValues.first : 0.0;
+    final avgValue = values.isNotEmpty ? values.reduce((a, b) => a + b) / values.length : 0.0;
     final p95Value = _calculatePercentile(sortedValues, 95);
     final p50Value = _calculatePercentile(sortedValues, 50);
 
     final movingAvg = _calculateMovingAverage(sortedPoints, 5);
     final anomalyRegions = _findAnomalyRegions(sortedPoints);
 
-    // Determine trend
-    final firstHalfAvg = values.sublist(0, values.length ~/ 2).reduce((a, b) => a + b) / (values.length ~/ 2);
-    final secondHalfAvg = values.sublist(values.length ~/ 2).reduce((a, b) => a + b) / (values.length - values.length ~/ 2);
-    final trendPercent = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg * 100);
+    // Determine trend (safely handle small datasets)
+    double trendPercent = 0.0;
+    if (values.length >= 2) {
+      final halfIdx = values.length ~/ 2;
+      if (halfIdx > 0) {
+        final firstHalf = values.sublist(0, halfIdx);
+        final secondHalf = values.sublist(halfIdx);
+        final firstHalfAvg = firstHalf.reduce((a, b) => a + b) / firstHalf.length;
+        final secondHalfAvg = secondHalf.reduce((a, b) => a + b) / secondHalf.length;
+        if (firstHalfAvg != 0) {
+          trendPercent = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg * 100);
+        }
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -604,12 +614,13 @@ class _SparklinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (points.isEmpty) return;
+    if (points.isEmpty || points.length < 2) return;
 
     final values = points.map((p) => p.value).toList();
     final minVal = values.reduce(math.min);
     final maxVal = values.reduce(math.max);
     final range = maxVal - minVal;
+    if (range == 0 && maxVal == 0) return; // Skip if all values are zero
 
     // Draw background
     final bgPaint = Paint()..color = Colors.white.withValues(alpha: 0.03);

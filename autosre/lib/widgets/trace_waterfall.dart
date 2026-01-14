@@ -73,6 +73,8 @@ class _TraceWaterfallState extends State<TraceWaterfall>
     if (widget.trace.spans.isEmpty) {
       _flattenedNodes = [];
       _criticalPathSpanIds = {};
+      _traceStart = DateTime.now();
+      _totalDuration = 0;
       return;
     }
 
@@ -81,9 +83,16 @@ class _TraceWaterfallState extends State<TraceWaterfall>
       ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
     _traceStart = sortedSpans.first.startTime;
-    final traceEnd = sortedSpans.map((s) => s.endTime).reduce(
-        (a, b) => a.isAfter(b) ? a : b);
+    // Safely find max end time
+    DateTime traceEnd = _traceStart;
+    for (final span in sortedSpans) {
+      if (span.endTime.isAfter(traceEnd)) {
+        traceEnd = span.endTime;
+      }
+    }
     _totalDuration = traceEnd.difference(_traceStart).inMicroseconds;
+    // Ensure non-zero duration for proper rendering
+    if (_totalDuration <= 0) _totalDuration = 1;
 
     // Build parent-child map
     final Map<String?, List<SpanInfo>> childrenMap = {};
@@ -240,16 +249,35 @@ class _TraceWaterfallState extends State<TraceWaterfall>
         const SizedBox(height: 8),
         _buildTimeRuler(),
         Expanded(
-          child: AnimatedBuilder(
-            animation: _animation,
-            builder: (context, child) {
-              return ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.only(bottom: 16),
-                itemCount: _flattenedNodes.length,
-                itemBuilder: (context, index) {
-                  return _buildSpanRow(_flattenedNodes[index], index);
-                },
+          // Use ListView.builder directly for better performance
+          // Animation is handled per-row with staggered delays
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.only(bottom: 16),
+            itemCount: _flattenedNodes.length,
+            // Use itemExtent for better scrolling performance with many items
+            itemExtent: _flattenedNodes.length > 100 ? 34.0 : null,
+            // Cache extent for smoother scrolling
+            cacheExtent: 500,
+            itemBuilder: (context, index) {
+              return _SpanRowWidget(
+                key: ValueKey(_flattenedNodes[index].span.spanId),
+                node: _flattenedNodes[index],
+                index: index,
+                totalNodes: _flattenedNodes.length,
+                animation: _animation,
+                traceStart: _traceStart,
+                totalDuration: _totalDuration,
+                serviceColors: _serviceColors,
+                criticalPathSpanIds: _criticalPathSpanIds,
+                selectedSpanId: _selectedSpan?.spanId,
+                hoveredIndex: _hoveredIndex,
+                onTap: (span) => setState(() {
+                  _selectedSpan = _selectedSpan?.spanId == span.spanId ? null : span;
+                }),
+                onHover: (index) => setState(() => _hoveredIndex = index),
+                onToggle: () => _toggleNode(_flattenedNodes[index]),
+                extractServiceName: _extractServiceName,
               );
             },
           ),
@@ -408,192 +436,6 @@ class _TraceWaterfallState extends State<TraceWaterfall>
             tickInterval: tickInterval,
           ),
           child: Container(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSpanRow(_SpanNode node, int index) {
-    final span = node.span;
-    final offsetMicros = span.startTime.difference(_traceStart).inMicroseconds;
-    final durationMicros = span.duration.inMicroseconds;
-
-    double startPercent = offsetMicros / _totalDuration;
-    double widthPercent = durationMicros / _totalDuration;
-    if (widthPercent < 0.015) widthPercent = 0.015;
-
-    final isHovered = _hoveredIndex == index;
-    final isSelected = _selectedSpan?.spanId == span.spanId;
-    final isError = span.status == 'ERROR';
-    final service = _extractServiceName(span.name);
-    final serviceColor = _serviceColors[service] ?? AppColors.primaryTeal;
-
-    final staggerDelay = index / _flattenedNodes.length;
-    final animValue = ((_animation.value - staggerDelay * 0.5) / 0.5).clamp(0.0, 1.0);
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hoveredIndex = index),
-      onExit: (_) => setState(() => _hoveredIndex = null),
-      child: GestureDetector(
-        onTap: () => setState(() {
-          _selectedSpan = _selectedSpan?.spanId == span.spanId ? null : span;
-        }),
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 150),
-          opacity: animValue,
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? serviceColor.withValues(alpha: 0.12)
-                  : isHovered
-                      ? Colors.white.withValues(alpha: 0.04)
-                      : node.isOnCriticalPath
-                          ? AppColors.warning.withValues(alpha: 0.05)
-                          : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-              border: isSelected ? Border.all(color: serviceColor.withValues(alpha: 0.3)) : null,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-              child: Row(
-                children: [
-                  // Indentation + expand button
-                  SizedBox(
-                    width: 24.0 * node.depth + 24,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (node.children.isNotEmpty)
-                          GestureDetector(
-                            onTap: () => _toggleNode(node),
-                            child: AnimatedRotation(
-                              duration: const Duration(milliseconds: 200),
-                              turns: node.isExpanded ? 0.25 : 0,
-                              child: Icon(Icons.chevron_right, size: 16, color: AppColors.textMuted),
-                            ),
-                          )
-                        else
-                          const SizedBox(width: 16),
-                      ],
-                    ),
-                  ),
-
-                  // Span name with service color indicator
-                  SizedBox(
-                    width: 160,
-                    child: Row(
-                      children: [
-                        // Critical path indicator
-                        if (node.isOnCriticalPath)
-                          Container(
-                            width: 3,
-                            height: 16,
-                            margin: const EdgeInsets.only(right: 6),
-                            decoration: BoxDecoration(
-                              color: AppColors.warning,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        // Status icon
-                        Icon(
-                          isError ? Icons.cancel : Icons.check_circle,
-                          size: 12,
-                          color: isError ? AppColors.error : serviceColor,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Tooltip(
-                            message: span.name,
-                            child: Text(
-                              span.name,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isError ? AppColors.error : AppColors.textSecondary,
-                                fontWeight: isSelected || node.isOnCriticalPath ? FontWeight.w500 : null,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Timeline bar
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final barWidth = constraints.maxWidth * widthPercent * animValue;
-                        final barOffset = constraints.maxWidth * startPercent;
-
-                        return Stack(
-                          children: [
-                            // Background track
-                            Container(
-                              height: 20,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.02),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
-                            // Span bar
-                            Positioned(
-                              left: barOffset,
-                              child: Tooltip(
-                                message: '${span.name}\nDuration: ${span.duration.inMilliseconds}ms\nStatus: ${span.status}',
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 150),
-                                  height: 20,
-                                  width: barWidth.clamp(6.0, constraints.maxWidth - barOffset),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: isError
-                                          ? [AppColors.error, AppColors.error.withValues(alpha: 0.7)]
-                                          : node.isOnCriticalPath
-                                              ? [AppColors.warning, AppColors.warning.withValues(alpha: 0.8)]
-                                              : [serviceColor, serviceColor.withValues(alpha: 0.7)],
-                                    ),
-                                    borderRadius: BorderRadius.circular(3),
-                                    boxShadow: (isHovered || isSelected)
-                                        ? [BoxShadow(color: (isError ? AppColors.error : serviceColor).withValues(alpha: 0.4), blurRadius: 8)]
-                                        : null,
-                                  ),
-                                  child: barWidth > 40
-                                      ? Center(
-                                          child: Text(
-                                            '${span.duration.inMilliseconds}ms',
-                                            style: TextStyle(fontSize: 9, color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w500),
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-
-                  // Duration
-                  SizedBox(
-                    width: 60,
-                    child: Text(
-                      '${span.duration.inMilliseconds}ms',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontFamily: 'monospace',
-                        color: isError ? AppColors.error : node.isOnCriticalPath ? AppColors.warning : AppColors.textMuted,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ),
       ),
     );
@@ -776,4 +618,228 @@ class _TimeRulerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Optimized span row widget with its own animation listener
+/// This prevents rebuilding all rows when the animation updates
+class _SpanRowWidget extends AnimatedWidget {
+  final _SpanNode node;
+  final int index;
+  final int totalNodes;
+  final DateTime traceStart;
+  final int totalDuration;
+  final Map<String, Color> serviceColors;
+  final Set<String> criticalPathSpanIds;
+  final String? selectedSpanId;
+  final int? hoveredIndex;
+  final Function(SpanInfo) onTap;
+  final Function(int?) onHover;
+  final VoidCallback onToggle;
+  final String Function(String) extractServiceName;
+
+  const _SpanRowWidget({
+    super.key,
+    required this.node,
+    required this.index,
+    required this.totalNodes,
+    required Animation<double> animation,
+    required this.traceStart,
+    required this.totalDuration,
+    required this.serviceColors,
+    required this.criticalPathSpanIds,
+    required this.selectedSpanId,
+    required this.hoveredIndex,
+    required this.onTap,
+    required this.onHover,
+    required this.onToggle,
+    required this.extractServiceName,
+  }) : super(listenable: animation);
+
+  Animation<double> get _animation => listenable as Animation<double>;
+
+  @override
+  Widget build(BuildContext context) {
+    final span = node.span;
+    final offsetMicros = span.startTime.difference(traceStart).inMicroseconds;
+    final durationMicros = span.duration.inMicroseconds;
+
+    double startPercent = totalDuration > 0 ? offsetMicros / totalDuration : 0;
+    double widthPercent = totalDuration > 0 ? durationMicros / totalDuration : 0.1;
+    if (widthPercent < 0.015) widthPercent = 0.015;
+
+    final isHovered = hoveredIndex == index;
+    final isSelected = selectedSpanId == span.spanId;
+    final isError = span.status == 'ERROR';
+    final service = extractServiceName(span.name);
+    final serviceColor = serviceColors[service] ?? AppColors.primaryTeal;
+
+    // Calculate staggered animation value
+    final staggerDelay = totalNodes > 0 ? index / totalNodes : 0.0;
+    final animValue = ((_animation.value - staggerDelay * 0.5) / 0.5).clamp(0.0, 1.0);
+
+    return MouseRegion(
+      onEnter: (_) => onHover(index),
+      onExit: (_) => onHover(null),
+      child: GestureDetector(
+        onTap: () => onTap(span),
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 150),
+          opacity: animValue,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? serviceColor.withValues(alpha: 0.12)
+                  : isHovered
+                      ? Colors.white.withValues(alpha: 0.04)
+                      : node.isOnCriticalPath
+                          ? AppColors.warning.withValues(alpha: 0.05)
+                          : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+              border: isSelected ? Border.all(color: serviceColor.withValues(alpha: 0.3)) : null,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+              child: Row(
+                children: [
+                  // Indentation + expand button
+                  SizedBox(
+                    width: 24.0 * node.depth + 24,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (node.children.isNotEmpty)
+                          GestureDetector(
+                            onTap: onToggle,
+                            child: AnimatedRotation(
+                              duration: const Duration(milliseconds: 200),
+                              turns: node.isExpanded ? 0.25 : 0,
+                              child: Icon(Icons.chevron_right, size: 16, color: AppColors.textMuted),
+                            ),
+                          )
+                        else
+                          const SizedBox(width: 16),
+                      ],
+                    ),
+                  ),
+
+                  // Span name with service color indicator
+                  SizedBox(
+                    width: 160,
+                    child: Row(
+                      children: [
+                        // Critical path indicator
+                        if (node.isOnCriticalPath)
+                          Container(
+                            width: 3,
+                            height: 16,
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        // Status icon
+                        Icon(
+                          isError ? Icons.cancel : Icons.check_circle,
+                          size: 12,
+                          color: isError ? AppColors.error : serviceColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Tooltip(
+                            message: span.name,
+                            child: Text(
+                              span.name,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isError ? AppColors.error : AppColors.textSecondary,
+                                fontWeight: isSelected || node.isOnCriticalPath ? FontWeight.w500 : null,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Timeline bar
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final barWidth = constraints.maxWidth * widthPercent * animValue;
+                        final barOffset = constraints.maxWidth * startPercent;
+
+                        return Stack(
+                          children: [
+                            // Background track
+                            Container(
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.02),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            // Span bar
+                            Positioned(
+                              left: barOffset,
+                              child: Tooltip(
+                                message: '${span.name}\nDuration: ${span.duration.inMilliseconds}ms\nStatus: ${span.status}',
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  height: 20,
+                                  width: barWidth.clamp(6.0, constraints.maxWidth - barOffset),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: isError
+                                          ? [AppColors.error, AppColors.error.withValues(alpha: 0.7)]
+                                          : node.isOnCriticalPath
+                                              ? [AppColors.warning, AppColors.warning.withValues(alpha: 0.8)]
+                                              : [serviceColor, serviceColor.withValues(alpha: 0.7)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(3),
+                                    boxShadow: (isHovered || isSelected)
+                                        ? [BoxShadow(color: (isError ? AppColors.error : serviceColor).withValues(alpha: 0.4), blurRadius: 8)]
+                                        : null,
+                                  ),
+                                  child: barWidth > 40
+                                      ? Center(
+                                          child: Text(
+                                            '${span.duration.inMilliseconds}ms',
+                                            style: TextStyle(fontSize: 9, color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w500),
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+
+                  // Duration
+                  SizedBox(
+                    width: 60,
+                    child: Text(
+                      '${span.duration.inMilliseconds}ms',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontFamily: 'monospace',
+                        color: isError ? AppColors.error : node.isOnCriticalPath ? AppColors.warning : AppColors.textMuted,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -1,10 +1,46 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-class ErrorPlaceholder extends StatelessWidget {
+class ErrorPlaceholder extends StatefulWidget {
   final Object error;
+  final StackTrace? stackTrace;
 
-  const ErrorPlaceholder({super.key, required this.error});
+  const ErrorPlaceholder({super.key, required this.error, this.stackTrace});
+
+  @override
+  State<ErrorPlaceholder> createState() => _ErrorPlaceholderState();
+}
+
+class _ErrorPlaceholderState extends State<ErrorPlaceholder> {
+  bool _showDetails = false;
+
+  String _getErrorTitle() {
+    final errorType = widget.error.runtimeType.toString();
+    if (errorType.contains('DataValidationError')) {
+      return 'Data Validation Error';
+    } else if (errorType.contains('FormatException')) {
+      return 'Data Format Error';
+    } else if (errorType.contains('TypeError') || errorType.contains('CastError')) {
+      return 'Type Mismatch Error';
+    } else if (errorType.contains('NoSuchMethodError')) {
+      return 'Missing Field Error';
+    }
+    return 'Widget Rendering Error';
+  }
+
+  String _getErrorSummary() {
+    final errorStr = widget.error.toString();
+    // Extract key message for common error types
+    if (errorStr.contains('Expected:') && errorStr.contains('Received:')) {
+      // DataValidationError format
+      return errorStr;
+    }
+    // Truncate very long error messages
+    if (errorStr.length > 200) {
+      return '${errorStr.substring(0, 200)}...';
+    }
+    return errorStr;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,45 +56,126 @@ class ErrorPlaceholder extends StatelessWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.error_outline,
-              color: AppColors.error,
-              size: 28,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  color: AppColors.error,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _getErrorTitle(),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.error,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Failed to render visualization component',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (widget.stackTrace != null)
+                IconButton(
+                  icon: Icon(
+                    _showDetails ? Icons.expand_less : Icons.expand_more,
+                    color: AppColors.textMuted,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(() => _showDetails = !_showDetails),
+                  tooltip: _showDetails ? 'Hide details' : 'Show details',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Widget Rendering Error',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.error,
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              error.toString(),
+            child: SelectableText(
+              _getErrorSummary(),
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontFamily: 'monospace',
                 color: AppColors.textSecondary,
                 height: 1.4,
               ),
-              textAlign: TextAlign.center,
             ),
+          ),
+          if (_showDetails && widget.stackTrace != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Stack Trace:',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(maxHeight: 150),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  widget.stackTrace.toString(),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontFamily: 'monospace',
+                    color: AppColors.textMuted,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.lightbulb_outline, size: 14, color: AppColors.warning),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'This may indicate a data format mismatch between the backend and UI.',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.warning,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
