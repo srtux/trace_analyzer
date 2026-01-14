@@ -433,7 +433,10 @@ The easiest way to deploy the entire system:
 ```bash
 uv run poe deploy-all
 ```
-This script:
+
+For detailed instructions on architecture, IAM roles, and individual script usage, see the **[Detailed Deployment Guide (deploy/README.md)](deploy/README.md)**.
+
+### Deployment Summary:
 1. Deploys the **Backend** ADK Agent to Vertex AI Agent Engine.
 2. Deploys the **Unified Dashboard** (Flutter Web + FastAPI Proxy) to Cloud Run.
 3. Automatically wires the Frontend to the Backend via the `SRE_AGENT_ID` environment variable.

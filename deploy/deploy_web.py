@@ -59,6 +59,8 @@ def main():
     # Prepare environment variables for Cloud Run
     env_vars = [
         f"GCP_PROJECT_ID={project_id}",
+        f"GCP_REGION={args.region}",
+        f"GOOGLE_CLOUD_LOCATION={args.region}",
     ]
 
     if agent_url:
