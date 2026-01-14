@@ -546,11 +546,18 @@ class _ConversationPageState extends State<ConversationPage>
   Widget _buildInputArea() {
     return ClipRRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
           decoration: BoxDecoration(
-            color: AppColors.backgroundDark.withValues(alpha: 0.85),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppColors.backgroundDark.withValues(alpha: 0.75),
+                AppColors.backgroundDark.withValues(alpha: 0.95),
+              ],
+            ),
             border: Border(
               top: BorderSide(
                 color: AppColors.surfaceBorder,
@@ -558,94 +565,186 @@ class _ConversationPageState extends State<ConversationPage>
               ),
             ),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _textController,
-                    focusNode: _focusNode,
-                    onSubmitted: (_) => _sendMessage(),
-                    maxLines: 4,
-                    minLines: 1,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 15,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: "Ask AutoSRE anything...",
-                      hintStyle: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 15,
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Selected project indicator
+                ValueListenableBuilder<GcpProject?>(
+                  valueListenable: _projectService.selectedProject,
+                  builder: (context, project, _) {
+                    if (project == null) return const SizedBox.shrink();
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryTeal.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.primaryTeal.withValues(alpha: 0.2),
+                        ),
                       ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 14,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              ValueListenableBuilder<bool>(
-                valueListenable: _contentGenerator.isProcessing,
-                builder: (context, isProcessing, _) {
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: isProcessing ? null : _sendMessage,
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: isProcessing
-                                ? null
-                                : LinearGradient(
-                                    colors: [
-                                      AppColors.primaryTeal,
-                                      AppColors.primaryCyan,
-                                    ],
-                                  ),
-                            color: isProcessing
-                                ? Colors.white.withValues(alpha: 0.1)
-                                : null,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: isProcessing
-                                ? null
-                                : [
-                                    BoxShadow(
-                                      color: AppColors.primaryTeal
-                                          .withValues(alpha: 0.3),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.cloud_done_outlined,
+                            size: 14,
+                            color: AppColors.primaryTeal,
                           ),
-                          child: Icon(
-                            Icons.arrow_upward_rounded,
-                            color: isProcessing
-                                ? AppColors.textMuted
-                                : AppColors.backgroundDark,
-                            size: 22,
+                          const SizedBox(width: 6),
+                          Text(
+                            'Project: ${project.name}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.primaryTeal,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                // Input row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: _focusNode.hasFocus
+                                ? AppColors.primaryTeal.withValues(alpha: 0.4)
+                                : Colors.white.withValues(alpha: 0.1),
+                            width: _focusNode.hasFocus ? 1.5 : 1,
+                          ),
+                          boxShadow: _focusNode.hasFocus
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.primaryTeal.withValues(alpha: 0.1),
+                                    blurRadius: 12,
+                                    spreadRadius: -2,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: TextField(
+                          controller: _textController,
+                          focusNode: _focusNode,
+                          onSubmitted: (_) => _sendMessage(),
+                          maxLines: 5,
+                          minLines: 1,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 15,
+                            height: 1.4,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: "Ask AutoSRE anything...",
+                            hintStyle: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 15,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.only(left: 14, right: 4),
+                              child: Icon(
+                                Icons.auto_awesome_outlined,
+                                color: AppColors.textMuted.withValues(alpha: 0.5),
+                                size: 18,
+                              ),
+                            ),
+                            prefixIconConstraints: const BoxConstraints(
+                              minWidth: 0,
+                              minHeight: 0,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
-            ],
+                    const SizedBox(width: 12),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _contentGenerator.isProcessing,
+                      builder: (context, isProcessing, _) {
+                        return _SendButton(
+                          isProcessing: isProcessing,
+                          onPressed: _sendMessage,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                // Keyboard hint
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Press ',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Enter',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textMuted.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        ' to send, ',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Shift + Enter',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textMuted.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        ' for new line',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -866,7 +965,122 @@ class _MessageItemState extends State<_MessageItem>
   }
 }
 
-/// Project selector dropdown widget
+/// Animated send button with pulse effect
+class _SendButton extends StatefulWidget {
+  final bool isProcessing;
+  final VoidCallback onPressed;
+
+  const _SendButton({
+    required this.isProcessing,
+    required this.onPressed,
+  });
+
+  @override
+  State<_SendButton> createState() => _SendButtonState();
+}
+
+class _SendButtonState extends State<_SendButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void didUpdateWidget(_SendButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isProcessing && !oldWidget.isProcessing) {
+      _pulseController.repeat(reverse: true);
+    } else if (!widget.isProcessing && oldWidget.isProcessing) {
+      _pulseController.stop();
+      _pulseController.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: widget.isProcessing ? _pulseAnimation.value : 1.0,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.isProcessing ? null : widget.onPressed,
+              borderRadius: BorderRadius.circular(18),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: widget.isProcessing
+                      ? LinearGradient(
+                          colors: [
+                            AppColors.primaryBlue.withValues(alpha: 0.6),
+                            AppColors.primaryCyan.withValues(alpha: 0.6),
+                          ],
+                        )
+                      : LinearGradient(
+                          colors: [
+                            AppColors.primaryTeal,
+                            AppColors.primaryCyan,
+                          ],
+                        ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (widget.isProcessing
+                              ? AppColors.primaryBlue
+                              : AppColors.primaryTeal)
+                          .withValues(alpha: 0.35),
+                      blurRadius: widget.isProcessing ? 16 : 12,
+                      offset: const Offset(0, 4),
+                      spreadRadius: widget.isProcessing ? 0 : -2,
+                    ),
+                  ],
+                ),
+                child: widget.isProcessing
+                    ? SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      )
+                    : Icon(
+                        Icons.arrow_upward_rounded,
+                        color: AppColors.backgroundDark,
+                        size: 22,
+                      ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Modern searchable project selector with combobox functionality
 class _ProjectSelectorDropdown extends StatefulWidget {
   final List<GcpProject> projects;
   final GcpProject? selectedProject;
@@ -886,10 +1100,42 @@ class _ProjectSelectorDropdown extends StatefulWidget {
   State<_ProjectSelectorDropdown> createState() => _ProjectSelectorDropdownState();
 }
 
-class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown> {
+class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
+    with SingleTickerProviderStateMixin {
   final LayerLink _layerLink = LayerLink();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   OverlayEntry? _overlayEntry;
   bool _isOpen = false;
+  String _searchQuery = '';
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    );
+    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
+    );
+  }
+
+  List<GcpProject> get _filteredProjects {
+    if (_searchQuery.isEmpty) return widget.projects;
+    final query = _searchQuery.toLowerCase();
+    return widget.projects.where((p) {
+      return p.projectId.toLowerCase().contains(query) ||
+          (p.displayName?.toLowerCase().contains(query) ?? false);
+    }).toList();
+  }
 
   void _toggleDropdown() {
     if (_isOpen) {
@@ -902,33 +1148,65 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown> {
   void _openDropdown() {
     _overlayEntry = _createOverlayEntry();
     Overlay.of(context).insert(_overlayEntry!);
+    _animationController.forward();
     setState(() {
       _isOpen = true;
+    });
+    // Focus the search field after a short delay
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _searchFocusNode.requestFocus();
     });
   }
 
   void _closeDropdown() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
+    _animationController.reverse().then((_) {
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+    });
     setState(() {
       _isOpen = false;
+      _searchQuery = '';
+      _searchController.clear();
     });
+  }
+
+  void _selectCustomProject(String projectId) {
+    if (projectId.trim().isEmpty) return;
+    final customProject = GcpProject(projectId: projectId.trim());
+    widget.onProjectSelected(customProject);
+    _closeDropdown();
   }
 
   OverlayEntry _createOverlayEntry() {
     final renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
 
     return OverlayEntry(
-      builder: (context) => Positioned(
-        width: 280,
-        child: CompositedTransformFollower(
-          link: _layerLink,
-          showWhenUnlinked: false,
-          offset: Offset(0, size.height + 8),
-          child: Material(
-            color: Colors.transparent,
-            child: _buildDropdownContent(),
+      builder: (context) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _closeDropdown,
+        child: Material(
+          color: Colors.transparent,
+          child: Stack(
+            children: [
+              Positioned(
+                left: offset.dx,
+                top: offset.dy + size.height + 8,
+                width: 320,
+                child: GestureDetector(
+                  onTap: () {}, // Prevent tap from closing
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: ScaleTransition(
+                      scale: _scaleAnimation,
+                      alignment: Alignment.topLeft,
+                      child: _buildDropdownContent(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -936,185 +1214,433 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown> {
   }
 
   Widget _buildDropdownContent() {
-    return TapRegion(
-      onTapOutside: (_) => _closeDropdown(),
-      child: Container(
-        constraints: const BoxConstraints(maxHeight: 320),
-        decoration: BoxDecoration(
-          color: AppColors.backgroundCard,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.surfaceBorder,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
+    return StatefulBuilder(
+      builder: (context, setDropdownState) {
+        return Container(
+          constraints: const BoxConstraints(maxHeight: 400),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.primaryTeal.withValues(alpha: 0.3),
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header with refresh button
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: AppColors.surfaceBorder,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.cloud_outlined,
-                      size: 16,
-                      color: AppColors.primaryTeal,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'GCP Projects',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const Spacer(),
-                    InkWell(
-                      onTap: widget.onRefresh,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: widget.isLoading
-                            ? SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppColors.primaryTeal,
-                                  ),
-                                ),
-                              )
-                            : Icon(
-                                Icons.refresh,
-                                size: 14,
-                                color: AppColors.textMuted,
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
               ),
-              // Project list
-              if (widget.projects.isEmpty && !widget.isLoading)
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'No projects available',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textMuted,
+              BoxShadow(
+                color: AppColors.primaryTeal.withValues(alpha: 0.1),
+                blurRadius: 40,
+                spreadRadius: -10,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Search input
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppColors.surfaceBorder,
+                      ),
                     ),
                   ),
-                )
-              else
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    itemCount: widget.projects.length,
-                    itemBuilder: (context, index) {
-                      final project = widget.projects[index];
-                      final isSelected = widget.selectedProject?.projectId == project.projectId;
-
-                      return InkWell(
-                        onTap: () {
-                          widget.onProjectSelected(project);
-                          _closeDropdown();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.primaryTeal.withValues(alpha: 0.15)
-                                : Colors.transparent,
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? AppColors.primaryTeal.withValues(alpha: 0.2)
-                                      : Colors.white.withValues(alpha: 0.05),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Icon(
-                                  Icons.folder_outlined,
-                                  size: 14,
-                                  color: isSelected
-                                      ? AppColors.primaryTeal
-                                      : AppColors.textMuted,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      project.name,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w600
-                                            : FontWeight.w500,
-                                        color: isSelected
-                                            ? AppColors.primaryTeal
-                                            : AppColors.textPrimary,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    if (project.displayName != null &&
-                                        project.displayName != project.projectId)
-                                      Text(
-                                        project.projectId,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: AppColors.textMuted,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              if (isSelected)
-                                Icon(
-                                  Icons.check_circle,
-                                  size: 16,
-                                  color: AppColors.primaryTeal,
-                                ),
-                            ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.1),
                           ),
                         ),
-                      );
-                    },
+                        child: TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Search or enter project ID...',
+                            hintStyle: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 14,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              size: 18,
+                              color: AppColors.textMuted,
+                            ),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(
+                                      Icons.clear,
+                                      size: 16,
+                                      color: AppColors.textMuted,
+                                    ),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setDropdownState(() {
+                                        _searchQuery = '';
+                                      });
+                                    },
+                                  )
+                                : null,
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                          ),
+                          onChanged: (value) {
+                            setDropdownState(() {
+                              _searchQuery = value;
+                            });
+                          },
+                          onSubmitted: (value) {
+                            if (_filteredProjects.isEmpty && value.isNotEmpty) {
+                              _selectCustomProject(value);
+                            } else if (_filteredProjects.length == 1) {
+                              widget.onProjectSelected(_filteredProjects.first);
+                              _closeDropdown();
+                            }
+                          },
+                        ),
+                      ),
+                      // Quick tip
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.lightbulb_outline,
+                              size: 12,
+                              color: AppColors.textMuted,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Type to search or enter a custom project ID',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
+                // Header with refresh button
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.02),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryTeal.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(
+                          Icons.cloud_outlined,
+                          size: 14,
+                          color: AppColors.primaryTeal,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'GCP Projects',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textMuted,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${_filteredProjects.length} projects',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: widget.onRefresh,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: widget.isLoading
+                                ? SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        AppColors.primaryTeal,
+                                      ),
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.refresh,
+                                    size: 14,
+                                    color: AppColors.textMuted,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Custom project option when search doesn't match
+                if (_searchQuery.isNotEmpty && _filteredProjects.isEmpty)
+                  _buildUseCustomProjectOption(_searchQuery, setDropdownState),
+                // Project list
+                if (_filteredProjects.isEmpty && _searchQuery.isEmpty && !widget.isLoading)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.cloud_off_outlined,
+                          size: 32,
+                          color: AppColors.textMuted,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No projects available',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Type a project ID above to use it',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (_filteredProjects.isNotEmpty)
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      itemCount: _filteredProjects.length,
+                      itemBuilder: (context, index) {
+                        final project = _filteredProjects[index];
+                        final isSelected = widget.selectedProject?.projectId == project.projectId;
+
+                        return _buildProjectItem(project, isSelected);
+                      },
+                    ),
+                  ),
+                // Use custom project when there's a search with some results
+                if (_searchQuery.isNotEmpty && _filteredProjects.isNotEmpty)
+                  _buildUseCustomProjectOption(_searchQuery, setDropdownState),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUseCustomProjectOption(String projectId, StateSetter setDropdownState) {
+    // Don't show if exact match exists
+    final exactMatch = widget.projects.any((p) => p.projectId == projectId);
+    if (exactMatch) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      decoration: BoxDecoration(
+        color: AppColors.primaryTeal.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.primaryTeal.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _selectCustomProject(projectId),
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryTeal.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    Icons.add,
+                    size: 14,
+                    color: AppColors.primaryTeal,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Use "$projectId"',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primaryTeal,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Press Enter or click to use this project ID',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.keyboard_return,
+                  size: 14,
+                  color: AppColors.primaryTeal,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProjectItem(GcpProject project, bool isSelected) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            widget.onProjectSelected(project);
+            _closeDropdown();
+          },
+          borderRadius: BorderRadius.circular(10),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.primaryTeal.withValues(alpha: 0.15)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isSelected
+                    ? AppColors.primaryTeal.withValues(alpha: 0.3)
+                    : Colors.transparent,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? LinearGradient(
+                            colors: [
+                              AppColors.primaryTeal.withValues(alpha: 0.3),
+                              AppColors.primaryCyan.withValues(alpha: 0.2),
+                            ],
+                          )
+                        : null,
+                    color: isSelected
+                        ? null
+                        : Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    isSelected ? Icons.folder : Icons.folder_outlined,
+                    size: 16,
+                    color: isSelected
+                        ? AppColors.primaryTeal
+                        : AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        project.name,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? AppColors.primaryTeal
+                              : AppColors.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (project.displayName != null &&
+                          project.displayName != project.projectId)
+                        Text(
+                          project.projectId,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryTeal,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.check,
+                      size: 12,
+                      color: AppColors.backgroundDark,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1123,6 +1649,9 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown> {
 
   @override
   void dispose() {
+    _animationController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     _closeDropdown();
     super.dispose();
   }
@@ -1131,57 +1660,87 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown> {
   Widget build(BuildContext context) {
     return CompositedTransformTarget(
       link: _layerLink,
-      child: InkWell(
-        onTap: _toggleDropdown,
-        borderRadius: BorderRadius.circular(10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: _isOpen
-                ? AppColors.primaryTeal.withValues(alpha: 0.15)
-                : Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _toggleDropdown,
+          borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: _isOpen
+                  ? LinearGradient(
+                      colors: [
+                        AppColors.primaryTeal.withValues(alpha: 0.2),
+                        AppColors.primaryCyan.withValues(alpha: 0.15),
+                      ],
+                    )
+                  : null,
               color: _isOpen
-                  ? AppColors.primaryTeal.withValues(alpha: 0.4)
-                  : AppColors.surfaceBorder,
+                  ? null
+                  : Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _isOpen
+                    ? AppColors.primaryTeal.withValues(alpha: 0.5)
+                    : AppColors.surfaceBorder,
+                width: _isOpen ? 1.5 : 1,
+              ),
+              boxShadow: _isOpen
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primaryTeal.withValues(alpha: 0.2),
+                        blurRadius: 12,
+                        spreadRadius: -2,
+                      ),
+                    ]
+                  : null,
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.cloud_outlined,
-                size: 16,
-                color: _isOpen ? AppColors.primaryTeal : AppColors.textMuted,
-              ),
-              const SizedBox(width: 8),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 140),
-                child: Text(
-                  widget.selectedProject?.name ?? 'Select Project',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: widget.selectedProject != null
-                        ? AppColors.textPrimary
-                        : AppColors.textMuted,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: _isOpen
+                        ? AppColors.primaryTeal.withValues(alpha: 0.2)
+                        : Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  overflow: TextOverflow.ellipsis,
+                  child: Icon(
+                    Icons.cloud_outlined,
+                    size: 14,
+                    color: _isOpen ? AppColors.primaryTeal : AppColors.textMuted,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              AnimatedRotation(
-                turns: _isOpen ? 0.5 : 0,
-                duration: const Duration(milliseconds: 200),
-                child: Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 18,
-                  color: _isOpen ? AppColors.primaryTeal : AppColors.textMuted,
+                const SizedBox(width: 10),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  child: Text(
+                    widget.selectedProject?.name ?? 'Select Project',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: widget.selectedProject != null
+                          ? AppColors.textPrimary
+                          : AppColors.textMuted,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                AnimatedRotation(
+                  turns: _isOpen ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 18,
+                    color: _isOpen ? AppColors.primaryTeal : AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
