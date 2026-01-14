@@ -449,7 +449,7 @@ class _MetricCorrelationChartState extends State<MetricCorrelationChart>
       touchTooltipData: LineTouchTooltipData(
         getTooltipColor: (_) => AppColors.backgroundElevated,
         tooltipBorder: BorderSide(color: AppColors.surfaceBorder),
-        tooltipRoundedRadius: 8,
+        tooltipBorderRadius: BorderRadius.circular(8),
         tooltipPadding: const EdgeInsets.all(12),
         getTooltipItems: (touchedSpots) {
           return touchedSpots.map((spot) {
