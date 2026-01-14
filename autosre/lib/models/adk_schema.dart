@@ -130,3 +130,29 @@ class RemediationPlan {
         );
     }
 }
+
+class ToolLog {
+    final String toolName;
+    final Map<String, dynamic> args;
+    final String status; // 'running', 'completed', 'error'
+    final String? result;
+    final String? timestamp;
+
+    ToolLog({
+        required this.toolName,
+        required this.args,
+        required this.status,
+        this.result,
+        this.timestamp,
+    });
+
+    factory ToolLog.fromJson(Map<String, dynamic> json) {
+        return ToolLog(
+            toolName: json['tool_name'],
+            args: Map<String, dynamic>.from(json['args'] ?? {}),
+            status: json['status'] ?? 'unknown',
+            result: json['result']?.toString(), // Handle both string and complex object results by stringifying for now
+            timestamp: json['timestamp'],
+        );
+    }
+}

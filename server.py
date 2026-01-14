@@ -323,8 +323,8 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
             inv_ctx.agent = cloned_agent
 
         # Track surfaces to avoid duplicate beginRendering
-        # Map tool_name -> surface_id
-        active_surfaces = {}
+        # Map tool_name -> {'surface_id': str, 'args': dict}
+        active_tools = {}
 
         # 2. Run Agent
         # Use the agent from the context (which might be the cloned one)
@@ -338,17 +338,111 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
                 if part.text:
                     yield json.dumps({"type": "text", "content": part.text}) + "\n"
 
+                # Handle Tool Calls (Begin Rendering Tool Log)
+                if part.function_call:
+                    fc = part.function_call
+                    tool_name = fc.name
+                    args = fc.args
+
+                    surface_id = str(uuid.uuid4())
+
+                    # Store mapping so response knows where to update
+                    active_tools[tool_name] = {"surface_id": surface_id, "args": args}
+
+                    # Create initial ToolLog data
+                    tool_log_data = {
+                        "tool_name": tool_name,
+                        "args": args,
+                        "status": "running",
+                        "timestamp": str(uuid.uuid1().time),
+                    }
+
+                    yield (
+                        json.dumps(
+                            {
+                                "type": "a2ui",
+                                "message": {
+                                    "beginRendering": {
+                                        "surfaceId": surface_id,
+                                        "root": f"{surface_id}-root",
+                                        "catalogId": "sre-catalog",
+                                    }
+                                },
+                            }
+                        )
+                        + "\n"
+                    )
+
+                    yield (
+                        json.dumps(
+                            {
+                                "type": "a2ui",
+                                "message": {
+                                    "surfaceUpdate": {
+                                        "surfaceId": surface_id,
+                                        "components": [
+                                            {
+                                                "id": f"{surface_id}-root",
+                                                "component": {
+                                                    "x-sre-tool-log": tool_log_data
+                                                },
+                                            }
+                                        ],
+                                    }
+                                },
+                            }
+                        )
+                        + "\n"
+                    )
+
                 # Handle Tool Responses (Function Responses)
                 if part.function_response:
-                    tool_name = part.function_response.name
+                    fp = part.function_response
+                    tool_name = fp.name
                     # The response is typically a dict in 'response' field
-                    result = part.function_response.response
+                    result = fp.response
 
                     # If result is a dict with 'result' key, unwrap it (common pattern)
                     if isinstance(result, dict) and "result" in result:
                         result = result["result"]
 
-                    # Mapping Tool Results to A2UI Widgets
+                    # 1. Update Tool Log Entry
+                    if tool_name in active_tools:
+                        tool_info = active_tools[tool_name]
+                        surface_id = tool_info["surface_id"]
+
+                        # Prepare data for completion
+                        tool_log_data = {
+                            "tool_name": tool_name,
+                            "args": tool_info["args"],  # Persist args
+                            "status": "completed",
+                            "result": str(result),  # Serialize result for log
+                            "timestamp": str(uuid.uuid1().time),
+                        }
+
+                        yield (
+                            json.dumps(
+                                {
+                                    "type": "a2ui",
+                                    "message": {
+                                        "surfaceUpdate": {
+                                            "surfaceId": surface_id,
+                                            "components": [
+                                                {
+                                                    "id": f"{surface_id}-root",
+                                                    "component": {
+                                                        "x-sre-tool-log": tool_log_data
+                                                    },
+                                                }
+                                            ],
+                                        }
+                                    },
+                                }
+                            )
+                            + "\n"
+                        )
+
+                    # Mapping Tool Results to A2UI Widgets (Specialized Visualization)
                     widget_map = {
                         "fetch_trace": "x-sre-trace-waterfall",
                         "analyze_critical_path": "x-sre-trace-waterfall",
@@ -363,28 +457,25 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
                         component_name = widget_map[tool_name]
 
                         # Ensure we have a surface for this widget type
-                        if tool_name not in active_surfaces:
-                            surface_id = str(uuid.uuid4())
-                            active_surfaces[tool_name] = surface_id
+                        # For visualized widgets, we generate a NEW surface, separated from the log.
+                        surface_id = str(uuid.uuid4())
 
-                            # Begin Rendering
-                            yield (
-                                json.dumps(
-                                    {
-                                        "type": "a2ui",
-                                        "message": {
-                                            "beginRendering": {
-                                                "surfaceId": surface_id,
-                                                "root": f"{tool_name}-root",
-                                                "catalogId": "sre-catalog",
-                                            }
-                                        },
-                                    }
-                                )
-                                + "\n"
+                        # Begin Rendering
+                        yield (
+                            json.dumps(
+                                {
+                                    "type": "a2ui",
+                                    "message": {
+                                        "beginRendering": {
+                                            "surfaceId": surface_id,
+                                            "root": f"{tool_name}-viz-root",
+                                            "catalogId": "sre-catalog",
+                                        }
+                                    },
+                                }
                             )
-
-                        surface_id = active_surfaces[tool_name]
+                            + "\n"
+                        )
 
                         # Transform data for the specific widget
                         data = result
@@ -418,7 +509,7 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
                                             "surfaceId": surface_id,
                                             "components": [
                                                 {
-                                                    "id": f"{tool_name}-root",
+                                                    "id": f"{tool_name}-viz-root",
                                                     "component": {component_name: data},
                                                 }
                                             ],

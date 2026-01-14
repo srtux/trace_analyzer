@@ -8,6 +8,7 @@ import 'widgets/error_placeholder.dart';
 import 'widgets/log_pattern_viewer.dart';
 import 'widgets/metric_chart.dart';
 import 'widgets/remediation_plan.dart';
+import 'widgets/tool_log.dart';
 import 'widgets/trace_waterfall.dart';
 
 /// Registry for all SRE-specific UI components.
@@ -77,6 +78,19 @@ class CatalogRegistry {
                 child: LogPatternViewer(patterns: patterns),
                 height: 450,
               );
+            } catch (e) {
+              return ErrorPlaceholder(error: e);
+            }
+          },
+        ),
+        CatalogItem(
+          name: "x-sre-tool-log",
+          dataSchema: S.object(),
+          widgetBuilder: (context) {
+            try {
+              final data = context.data as Map<String, dynamic>;
+              final log = ToolLog.fromJson(Map<String, dynamic>.from(data));
+              return ToolLogWidget(log: log);
             } catch (e) {
               return ErrorPlaceholder(error: e);
             }
