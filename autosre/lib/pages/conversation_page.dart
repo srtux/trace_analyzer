@@ -6,6 +6,7 @@ import 'package:genui/genui.dart';
 
 import '../agent/adk_content_generator.dart';
 import '../catalog.dart';
+import '../services/project_service.dart';
 import '../theme/app_theme.dart';
 
 class ConversationPage extends StatefulWidget {
@@ -23,6 +24,7 @@ class _ConversationPageState extends State<ConversationPage>
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
+  final ProjectService _projectService = ProjectService();
 
   late AnimationController _backgroundController;
   late AnimationController _typingController;
@@ -73,6 +75,16 @@ class _ConversationPageState extends State<ConversationPage>
       onSurfaceUpdated: (update) {},
       onTextResponse: (text) => _scrollToBottom(),
     );
+
+    // Fetch projects on startup
+    _projectService.fetchProjects();
+
+    // Update content generator when project selection changes
+    _projectService.selectedProject.addListener(_onProjectChanged);
+  }
+
+  void _onProjectChanged() {
+    _contentGenerator.projectId = _projectService.selectedProjectId;
   }
 
   void _scrollToBottom() {
@@ -192,6 +204,9 @@ class _ConversationPageState extends State<ConversationPage>
                         ),
                       ],
                     ),
+                    const SizedBox(width: 20),
+                    // Project Selector
+                    _buildProjectSelector(),
                     const Spacer(),
                     // Status indicator
                     ValueListenableBuilder<bool>(
@@ -279,6 +294,35 @@ class _ConversationPageState extends State<ConversationPage>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProjectSelector() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: _projectService.isLoading,
+      builder: (context, isLoading, _) {
+        return ValueListenableBuilder<List<GcpProject>>(
+          valueListenable: _projectService.projects,
+          builder: (context, projects, _) {
+            return ValueListenableBuilder<GcpProject?>(
+              valueListenable: _projectService.selectedProject,
+              builder: (context, selectedProject, _) {
+                return _ProjectSelectorDropdown(
+                  projects: projects,
+                  selectedProject: selectedProject,
+                  isLoading: isLoading,
+                  onProjectSelected: (project) {
+                    _projectService.selectProjectInstance(project);
+                  },
+                  onRefresh: () {
+                    _projectService.fetchProjects();
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -610,6 +654,7 @@ class _ConversationPageState extends State<ConversationPage>
 
   @override
   void dispose() {
+    _projectService.selectedProject.removeListener(_onProjectChanged);
     _backgroundController.dispose();
     _typingController.dispose();
     _conversation.dispose();
@@ -818,5 +863,328 @@ class _MessageItemState extends State<_MessageItem>
       );
     }
     return const SizedBox.shrink();
+  }
+}
+
+/// Project selector dropdown widget
+class _ProjectSelectorDropdown extends StatefulWidget {
+  final List<GcpProject> projects;
+  final GcpProject? selectedProject;
+  final bool isLoading;
+  final ValueChanged<GcpProject?> onProjectSelected;
+  final VoidCallback onRefresh;
+
+  const _ProjectSelectorDropdown({
+    required this.projects,
+    required this.selectedProject,
+    required this.isLoading,
+    required this.onProjectSelected,
+    required this.onRefresh,
+  });
+
+  @override
+  State<_ProjectSelectorDropdown> createState() => _ProjectSelectorDropdownState();
+}
+
+class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown> {
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  bool _isOpen = false;
+
+  void _toggleDropdown() {
+    if (_isOpen) {
+      _closeDropdown();
+    } else {
+      _openDropdown();
+    }
+  }
+
+  void _openDropdown() {
+    _overlayEntry = _createOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() {
+      _isOpen = true;
+    });
+  }
+
+  void _closeDropdown() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    setState(() {
+      _isOpen = false;
+    });
+  }
+
+  OverlayEntry _createOverlayEntry() {
+    final renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+
+    return OverlayEntry(
+      builder: (context) => Positioned(
+        width: 280,
+        child: CompositedTransformFollower(
+          link: _layerLink,
+          showWhenUnlinked: false,
+          offset: Offset(0, size.height + 8),
+          child: Material(
+            color: Colors.transparent,
+            child: _buildDropdownContent(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownContent() {
+    return TapRegion(
+      onTapOutside: (_) => _closeDropdown(),
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 320),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.surfaceBorder,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with refresh button
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: AppColors.surfaceBorder,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.cloud_outlined,
+                      size: 16,
+                      color: AppColors.primaryTeal,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'GCP Projects',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    InkWell(
+                      onTap: widget.onRefresh,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: widget.isLoading
+                            ? SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppColors.primaryTeal,
+                                  ),
+                                ),
+                              )
+                            : Icon(
+                                Icons.refresh,
+                                size: 14,
+                                color: AppColors.textMuted,
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Project list
+              if (widget.projects.isEmpty && !widget.isLoading)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'No projects available',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: widget.projects.length,
+                    itemBuilder: (context, index) {
+                      final project = widget.projects[index];
+                      final isSelected = widget.selectedProject?.projectId == project.projectId;
+
+                      return InkWell(
+                        onTap: () {
+                          widget.onProjectSelected(project);
+                          _closeDropdown();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primaryTeal.withValues(alpha: 0.15)
+                                : Colors.transparent,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.primaryTeal.withValues(alpha: 0.2)
+                                      : Colors.white.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.folder_outlined,
+                                  size: 14,
+                                  color: isSelected
+                                      ? AppColors.primaryTeal
+                                      : AppColors.textMuted,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      project.name,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.w500,
+                                        color: isSelected
+                                            ? AppColors.primaryTeal
+                                            : AppColors.textPrimary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (project.displayName != null &&
+                                        project.displayName != project.projectId)
+                                      Text(
+                                        project.projectId,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textMuted,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (isSelected)
+                                Icon(
+                                  Icons.check_circle,
+                                  size: 16,
+                                  color: AppColors.primaryTeal,
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _closeDropdown();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: InkWell(
+        onTap: _toggleDropdown,
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: _isOpen
+                ? AppColors.primaryTeal.withValues(alpha: 0.15)
+                : Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _isOpen
+                  ? AppColors.primaryTeal.withValues(alpha: 0.4)
+                  : AppColors.surfaceBorder,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.cloud_outlined,
+                size: 16,
+                color: _isOpen ? AppColors.primaryTeal : AppColors.textMuted,
+              ),
+              const SizedBox(width: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 140),
+                child: Text(
+                  widget.selectedProject?.name ?? 'Select Project',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: widget.selectedProject != null
+                        ? AppColors.textPrimary
+                        : AppColors.textMuted,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              AnimatedRotation(
+                turns: _isOpen ? 0.5 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 18,
+                  color: _isOpen ? AppColors.primaryTeal : AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

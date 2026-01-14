@@ -19,7 +19,10 @@ class ADKContentGenerator implements ContentGenerator {
   Timer? _healthCheckTimer;
   final String _healthUrl = 'http://127.0.0.1:8001/openapi.json';
 
-  ADKContentGenerator() {
+  /// Currently selected project ID to include in requests.
+  String? projectId;
+
+  ADKContentGenerator({this.projectId}) {
     _startHealthCheck();
   }
 
@@ -69,11 +72,19 @@ class ADKContentGenerator implements ContentGenerator {
     try {
         final request = http.Request('POST', Uri.parse(_baseUrl));
         request.headers['Content-Type'] = 'application/json';
-        request.body = jsonEncode({
+
+        final requestBody = <String, dynamic>{
             "messages": [
                 {"role": "user", "text": message.text}
             ]
-        });
+        };
+
+        // Include project_id if set
+        if (projectId != null && projectId!.isNotEmpty) {
+            requestBody["project_id"] = projectId;
+        }
+
+        request.body = jsonEncode(requestBody);
 
         final response = await request.send();
 

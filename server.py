@@ -223,6 +223,7 @@ class ChatRequest(BaseModel):
     """Request model for GenUI chat."""
 
     messages: list[dict[str, Any]]
+    project_id: str | None = None  # Optional project ID for context
 
 
 # 5. MOUNT ADK AGENT
@@ -254,6 +255,8 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
     """
     logger.info("Received GenUI chat request")
     user_message = request.messages[-1]["text"] if request.messages else ""
+    project_id = request.project_id  # Extract project_id from request
+    logger.info(f"Project ID from request: {project_id}")
 
     async def event_generator() -> AsyncGenerator[str, None]:
         import json
@@ -312,14 +315,24 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
         # WORKAROUND: Inject user message into system instruction
         # adk-py 0.1.0 LlmAgent seems to ignore user_content in stateless (single-turn) runs.
         # We clone the agent and append the user message to the instruction to ensure it's seen.
-        if user_message:
+        if user_message or project_id:
             # properly clone the agent
             cloned_agent = root_agent.clone()
             if isinstance(cloned_agent.instruction, str):
-                cloned_agent.instruction += (
-                    f"\n\nIMPORTANT: The user just said: '{user_message}'. "
-                    "Respond to this request immediately. Do not greet the user again."
-                )
+                # Add project context if provided
+                if project_id:
+                    cloned_agent.instruction += (
+                        f"\n\nIMPORTANT PROJECT CONTEXT: The user has selected project '{project_id}'. "
+                        "Use this project_id for all tool calls that require a project_id parameter. "
+                        "Do not ask the user which project to use - always use this selected project."
+                    )
+
+                # Add user message
+                if user_message:
+                    cloned_agent.instruction += (
+                        f"\n\nIMPORTANT: The user just said: '{user_message}'. "
+                        "Respond to this request immediately. Do not greet the user again."
+                    )
             inv_ctx.agent = cloned_agent
 
         # Track surfaces to avoid duplicate beginRendering
