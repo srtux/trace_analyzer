@@ -381,16 +381,32 @@ GOOGLE_CLOUD_LOCATION=us-central1
 ```bash
 # Run the full stack (Backend + Frontend) [Recommended]
 uv run poe dev
-# Functionality:
-# - Starts ADK Agent (Backend) on http://localhost:8001
-# - Starts Flutter Dashboard (Frontend) on macOS Desktop or Web
+```
 
-# Backend only (ADK Agent Server)
+#### Manual Startup (Separate Processes)
+
+If you need to run the components independently (e.g., for faster frontend hot-reloads):
+
+**1. Backend (SRE Agent API)**
+```bash
+# From the project root
 uv run poe web
+```
+*Starts the FastAPI/ADK backend on `http://127.0.0.1:8001`.*
 
-# Interactive Terminal Mode
+**2. Frontend (Flutter Dashboard)**
+```bash
+# From the project root (via project script)
+cd autosre
+flutter run -d chrome --web-port 8080
+```
+*Starts the Flutter web UI on `http://localhost:8080`.*
+
+#### Interactive Terminal Mode
+```bash
 uv run poe run
 ```
+
 
 ### Modern Task Management (Recommended)
 
