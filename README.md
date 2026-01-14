@@ -329,6 +329,15 @@ sre_agent/
 │       ├── trace.py      # Latency, Error, Structure experts
 │       ├── logs.py       # Log pattern extractor
 │       └── metrics.py    # Metrics analyzer
+├── autosre/              # Flutter Web Frontend (Mission Control)
+│   ├── lib/              # Flutter application code
+│   │   ├── agent/        # Agent interaction logic
+│   │   ├── models/       # Data models
+│   │   ├── widgets/      # GenUI widgets (Trace Waterfall, Charts)
+│   │   └── main.dart     # Entry point
+│   ├── web/              # Web entrypoint and assets
+│   ├── test/             # Widget tests
+│   └── pubspec.yaml      # Flutter dependencies
 ├── tests/                # Comprehensive test suite
 ├── deploy/               # Deployment scripts for Agent Engine
 └── pyproject.toml        # Project dependencies and ADK config
@@ -462,17 +471,17 @@ Before deploying, ensure your `.env` file is configured with your GCP project se
 
 # BigQuery aggregate analysis
 "Analyze traces in BigQuery dataset my_project.telemetry"
-\`\`\`
+```
 
 ### Alert Analysis
 
-\`\`\`
+```
 # List active alerts
 "Are there any active alerts?"
 
 # List alert policies
 "List all alert policies"
-\`\`\`
+```
 
 ### Log Analysis
 
