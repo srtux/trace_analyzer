@@ -94,6 +94,8 @@ def main():
             "--region",
             args.region,
             "--allow-unauthenticated",
+            "--memory=1Gi",
+            "--timeout=300",
             f"--set-env-vars={','.join(env_vars)}",
             # Mount the secret as both environment variables to be safe
             "--set-secrets=GOOGLE_API_KEY=gemini-api-key:latest,GEMINI_API_KEY=gemini-api-key:latest,GOOGLE_GENERATIVE_AI_API_KEY=gemini-api-key:latest",

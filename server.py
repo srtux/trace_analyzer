@@ -1,4 +1,5 @@
 # 1. APPLY PATCHES AS EARLY AS POSSIBLE
+print("🚀 server.py: Starting initialization...")
 # ruff: noqa: E402
 try:
     from typing import TYPE_CHECKING, Any
@@ -22,7 +23,6 @@ except ImportError:
 
 import logging
 import os
-import sys
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -51,34 +51,7 @@ from sre_agent.tools.analysis import genui_adapter
 os.environ["LOG_LEVEL"] = "DEBUG"
 
 # 1.1 CONFIGURING LOGGING
-# Configure root logger
-# Note: sre_agent.tools.common.telemetry.setup_telemetry will re-configure this
-# but we set LOG_LEVEL above to ensure it picks up DEBUG.
-logging.basicConfig(
-    stream=sys.stdout,
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    force=True,  # Force reconfiguration
-)
-
-# Configure specific loggers
-for logger_name in [
-    "uvicorn",
-    "uvicorn.error",
-    "uvicorn.access",
-    "google.adk",
-    "sre_agent",
-]:
-    logging.getLogger(logger_name).setLevel(logging.DEBUG)
-
-# Add FileHandler to root logger to capture logs in a file
-file_handler = logging.FileHandler("backend.log")
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-)
-logging.getLogger().addHandler(file_handler)
-
+# Rely on setup_telemetry() which is called inside sre_agent.agent
 logger = logging.getLogger(__name__)
 
 # 2. INTERNAL IMPORTS
@@ -683,5 +656,9 @@ if os.path.exists("web"):
 if __name__ == "__main__":
     # Run on PORT (default 8001)
     port = int(os.getenv("PORT", 8001))
-    print(f"🚀 Starting SRE Agent + Tools API on http://0.0.0.0:{port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    print(f"🚀 server.py: Attempting to start uvicorn on port {port}...")
+    try:
+        uvicorn.run(app, host="0.0.0.0", port=port, log_level="debug")
+    except Exception as e:
+        print(f"🔥 server.py: Uvicorn failed to start: {e}")
+        raise
