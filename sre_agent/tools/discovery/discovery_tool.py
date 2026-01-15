@@ -93,7 +93,8 @@ async def discover_telemetry_sources(
     scanned_datasets = []
 
     # 2. Scan each dataset for tables
-    for dataset_id in datasets:
+    # IMPACT: Limiting to first 5 datasets to prevent execution timeout during discovery
+    for dataset_id in datasets[:5]:
         scanned_datasets.append(dataset_id)
 
         # Optimization: Stop if both found

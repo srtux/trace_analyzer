@@ -271,7 +271,7 @@ async def call_mcp_tool_with_retry(
                     try:
                         result = await asyncio.wait_for(
                             tool.run_async(args=args, tool_context=tool_context),
-                            timeout=15.0,  # 15s timeout for tool execution
+                            timeout=30.0,  # 30s timeout for tool execution
                         )
                         return {
                             "status": ToolStatus.SUCCESS,
@@ -282,7 +282,7 @@ async def call_mcp_tool_with_retry(
                         logger.error(f"Timeout executing MCP tool {tool_name}")
                         return {
                             "status": ToolStatus.ERROR,
-                            "error": f"Tool {tool_name} timed out after 15s",
+                            "error": f"Tool {tool_name} timed out after 30s",
                         }
 
             return {
