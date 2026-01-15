@@ -111,6 +111,16 @@ from .clients.trace import (
     list_traces,
 )
 
+# Configuration
+from .config import (
+    ToolCategory,
+    ToolConfig,
+    ToolConfigManager,
+    ToolTestResult,
+    ToolTestStatus,
+    get_tool_config_manager,
+)
+
 # Discovery Tools
 from .discovery.discovery_tool import discover_telemetry_sources
 
@@ -128,16 +138,6 @@ from .mcp.gcp import (
 
 # Reporting Tools
 from .reporting import synthesize_report
-
-# Configuration
-from .config import (
-    ToolCategory,
-    ToolConfig,
-    ToolConfigManager,
-    ToolTestResult,
-    ToolTestStatus,
-    get_tool_config_manager,
-)
 
 __all__ = [
     "analyze_aggregate_metrics",

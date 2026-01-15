@@ -262,7 +262,7 @@ async def get_tool_configs(
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid category: {category}. Valid categories: {[c.value for c in ToolCategory]}",
-                )
+                ) from None
 
         # Filter by enabled status if specified
         if enabled_only:
@@ -365,7 +365,7 @@ async def bulk_update_tool_configs(updates: dict[str, bool]) -> Any:
     """
     try:
         manager = get_tool_config_manager()
-        results: dict[str, dict[str, Any]] = {
+        results: dict[str, Any] = {
             "updated": {},
             "failed": {},
             "not_found": [],
@@ -385,7 +385,7 @@ async def bulk_update_tool_configs(updates: dict[str, bool]) -> Any:
 
         return {
             "message": f"Bulk update completed: {len(results['updated'])} updated, "
-                       f"{len(results['failed'])} failed, {len(results['not_found'])} not found",
+            f"{len(results['failed'])} failed, {len(results['not_found'])} not found",
             "results": results,
         }
     except Exception as e:
@@ -456,7 +456,7 @@ async def test_all_tools(category: str | None = None) -> Any:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid category: {category}",
-                )
+                ) from None
         else:
             configs = manager.get_all_configs()
             testable_tools = [c.name for c in configs if c.testable]
@@ -474,9 +474,15 @@ async def test_all_tools(category: str | None = None) -> Any:
         # Calculate summary
         summary = {
             "total": len(results),
-            "success": len([r for r in results.values() if r.status == ToolTestStatus.SUCCESS]),
-            "failed": len([r for r in results.values() if r.status == ToolTestStatus.FAILED]),
-            "timeout": len([r for r in results.values() if r.status == ToolTestStatus.TIMEOUT]),
+            "success": len(
+                [r for r in results.values() if r.status == ToolTestStatus.SUCCESS]
+            ),
+            "failed": len(
+                [r for r in results.values() if r.status == ToolTestStatus.FAILED]
+            ),
+            "timeout": len(
+                [r for r in results.values() if r.status == ToolTestStatus.TIMEOUT]
+            ),
         }
 
         return {
@@ -722,7 +728,9 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
                                 formatted_result = result["error"]
                                 # Include error type for better debugging
                                 if "error_type" in result:
-                                    formatted_result = f"[{result['error_type']}] {formatted_result}"
+                                    formatted_result = (
+                                        f"[{result['error_type']}] {formatted_result}"
+                                    )
                                 # Log non-retryable errors for debugging
                                 if result.get("non_retryable"):
                                     logger.warning(
@@ -733,7 +741,9 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
                                 formatted_result = f"WARNING: {result['warning']}"
                                 # Include error type in warning if available
                                 if "error_type" in result:
-                                    formatted_result = f"[{result['error_type']}] {formatted_result}"
+                                    formatted_result = (
+                                        f"[{result['error_type']}] {formatted_result}"
+                                    )
                             elif "result" in result:
                                 formatted_result = result["result"]
                             else:

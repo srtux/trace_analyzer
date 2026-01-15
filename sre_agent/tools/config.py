@@ -8,11 +8,12 @@ import asyncio
 import json
 import logging
 import os
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +24,18 @@ CONFIG_FILE_PATH = Path(os.getenv("TOOL_CONFIG_PATH", ".tool_config.json"))
 class ToolCategory(str, Enum):
     """Categories of tools based on their functionality."""
 
-    API_CLIENT = "api_client"       # Direct GCP API clients (Trace, Logging, Monitoring, etc.)
-    MCP = "mcp"                     # Model Context Protocol tools (BigQuery, Logging, Monitoring MCP)
-    ANALYSIS = "analysis"           # Analysis/processing tools (patterns, anomalies, correlation)
-    ORCHESTRATION = "orchestration" # Orchestration tools (run_aggregate_analysis, run_triage_analysis)
-    DISCOVERY = "discovery"         # Discovery tools
-    REMEDIATION = "remediation"     # Remediation tools
-    GKE = "gke"                     # GKE/Kubernetes tools
-    SLO = "slo"                     # SLO/SLI tools
+    API_CLIENT = (
+        "api_client"  # Direct GCP API clients (Trace, Logging, Monitoring, etc.)
+    )
+    MCP = "mcp"  # Model Context Protocol tools (BigQuery, Logging, Monitoring MCP)
+    ANALYSIS = (
+        "analysis"  # Analysis/processing tools (patterns, anomalies, correlation)
+    )
+    ORCHESTRATION = "orchestration"  # Orchestration tools (run_aggregate_analysis, run_triage_analysis)
+    DISCOVERY = "discovery"  # Discovery tools
+    REMEDIATION = "remediation"  # Remediation tools
+    GKE = "gke"  # GKE/Kubernetes tools
+    SLO = "slo"  # SLO/SLI tools
 
 
 class ToolTestStatus(str, Enum):
@@ -81,7 +86,9 @@ class ToolConfig:
                 "latency_ms": self.last_test_result.latency_ms,
                 "timestamp": self.last_test_result.timestamp,
                 "details": self.last_test_result.details,
-            } if self.last_test_result else None,
+            }
+            if self.last_test_result
+            else None,
         }
 
     @classmethod
@@ -209,7 +216,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.API_CLIENT,
         testable=False,
     ),
-
     # -------------------------------------------------------------------------
     # MCP Tools - TESTABLE
     # -------------------------------------------------------------------------
@@ -234,7 +240,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.MCP,
         testable=True,
     ),
-
     # -------------------------------------------------------------------------
     # BigQuery/OTel Tools
     # -------------------------------------------------------------------------
@@ -273,7 +278,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.ANALYSIS,
         testable=False,
     ),
-
     # -------------------------------------------------------------------------
     # Trace Analysis Tools
     # -------------------------------------------------------------------------
@@ -326,7 +330,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.ANALYSIS,
         testable=False,
     ),
-
     # -------------------------------------------------------------------------
     # Log Analysis Tools
     # -------------------------------------------------------------------------
@@ -351,7 +354,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.ANALYSIS,
         testable=False,
     ),
-
     # -------------------------------------------------------------------------
     # Metrics Analysis Tools
     # -------------------------------------------------------------------------
@@ -376,7 +378,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.ANALYSIS,
         testable=False,
     ),
-
     # -------------------------------------------------------------------------
     # Cross-Signal Correlation Tools
     # -------------------------------------------------------------------------
@@ -408,7 +409,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.ANALYSIS,
         testable=False,
     ),
-
     # -------------------------------------------------------------------------
     # Critical Path & Dependency Tools
     # -------------------------------------------------------------------------
@@ -461,7 +461,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.ANALYSIS,
         testable=False,
     ),
-
     # -------------------------------------------------------------------------
     # SLO/SLI Tools
     # -------------------------------------------------------------------------
@@ -507,7 +506,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.SLO,
         testable=False,
     ),
-
     # -------------------------------------------------------------------------
     # GKE/Kubernetes Tools
     # -------------------------------------------------------------------------
@@ -560,7 +558,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.GKE,
         testable=True,
     ),
-
     # -------------------------------------------------------------------------
     # Remediation Tools
     # -------------------------------------------------------------------------
@@ -592,7 +589,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.REMEDIATION,
         testable=False,
     ),
-
     # -------------------------------------------------------------------------
     # Discovery Tools
     # -------------------------------------------------------------------------
@@ -603,7 +599,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.DISCOVERY,
         testable=False,
     ),
-
     # -------------------------------------------------------------------------
     # Orchestration Tools
     # -------------------------------------------------------------------------
@@ -635,7 +630,6 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         category=ToolCategory.ORCHESTRATION,
         testable=False,
     ),
-
     # -------------------------------------------------------------------------
     # Reporting Tools
     # -------------------------------------------------------------------------
@@ -653,19 +647,24 @@ class ToolConfigManager:
     """Manager for tool configuration with persistence."""
 
     _instance: "ToolConfigManager | None" = None
+    _initialized: bool = False
 
     def __new__(cls) -> "ToolConfigManager":
+        """Create singleton instance."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
     def __init__(self) -> None:
+        """Initialize tool configuration manager."""
         if self._initialized:
             return
 
         self._configs: dict[str, ToolConfig] = {}
-        self._test_functions: dict[str, Callable[[], Coroutine[Any, Any, ToolTestResult]]] = {}
+        self._test_functions: dict[
+            str, Callable[[], Coroutine[Any, Any, ToolTestResult]]
+        ] = {}
         self._initialized = True
 
         # Initialize with default configs
@@ -768,9 +767,7 @@ class ToolConfigManager:
         return [name for name, config in self._configs.items() if not config.enabled]
 
     def register_test_function(
-        self,
-        tool_name: str,
-        test_fn: Callable[[], Coroutine[Any, Any, ToolTestResult]]
+        self, tool_name: str, test_fn: Callable[[], Coroutine[Any, Any, ToolTestResult]]
     ) -> None:
         """Register a test function for a tool."""
         self._test_functions[tool_name] = test_fn
@@ -813,7 +810,7 @@ class ToolConfigManager:
         except asyncio.TimeoutError:
             result = ToolTestResult(
                 status=ToolTestStatus.TIMEOUT,
-                message=f"Tool test timed out after 30 seconds",
+                message="Tool test timed out after 30 seconds",
             )
             config.last_test_result = result
             self._save_config()
@@ -833,7 +830,8 @@ class ToolConfigManager:
         results: dict[str, ToolTestResult] = {}
 
         testable_tools = [
-            name for name, config in self._configs.items()
+            name
+            for name, config in self._configs.items()
             if config.testable and name in self._test_functions
         ]
 

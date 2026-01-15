@@ -6,7 +6,6 @@ These tests perform minimal API calls to verify the tool is working.
 
 import logging
 import os
-from typing import Any
 
 from .config import ToolTestResult, ToolTestStatus, get_tool_config_manager
 
@@ -271,7 +270,9 @@ async def test_list_slos() -> ToolTestResult:
                 message="No project ID configured. Set GOOGLE_CLOUD_PROJECT environment variable.",
             )
 
-        if hasattr(client, "list_services") and hasattr(client, "list_service_level_objectives"):
+        if hasattr(client, "list_services") and hasattr(
+            client, "list_service_level_objectives"
+        ):
             return ToolTestResult(
                 status=ToolTestStatus.SUCCESS,
                 message="Service Monitoring API client initialized successfully",
@@ -302,7 +303,7 @@ async def test_get_slo_status() -> ToolTestResult:
 async def test_get_gke_cluster_health() -> ToolTestResult:
     """Test GKE API connectivity."""
     try:
-        from google.cloud import container_v1
+        from google.cloud import container_v1  # type: ignore
 
         client = container_v1.ClusterManagerClient()
         project_id = get_test_project_id()
@@ -391,11 +392,21 @@ def register_all_test_functions() -> None:
     manager.register_test_function("get_slo_status", test_get_slo_status)
 
     # GKE tests
-    manager.register_test_function("get_gke_cluster_health", test_get_gke_cluster_health)
-    manager.register_test_function("analyze_node_conditions", test_analyze_node_conditions)
-    manager.register_test_function("get_pod_restart_events", test_get_pod_restart_events)
+    manager.register_test_function(
+        "get_gke_cluster_health", test_get_gke_cluster_health
+    )
+    manager.register_test_function(
+        "analyze_node_conditions", test_analyze_node_conditions
+    )
+    manager.register_test_function(
+        "get_pod_restart_events", test_get_pod_restart_events
+    )
     manager.register_test_function("analyze_hpa_events", test_analyze_hpa_events)
-    manager.register_test_function("get_container_oom_events", test_get_container_oom_events)
-    manager.register_test_function("get_workload_health_summary", test_get_workload_health_summary)
+    manager.register_test_function(
+        "get_container_oom_events", test_get_container_oom_events
+    )
+    manager.register_test_function(
+        "get_workload_health_summary", test_get_workload_health_summary
+    )
 
     logger.info("Registered all tool test functions")

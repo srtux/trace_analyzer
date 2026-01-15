@@ -377,7 +377,8 @@ async def call_mcp_tool_with_retry(
                     for kw in ["permission", "unauthorized", "forbidden", "403", "401"]
                 )
                 is_not_found = any(
-                    kw in error_str_lower for kw in ["not found", "404", "does not exist"]
+                    kw in error_str_lower
+                    for kw in ["not found", "404", "does not exist"]
                 )
                 is_non_retryable = is_auth_error or is_not_found
 

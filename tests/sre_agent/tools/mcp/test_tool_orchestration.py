@@ -140,9 +140,7 @@ class TestToolOrchestrationErrors:
         assert "direct API alternatives" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_tool_not_found_is_non_retryable(
-        self, mock_tool_context
-    ):
+    async def test_tool_not_found_is_non_retryable(self, mock_tool_context):
         """Test that tool not found returns non-retryable error."""
         mock_toolset = AsyncMock()
         # Return a tool with different name
@@ -197,7 +195,9 @@ class TestToolOrchestrationErrors:
         assert result["status"] == ToolStatus.ERROR
         assert result["non_retryable"] is True
         assert result["error_type"] == "AUTH_ERROR"
-        assert "permission" in result["error"].lower() or "DO NOT retry" in result["error"]
+        assert (
+            "permission" in result["error"].lower() or "DO NOT retry" in result["error"]
+        )
 
     @pytest.mark.asyncio
     async def test_not_found_error_is_non_retryable(
@@ -252,7 +252,10 @@ class TestToolOrchestrationErrors:
         assert result["status"] == ToolStatus.ERROR
         assert result["error_type"] == "EXECUTION_ERROR"
         # Transient errors might allow one retry
-        assert "transient error" in result["error"].lower() or "alternative" in result["error"].lower()
+        assert (
+            "transient error" in result["error"].lower()
+            or "alternative" in result["error"].lower()
+        )
 
     @pytest.mark.asyncio
     async def test_max_retries_exhausted_is_non_retryable(self, mock_tool_context):
@@ -354,9 +357,7 @@ class TestDiscoveryToolErrorHandling:
         return MagicMock()
 
     @pytest.mark.asyncio
-    async def test_discovery_failure_returns_warning_not_error(
-        self, mock_tool_context
-    ):
+    async def test_discovery_failure_returns_warning_not_error(self, mock_tool_context):
         """Test that discovery failure returns warning (not error) with guidance."""
         from sre_agent.tools.discovery.discovery_tool import discover_telemetry_sources
 
@@ -383,9 +384,7 @@ class TestDiscoveryToolErrorHandling:
         assert result.get("non_retryable") is True
 
     @pytest.mark.asyncio
-    async def test_discovery_failure_suggests_alternatives(
-        self, mock_tool_context
-    ):
+    async def test_discovery_failure_suggests_alternatives(self, mock_tool_context):
         """Test that discovery failure suggests specific alternative tools."""
         from sre_agent.tools.discovery.discovery_tool import discover_telemetry_sources
 

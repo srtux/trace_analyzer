@@ -110,14 +110,18 @@ def transform_agent_activity(activity_data: dict[str, Any]) -> dict[str, Any]:
     """
     nodes = []
     for node in activity_data.get("nodes", []):
-        nodes.append({
-            "id": node.get("id", ""),
-            "name": node.get("name", ""),
-            "type": node.get("type", "tool"),  # coordinator, sub_agent, tool, data_source
-            "status": node.get("status", "idle"),  # idle, active, completed, error
-            "connections": node.get("connections", []),
-            "metadata": node.get("metadata"),
-        })
+        nodes.append(
+            {
+                "id": node.get("id", ""),
+                "name": node.get("name", ""),
+                "type": node.get(
+                    "type", "tool"
+                ),  # coordinator, sub_agent, tool, data_source
+                "status": node.get("status", "idle"),  # idle, active, completed, error
+                "connections": node.get("connections", []),
+                "metadata": node.get("metadata"),
+            }
+        )
 
     return {
         "nodes": nodes,
@@ -145,23 +149,31 @@ def transform_service_topology(topology_data: dict[str, Any]) -> dict[str, Any]:
     for svc in topology_data.get("services", []):
         connections = []
         for conn in svc.get("connections", []):
-            connections.append({
-                "target_id": conn.get("target_id", ""),
-                "traffic_percent": conn.get("traffic_percent", 0),
-                "latency_ms": conn.get("latency_ms", 0),
-                "error_rate": conn.get("error_rate", 0),
-            })
+            connections.append(
+                {
+                    "target_id": conn.get("target_id", ""),
+                    "traffic_percent": conn.get("traffic_percent", 0),
+                    "latency_ms": conn.get("latency_ms", 0),
+                    "error_rate": conn.get("error_rate", 0),
+                }
+            )
 
-        services.append({
-            "id": svc.get("id", ""),
-            "name": svc.get("name", ""),
-            "type": svc.get("type", "backend"),  # frontend, backend, database, cache, queue, external
-            "health": svc.get("health", "unknown"),  # healthy, degraded, unhealthy, unknown
-            "latency_ms": svc.get("latency_ms", 0),
-            "error_rate": svc.get("error_rate", 0),
-            "requests_per_sec": svc.get("requests_per_sec", 0),
-            "connections": connections,
-        })
+        services.append(
+            {
+                "id": svc.get("id", ""),
+                "name": svc.get("name", ""),
+                "type": svc.get(
+                    "type", "backend"
+                ),  # frontend, backend, database, cache, queue, external
+                "health": svc.get(
+                    "health", "unknown"
+                ),  # healthy, degraded, unhealthy, unknown
+                "latency_ms": svc.get("latency_ms", 0),
+                "error_rate": svc.get("error_rate", 0),
+                "requests_per_sec": svc.get("requests_per_sec", 0),
+                "connections": connections,
+            }
+        )
 
     return {
         "services": services,
@@ -191,21 +203,31 @@ def transform_incident_timeline(incident_data: dict[str, Any]) -> dict[str, Any]
     """
     events = []
     for event in incident_data.get("events", []):
-        events.append({
-            "id": event.get("id", ""),
-            "timestamp": event.get("timestamp", datetime.now(timezone.utc).isoformat()),
-            "type": event.get("type", "info"),  # alert, deployment, config_change, scaling, incident, recovery, agent_action
-            "title": event.get("title", ""),
-            "description": event.get("description"),
-            "severity": event.get("severity", "info"),  # critical, high, medium, low, info
-            "metadata": event.get("metadata"),
-            "is_correlated": event.get("is_correlated", False),
-        })
+        events.append(
+            {
+                "id": event.get("id", ""),
+                "timestamp": event.get(
+                    "timestamp", datetime.now(timezone.utc).isoformat()
+                ),
+                "type": event.get(
+                    "type", "info"
+                ),  # alert, deployment, config_change, scaling, incident, recovery, agent_action
+                "title": event.get("title", ""),
+                "description": event.get("description"),
+                "severity": event.get(
+                    "severity", "info"
+                ),  # critical, high, medium, low, info
+                "metadata": event.get("metadata"),
+                "is_correlated": event.get("is_correlated", False),
+            }
+        )
 
     return {
         "incident_id": incident_data.get("incident_id", ""),
         "title": incident_data.get("title", "Incident"),
-        "start_time": incident_data.get("start_time", datetime.now(timezone.utc).isoformat()),
+        "start_time": incident_data.get(
+            "start_time", datetime.now(timezone.utc).isoformat()
+        ),
         "end_time": incident_data.get("end_time"),
         "status": incident_data.get("status", "ongoing"),
         "events": events,
@@ -232,22 +254,28 @@ def transform_metrics_dashboard(dashboard_data: dict[str, Any]) -> dict[str, Any
     for metric in dashboard_data.get("metrics", []):
         history = []
         for point in metric.get("history", []):
-            history.append({
-                "timestamp": point.get("timestamp", datetime.now(timezone.utc).isoformat()),
-                "value": point.get("value", 0),
-            })
+            history.append(
+                {
+                    "timestamp": point.get(
+                        "timestamp", datetime.now(timezone.utc).isoformat()
+                    ),
+                    "value": point.get("value", 0),
+                }
+            )
 
-        metrics.append({
-            "id": metric.get("id", ""),
-            "name": metric.get("name", ""),
-            "unit": metric.get("unit", ""),
-            "current_value": metric.get("current_value", 0),
-            "previous_value": metric.get("previous_value"),
-            "threshold": metric.get("threshold"),
-            "history": history,
-            "status": metric.get("status", "normal"),  # normal, warning, critical
-            "anomaly_description": metric.get("anomaly_description"),
-        })
+        metrics.append(
+            {
+                "id": metric.get("id", ""),
+                "name": metric.get("name", ""),
+                "unit": metric.get("unit", ""),
+                "current_value": metric.get("current_value", 0),
+                "previous_value": metric.get("previous_value"),
+                "threshold": metric.get("threshold"),
+                "history": history,
+                "status": metric.get("status", "normal"),  # normal, warning, critical
+                "anomaly_description": metric.get("anomaly_description"),
+            }
+        )
 
     return {
         "title": dashboard_data.get("title", "Metrics Dashboard"),
@@ -275,26 +303,32 @@ def transform_ai_reasoning(reasoning_data: dict[str, Any]) -> dict[str, Any]:
     """
     steps = []
     for step in reasoning_data.get("steps", []):
-        steps.append({
-            "id": step.get("id", ""),
-            "type": step.get("type", "observation"),  # observation, analysis, hypothesis, conclusion, action
-            "content": step.get("content", ""),
-            "confidence": step.get("confidence", 0.0),
-            "evidence_ids": step.get("evidence_ids", []),
-            "outcome": step.get("outcome"),
-            "is_active": step.get("is_active", False),
-        })
+        steps.append(
+            {
+                "id": step.get("id", ""),
+                "type": step.get(
+                    "type", "observation"
+                ),  # observation, analysis, hypothesis, conclusion, action
+                "content": step.get("content", ""),
+                "confidence": step.get("confidence", 0.0),
+                "evidence_ids": step.get("evidence_ids", []),
+                "outcome": step.get("outcome"),
+                "is_active": step.get("is_active", False),
+            }
+        )
 
     evidence = []
     for ev in reasoning_data.get("evidence", []):
-        evidence.append({
-            "id": ev.get("id", ""),
-            "source": ev.get("source", ""),
-            "type": ev.get("type", "log"),  # metric, log, trace, alert, config
-            "summary": ev.get("summary", ""),
-            "relevance": ev.get("relevance", 0.0),
-            "data": ev.get("data"),
-        })
+        evidence.append(
+            {
+                "id": ev.get("id", ""),
+                "source": ev.get("source", ""),
+                "type": ev.get("type", "log"),  # metric, log, trace, alert, config
+                "summary": ev.get("summary", ""),
+                "relevance": ev.get("relevance", 0.0),
+                "data": ev.get("data"),
+            }
+        )
 
     return {
         "agent_name": reasoning_data.get("agent_name", "SRE Agent"),
@@ -309,59 +343,213 @@ def transform_ai_reasoning(reasoning_data: dict[str, Any]) -> dict[str, Any]:
 
 def create_demo_agent_activity() -> dict[str, Any]:
     """Create demo data for Agent Activity Canvas."""
-    return transform_agent_activity({
-        "nodes": [
-            {"id": "coordinator", "name": "Root Agent", "type": "coordinator", "status": "active", "connections": ["trace-agent", "metrics-agent", "logs-agent"]},
-            {"id": "trace-agent", "name": "Trace Analyzer", "type": "sub_agent", "status": "completed", "connections": ["trace-client"]},
-            {"id": "metrics-agent", "name": "Metrics Analyzer", "type": "sub_agent", "status": "active", "connections": ["monitoring-client"]},
-            {"id": "logs-agent", "name": "Log Analyzer", "type": "sub_agent", "status": "idle", "connections": ["logging-client"]},
-            {"id": "trace-client", "name": "Cloud Trace", "type": "data_source", "status": "completed", "connections": []},
-            {"id": "monitoring-client", "name": "Cloud Monitoring", "type": "data_source", "status": "active", "connections": []},
-            {"id": "logging-client", "name": "Cloud Logging", "type": "data_source", "status": "idle", "connections": []},
-        ],
-        "current_phase": "Analyzing Metrics",
-        "active_node_id": "metrics-agent",
-        "completed_steps": ["trace-agent", "trace-client"],
-        "message": "Correlating metric anomalies with trace data...",
-    })
+    return transform_agent_activity(
+        {
+            "nodes": [
+                {
+                    "id": "coordinator",
+                    "name": "Root Agent",
+                    "type": "coordinator",
+                    "status": "active",
+                    "connections": ["trace-agent", "metrics-agent", "logs-agent"],
+                },
+                {
+                    "id": "trace-agent",
+                    "name": "Trace Analyzer",
+                    "type": "sub_agent",
+                    "status": "completed",
+                    "connections": ["trace-client"],
+                },
+                {
+                    "id": "metrics-agent",
+                    "name": "Metrics Analyzer",
+                    "type": "sub_agent",
+                    "status": "active",
+                    "connections": ["monitoring-client"],
+                },
+                {
+                    "id": "logs-agent",
+                    "name": "Log Analyzer",
+                    "type": "sub_agent",
+                    "status": "idle",
+                    "connections": ["logging-client"],
+                },
+                {
+                    "id": "trace-client",
+                    "name": "Cloud Trace",
+                    "type": "data_source",
+                    "status": "completed",
+                    "connections": [],
+                },
+                {
+                    "id": "monitoring-client",
+                    "name": "Cloud Monitoring",
+                    "type": "data_source",
+                    "status": "active",
+                    "connections": [],
+                },
+                {
+                    "id": "logging-client",
+                    "name": "Cloud Logging",
+                    "type": "data_source",
+                    "status": "idle",
+                    "connections": [],
+                },
+            ],
+            "current_phase": "Analyzing Metrics",
+            "active_node_id": "metrics-agent",
+            "completed_steps": ["trace-agent", "trace-client"],
+            "message": "Correlating metric anomalies with trace data...",
+        }
+    )
 
 
 def create_demo_service_topology() -> dict[str, Any]:
     """Create demo data for Service Topology Canvas."""
-    return transform_service_topology({
-        "services": [
-            {"id": "api-gateway", "name": "API Gateway", "type": "frontend", "health": "healthy", "latency_ms": 45, "error_rate": 0.001, "requests_per_sec": 1500,
-             "connections": [{"target_id": "auth-service", "latency_ms": 12}, {"target_id": "order-service", "latency_ms": 35}]},
-            {"id": "auth-service", "name": "Auth Service", "type": "backend", "health": "healthy", "latency_ms": 25, "error_rate": 0.0005, "requests_per_sec": 800,
-             "connections": [{"target_id": "user-db", "latency_ms": 8}]},
-            {"id": "order-service", "name": "Order Service", "type": "backend", "health": "degraded", "latency_ms": 450, "error_rate": 0.05, "requests_per_sec": 600,
-             "connections": [{"target_id": "order-db", "latency_ms": 380}, {"target_id": "cache", "latency_ms": 5}]},
-            {"id": "user-db", "name": "User DB", "type": "database", "health": "healthy", "latency_ms": 8, "error_rate": 0, "requests_per_sec": 500, "connections": []},
-            {"id": "order-db", "name": "Order DB", "type": "database", "health": "unhealthy", "latency_ms": 850, "error_rate": 0.1, "requests_per_sec": 300, "connections": []},
-            {"id": "cache", "name": "Redis Cache", "type": "cache", "health": "healthy", "latency_ms": 2, "error_rate": 0, "requests_per_sec": 2000, "connections": []},
-        ],
-        "incident_source_id": "order-db",
-        "affected_path": ["api-gateway", "order-service", "order-db"],
-    })
+    return transform_service_topology(
+        {
+            "services": [
+                {
+                    "id": "api-gateway",
+                    "name": "API Gateway",
+                    "type": "frontend",
+                    "health": "healthy",
+                    "latency_ms": 45,
+                    "error_rate": 0.001,
+                    "requests_per_sec": 1500,
+                    "connections": [
+                        {"target_id": "auth-service", "latency_ms": 12},
+                        {"target_id": "order-service", "latency_ms": 35},
+                    ],
+                },
+                {
+                    "id": "auth-service",
+                    "name": "Auth Service",
+                    "type": "backend",
+                    "health": "healthy",
+                    "latency_ms": 25,
+                    "error_rate": 0.0005,
+                    "requests_per_sec": 800,
+                    "connections": [{"target_id": "user-db", "latency_ms": 8}],
+                },
+                {
+                    "id": "order-service",
+                    "name": "Order Service",
+                    "type": "backend",
+                    "health": "degraded",
+                    "latency_ms": 450,
+                    "error_rate": 0.05,
+                    "requests_per_sec": 600,
+                    "connections": [
+                        {"target_id": "order-db", "latency_ms": 380},
+                        {"target_id": "cache", "latency_ms": 5},
+                    ],
+                },
+                {
+                    "id": "user-db",
+                    "name": "User DB",
+                    "type": "database",
+                    "health": "healthy",
+                    "latency_ms": 8,
+                    "error_rate": 0,
+                    "requests_per_sec": 500,
+                    "connections": [],
+                },
+                {
+                    "id": "order-db",
+                    "name": "Order DB",
+                    "type": "database",
+                    "health": "unhealthy",
+                    "latency_ms": 850,
+                    "error_rate": 0.1,
+                    "requests_per_sec": 300,
+                    "connections": [],
+                },
+                {
+                    "id": "cache",
+                    "name": "Redis Cache",
+                    "type": "cache",
+                    "health": "healthy",
+                    "latency_ms": 2,
+                    "error_rate": 0,
+                    "requests_per_sec": 2000,
+                    "connections": [],
+                },
+            ],
+            "incident_source_id": "order-db",
+            "affected_path": ["api-gateway", "order-service", "order-db"],
+        }
+    )
 
 
 def create_demo_incident_timeline() -> dict[str, Any]:
     """Create demo data for Incident Timeline Canvas."""
     base_time = datetime.now(timezone.utc)
-    return transform_incident_timeline({
-        "incident_id": "INC-2024-001",
-        "title": "Order Service Latency Degradation",
-        "start_time": (base_time.replace(hour=base_time.hour - 2)).isoformat(),
-        "status": "mitigated",
-        "events": [
-            {"id": "e1", "timestamp": (base_time.replace(hour=base_time.hour - 2)).isoformat(), "type": "alert", "title": "High latency alert triggered", "severity": "high", "is_correlated": True},
-            {"id": "e2", "timestamp": (base_time.replace(hour=base_time.hour - 2, minute=5)).isoformat(), "type": "deployment", "title": "v2.3.1 deployed to order-service", "severity": "info", "is_correlated": True},
-            {"id": "e3", "timestamp": (base_time.replace(hour=base_time.hour - 1, minute=45)).isoformat(), "type": "agent_action", "title": "SRE Agent started investigation", "severity": "info"},
-            {"id": "e4", "timestamp": (base_time.replace(hour=base_time.hour - 1, minute=30)).isoformat(), "type": "config_change", "title": "DB connection pool exhausted", "severity": "critical", "is_correlated": True},
-            {"id": "e5", "timestamp": (base_time.replace(hour=base_time.hour - 1)).isoformat(), "type": "scaling", "title": "Auto-scaled DB connections", "severity": "medium"},
-            {"id": "e6", "timestamp": (base_time.replace(minute=30)).isoformat(), "type": "recovery", "title": "Latency returning to normal", "severity": "low"},
-        ],
-        "root_cause": "Database connection pool limit reached after v2.3.1 deployment increased query complexity",
-        "ttd_seconds": 300,
-        "ttm_seconds": 5400,
-    })
+    return transform_incident_timeline(
+        {
+            "incident_id": "INC-2024-001",
+            "title": "Order Service Latency Degradation",
+            "start_time": (base_time.replace(hour=base_time.hour - 2)).isoformat(),
+            "status": "mitigated",
+            "events": [
+                {
+                    "id": "e1",
+                    "timestamp": (
+                        base_time.replace(hour=base_time.hour - 2)
+                    ).isoformat(),
+                    "type": "alert",
+                    "title": "High latency alert triggered",
+                    "severity": "high",
+                    "is_correlated": True,
+                },
+                {
+                    "id": "e2",
+                    "timestamp": (
+                        base_time.replace(hour=base_time.hour - 2, minute=5)
+                    ).isoformat(),
+                    "type": "deployment",
+                    "title": "v2.3.1 deployed to order-service",
+                    "severity": "info",
+                    "is_correlated": True,
+                },
+                {
+                    "id": "e3",
+                    "timestamp": (
+                        base_time.replace(hour=base_time.hour - 1, minute=45)
+                    ).isoformat(),
+                    "type": "agent_action",
+                    "title": "SRE Agent started investigation",
+                    "severity": "info",
+                },
+                {
+                    "id": "e4",
+                    "timestamp": (
+                        base_time.replace(hour=base_time.hour - 1, minute=30)
+                    ).isoformat(),
+                    "type": "config_change",
+                    "title": "DB connection pool exhausted",
+                    "severity": "critical",
+                    "is_correlated": True,
+                },
+                {
+                    "id": "e5",
+                    "timestamp": (
+                        base_time.replace(hour=base_time.hour - 1)
+                    ).isoformat(),
+                    "type": "scaling",
+                    "title": "Auto-scaled DB connections",
+                    "severity": "medium",
+                },
+                {
+                    "id": "e6",
+                    "timestamp": (base_time.replace(minute=30)).isoformat(),
+                    "type": "recovery",
+                    "title": "Latency returning to normal",
+                    "severity": "low",
+                },
+            ],
+            "root_cause": "Database connection pool limit reached after v2.3.1 deployment increased query complexity",
+            "ttd_seconds": 300,
+            "ttm_seconds": 5400,
+        }
+    )

@@ -164,6 +164,7 @@ from .tools import (
 )
 from .tools.common import adk_tool
 from .tools.common.telemetry import setup_telemetry
+from .tools.config import get_tool_config_manager
 from .tools.mcp.gcp import (
     create_bigquery_mcp_toolset,
     create_logging_mcp_toolset,
@@ -174,7 +175,6 @@ from .tools.mcp.gcp import (
     mcp_query_range,
 )
 from .tools.reporting import synthesize_report
-from .tools.config import get_tool_config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -752,7 +752,9 @@ def get_enabled_tools() -> list[Any]:
         if tool_name in TOOL_NAME_MAP:
             enabled_tools.append(TOOL_NAME_MAP[tool_name])
 
-    logger.info(f"Loaded {len(enabled_tools)} enabled tools out of {len(TOOL_NAME_MAP)} total")
+    logger.info(
+        f"Loaded {len(enabled_tools)} enabled tools out of {len(TOOL_NAME_MAP)} total"
+    )
     return enabled_tools
 
 
