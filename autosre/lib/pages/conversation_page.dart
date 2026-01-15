@@ -8,6 +8,7 @@ import '../agent/adk_content_generator.dart';
 import '../catalog.dart';
 import '../services/project_service.dart';
 import '../theme/app_theme.dart';
+import 'tool_config_page.dart';
 
 class ConversationPage extends StatefulWidget {
   const ConversationPage({super.key});
@@ -254,11 +255,48 @@ class _ConversationPageState extends State<ConversationPage>
                             );
                           },
                         ),
+                        const SizedBox(width: 8),
+                        // Tool Configuration button
+                        _buildToolConfigButton(compact: isMobile),
                       ],
                     ),
                   );
                 },
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolConfigButton({bool compact = false}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const ToolConfigPage(),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: EdgeInsets.all(compact ? 6 : 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: AppColors.surfaceBorder,
+            ),
+          ),
+          child: Tooltip(
+            message: 'Tool Configuration',
+            child: Icon(
+              Icons.build_outlined,
+              size: compact ? 16 : 18,
+              color: AppColors.textMuted,
             ),
           ),
         ),

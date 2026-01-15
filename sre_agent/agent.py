@@ -174,6 +174,7 @@ from .tools.mcp.gcp import (
     mcp_query_range,
 )
 from .tools.reporting import synthesize_report
+from .tools.config import get_tool_config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -647,6 +648,113 @@ base_tools: list[Any] = [
     synthesize_report,
 ]
 
+# Tool name mapping for filtering
+TOOL_NAME_MAP: dict[str, Any] = {
+    # Trace API tools
+    "fetch_trace": fetch_trace,
+    "list_traces": list_traces,
+    "find_example_traces": find_example_traces,
+    "get_trace_by_url": get_trace_by_url,
+    # Trace analysis tools
+    "calculate_span_durations": calculate_span_durations,
+    "extract_errors": extract_errors,
+    "build_call_graph": build_call_graph,
+    "summarize_trace": summarize_trace,
+    "validate_trace_quality": validate_trace_quality,
+    # Trace comparison tools
+    "compare_span_timings": compare_span_timings,
+    "find_structural_differences": find_structural_differences,
+    # GCP direct API tools
+    "list_log_entries": list_log_entries,
+    "list_time_series": list_time_series,
+    "query_promql": query_promql,
+    "list_alerts": list_alerts,
+    "get_alert": get_alert,
+    "list_alert_policies": list_alert_policies,
+    "list_error_events": list_error_events,
+    "get_logs_for_trace": get_logs_for_trace,
+    "get_current_time": get_current_time,
+    # BigQuery OTel tools
+    "analyze_aggregate_metrics": analyze_aggregate_metrics,
+    "find_exemplar_traces": find_exemplar_traces,
+    "compare_time_periods": compare_time_periods,
+    "detect_trend_changes": detect_trend_changes,
+    "correlate_logs_with_trace": correlate_logs_with_trace,
+    # Log pattern analysis tools
+    "extract_log_patterns": extract_log_patterns,
+    "compare_log_patterns": compare_log_patterns,
+    "analyze_log_anomalies": analyze_log_anomalies,
+    # MCP tools
+    "mcp_list_log_entries": mcp_list_log_entries,
+    "mcp_list_timeseries": mcp_list_timeseries,
+    "mcp_query_range": mcp_query_range,
+    # Orchestrator tools
+    "run_aggregate_analysis": run_aggregate_analysis,
+    "run_triage_analysis": run_triage_analysis,
+    "run_log_pattern_analysis": run_log_pattern_analysis,
+    "run_deep_dive_analysis": run_deep_dive_analysis,
+    # Metrics analysis tools
+    "detect_metric_anomalies": detect_metric_anomalies,
+    "compare_metric_windows": compare_metric_windows,
+    "calculate_series_stats": calculate_series_stats,
+    # Cross-signal correlation tools
+    "correlate_trace_with_metrics": correlate_trace_with_metrics,
+    "correlate_metrics_with_traces_via_exemplars": correlate_metrics_with_traces_via_exemplars,
+    "build_cross_signal_timeline": build_cross_signal_timeline,
+    "analyze_signal_correlation_strength": analyze_signal_correlation_strength,
+    # Critical path analysis tools
+    "analyze_critical_path": analyze_critical_path,
+    "find_bottleneck_services": find_bottleneck_services,
+    "calculate_critical_path_contribution": calculate_critical_path_contribution,
+    # Service dependency tools
+    "build_service_dependency_graph": build_service_dependency_graph,
+    "analyze_upstream_downstream_impact": analyze_upstream_downstream_impact,
+    "detect_circular_dependencies": detect_circular_dependencies,
+    "find_hidden_dependencies": find_hidden_dependencies,
+    # SLO/SLI Tools
+    "list_slos": list_slos,
+    "get_slo_status": get_slo_status,
+    "analyze_error_budget_burn": analyze_error_budget_burn,
+    "get_golden_signals": get_golden_signals,
+    "correlate_incident_with_slo_impact": correlate_incident_with_slo_impact,
+    "predict_slo_violation": predict_slo_violation,
+    # GKE/Kubernetes Tools
+    "get_gke_cluster_health": get_gke_cluster_health,
+    "analyze_node_conditions": analyze_node_conditions,
+    "get_pod_restart_events": get_pod_restart_events,
+    "analyze_hpa_events": analyze_hpa_events,
+    "get_container_oom_events": get_container_oom_events,
+    "correlate_trace_with_kubernetes": correlate_trace_with_kubernetes,
+    "get_workload_health_summary": get_workload_health_summary,
+    # Automated Remediation Tools
+    "generate_remediation_suggestions": generate_remediation_suggestions,
+    "get_gcloud_commands": get_gcloud_commands,
+    "estimate_remediation_risk": estimate_remediation_risk,
+    "find_similar_past_incidents": find_similar_past_incidents,
+    # Discovery
+    "discover_telemetry_sources": discover_telemetry_sources,
+    # Reporting
+    "synthesize_report": synthesize_report,
+}
+
+
+def get_enabled_tools() -> list[Any]:
+    """Get list of enabled tools based on configuration.
+
+    Returns:
+        List of tool functions that are currently enabled.
+    """
+    manager = get_tool_config_manager()
+    enabled_tool_names = manager.get_enabled_tools()
+
+    enabled_tools = []
+    for tool_name in enabled_tool_names:
+        if tool_name in TOOL_NAME_MAP:
+            enabled_tools.append(TOOL_NAME_MAP[tool_name])
+
+    logger.info(f"Loaded {len(enabled_tools)} enabled tools out of {len(TOOL_NAME_MAP)} total")
+    return enabled_tools
+
 
 # ============================================================================
 # Main Agent Definition
@@ -694,11 +802,15 @@ root_agent = sre_agent
 # ============================================================================
 
 
-async def get_agent_with_mcp_tools() -> LlmAgent:
+async def get_agent_with_mcp_tools(use_enabled_tools: bool = True) -> LlmAgent:
     """Creates an agent instance with MCP toolsets loaded.
 
     This should be called in an async context to properly initialize
     MCP toolsets. Use this for programmatic agent creation.
+
+    Args:
+        use_enabled_tools: If True, only include tools that are enabled in config.
+                          If False, include all tools (base_tools).
 
     Returns:
         LlmAgent with MCP tools added.
@@ -708,8 +820,11 @@ async def get_agent_with_mcp_tools() -> LlmAgent:
     logging_toolset = await _get_logging_mcp_toolset()
     monitoring_toolset = await _get_monitoring_mcp_toolset()
 
-    # Combine all tools
-    all_tools = list(base_tools)
+    # Get tools based on configuration
+    if use_enabled_tools:
+        all_tools = get_enabled_tools()
+    else:
+        all_tools = list(base_tools)
 
     # Add MCP toolsets if available
     if bq_toolset:

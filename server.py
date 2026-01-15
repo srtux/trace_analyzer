@@ -46,6 +46,12 @@ from sre_agent.tools import (
     list_log_entries,
 )
 from sre_agent.tools.analysis import genui_adapter
+from sre_agent.tools.config import (
+    ToolCategory,
+    ToolTestStatus,
+    get_tool_config_manager,
+)
+from sre_agent.tools.test_functions import register_all_test_functions
 
 # 0. SET LOG LEVEL EARLY
 os.environ["LOG_LEVEL"] = "DEBUG"
@@ -53,6 +59,11 @@ os.environ["LOG_LEVEL"] = "DEBUG"
 # 1.1 CONFIGURING LOGGING
 # Rely on setup_telemetry() which is called inside sre_agent.agent
 logger = logging.getLogger(__name__)
+
+# 1.2 INITIALIZE TOOL CONFIGURATION
+# Register test functions for tool connectivity testing
+register_all_test_functions()
+logger.info("Tool configuration manager initialized")
 
 # 2. INTERNAL IMPORTS
 # (Imports moved to top-level)
@@ -204,6 +215,287 @@ async def analyze_logs(payload: dict[str, Any]) -> Any:
         import traceback
 
         traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ============================================================================
+# TOOL CONFIGURATION ENDPOINTS
+# ============================================================================
+
+
+class ToolConfigUpdate(BaseModel):
+    """Request model for updating tool configuration."""
+
+    enabled: bool
+
+
+class ToolTestRequest(BaseModel):
+    """Request model for testing a tool."""
+
+    tool_name: str
+
+
+@app.get("/api/tools/config")
+async def get_tool_configs(
+    category: str | None = None,
+    enabled_only: bool = False,
+) -> Any:
+    """Get all tool configurations.
+
+    Args:
+        category: Optional filter by category (api_client, mcp, analysis, etc.)
+        enabled_only: If True, only return enabled tools
+
+    Returns:
+        List of tool configurations grouped by category.
+    """
+    try:
+        manager = get_tool_config_manager()
+        configs = manager.get_all_configs()
+
+        # Filter by category if specified
+        if category:
+            try:
+                cat = ToolCategory(category)
+                configs = [c for c in configs if c.category == cat]
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid category: {category}. Valid categories: {[c.value for c in ToolCategory]}",
+                )
+
+        # Filter by enabled status if specified
+        if enabled_only:
+            configs = [c for c in configs if c.enabled]
+
+        # Group by category for better UI organization
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for config in configs:
+            cat_name = config.category.value
+            if cat_name not in grouped:
+                grouped[cat_name] = []
+            grouped[cat_name].append(config.to_dict())
+
+        # Calculate summary stats
+        total = len(configs)
+        enabled = len([c for c in configs if c.enabled])
+        testable = len([c for c in configs if c.testable])
+
+        return {
+            "tools": grouped,
+            "summary": {
+                "total": total,
+                "enabled": enabled,
+                "disabled": total - enabled,
+                "testable": testable,
+            },
+            "categories": [c.value for c in ToolCategory],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting tool configs: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/api/tools/config/{tool_name}")
+async def get_tool_config(tool_name: str) -> Any:
+    """Get configuration for a specific tool."""
+    try:
+        manager = get_tool_config_manager()
+        config = manager.get_config(tool_name)
+
+        if not config:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Tool '{tool_name}' not found",
+            )
+
+        return config.to_dict()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting tool config: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.put("/api/tools/config/{tool_name}")
+async def update_tool_config(tool_name: str, update: ToolConfigUpdate) -> Any:
+    """Update configuration for a specific tool (enable/disable)."""
+    try:
+        manager = get_tool_config_manager()
+        config = manager.get_config(tool_name)
+
+        if not config:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Tool '{tool_name}' not found",
+            )
+
+        success = manager.set_enabled(tool_name, update.enabled)
+
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to update tool '{tool_name}'",
+            )
+
+        # Return updated config
+        updated_config = manager.get_config(tool_name)
+        return {
+            "message": f"Tool '{tool_name}' {'enabled' if update.enabled else 'disabled'} successfully",
+            "tool": updated_config.to_dict() if updated_config else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating tool config: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/api/tools/config/bulk")
+async def bulk_update_tool_configs(updates: dict[str, bool]) -> Any:
+    """Bulk update tool configurations.
+
+    Args:
+        updates: Dictionary of tool_name -> enabled (bool)
+
+    Returns:
+        Summary of updates performed.
+    """
+    try:
+        manager = get_tool_config_manager()
+        results: dict[str, dict[str, Any]] = {
+            "updated": {},
+            "failed": {},
+            "not_found": [],
+        }
+
+        for tool_name, enabled in updates.items():
+            config = manager.get_config(tool_name)
+            if not config:
+                results["not_found"].append(tool_name)
+                continue
+
+            success = manager.set_enabled(tool_name, enabled)
+            if success:
+                results["updated"][tool_name] = enabled
+            else:
+                results["failed"][tool_name] = "Update failed"
+
+        return {
+            "message": f"Bulk update completed: {len(results['updated'])} updated, "
+                       f"{len(results['failed'])} failed, {len(results['not_found'])} not found",
+            "results": results,
+        }
+    except Exception as e:
+        logger.error(f"Error in bulk update: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/api/tools/test/{tool_name}")
+async def test_tool(tool_name: str) -> Any:
+    """Test a specific tool's connectivity/functionality.
+
+    This performs a lightweight connectivity test to verify the tool is working.
+    """
+    try:
+        manager = get_tool_config_manager()
+        config = manager.get_config(tool_name)
+
+        if not config:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Tool '{tool_name}' not found",
+            )
+
+        if not config.testable:
+            return {
+                "tool_name": tool_name,
+                "testable": False,
+                "message": f"Tool '{tool_name}' is not testable",
+            }
+
+        result = await manager.test_tool(tool_name)
+
+        return {
+            "tool_name": tool_name,
+            "testable": True,
+            "result": {
+                "status": result.status.value,
+                "message": result.message,
+                "latency_ms": result.latency_ms,
+                "timestamp": result.timestamp,
+                "details": result.details,
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error testing tool: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/api/tools/test-all")
+async def test_all_tools(category: str | None = None) -> Any:
+    """Test all testable tools and return results.
+
+    Args:
+        category: Optional filter to test only tools in a specific category
+    """
+    try:
+        manager = get_tool_config_manager()
+
+        # Get testable tools
+        if category:
+            try:
+                cat = ToolCategory(category)
+                configs = manager.get_configs_by_category(cat)
+                testable_tools = [c.name for c in configs if c.testable]
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid category: {category}",
+                )
+        else:
+            configs = manager.get_all_configs()
+            testable_tools = [c.name for c in configs if c.testable]
+
+        if not testable_tools:
+            return {
+                "message": "No testable tools found",
+                "results": {},
+                "summary": {"total": 0, "success": 0, "failed": 0, "timeout": 0},
+            }
+
+        # Run all tests
+        results = await manager.test_all_testable_tools()
+
+        # Calculate summary
+        summary = {
+            "total": len(results),
+            "success": len([r for r in results.values() if r.status == ToolTestStatus.SUCCESS]),
+            "failed": len([r for r in results.values() if r.status == ToolTestStatus.FAILED]),
+            "timeout": len([r for r in results.values() if r.status == ToolTestStatus.TIMEOUT]),
+        }
+
+        return {
+            "message": f"Tested {len(results)} tools",
+            "results": {
+                name: {
+                    "status": result.status.value,
+                    "message": result.message,
+                    "latency_ms": result.latency_ms,
+                    "timestamp": result.timestamp,
+                }
+                for name, result in results.items()
+            },
+            "summary": summary,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error testing all tools: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
