@@ -32,6 +32,12 @@ async def list_time_series(
 ) -> str:
     """Lists time series data from Google Cloud Monitoring using direct API.
 
+    IMPORTANT: You must use valid combinations of metric and monitored resource labels.
+    - For GCE Instances (`gce_instance`), valid labels are `instance_id`, `zone`, `project_id`.
+      DO NOT use `service_name` or `service` with GCE metrics.
+    - For GKE Containers (`k8s_container`), valid labels are `namespace_name`, `pod_name`, `container_name`, `cluster_name`.
+    - To filter by service, use `query_promql` instead with a PromQL query like `metric{service="service-name"}`.
+
     Args:
         project_id: The Google Cloud Project ID.
         filter_str: The filter string to use.
@@ -40,7 +46,7 @@ async def list_time_series(
     Returns:
         A JSON string representing the list of time series.
 
-    Example filter_str: 'metric.type="compute.googleapis.com/instance/cpu/utilization"'
+    Example filter_str: 'metric.type="compute.googleapis.com/instance/cpu/utilization" AND resource.labels.instance_id="123456789"'
     """
     from fastapi.concurrency import run_in_threadpool
 
@@ -106,7 +112,21 @@ def _list_time_series_sync(
             return json.dumps(time_series_data)
         except Exception as e:
             span.record_exception(e)
-            error_msg = f"Failed to list time series: {e!s}"
+            error_str = str(e)
+
+            # Suggest fixes for common filter errors
+            suggestion = ""
+            if (
+                "400" in error_str
+                and "service" in filter_str
+                and "compute" in filter_str
+            ):
+                suggestion = (
+                    ". HINT: 'resource.labels.service_name' is NOT valid for GCE metrics. "
+                    "Use 'resource.labels.instance_id' or use query_promql() to filter/aggregate by service."
+                )
+
+            error_msg = f"Failed to list time series: {error_str}{suggestion}"
             logger.error(error_msg, exc_info=True)
             return json.dumps({"error": error_msg})
 

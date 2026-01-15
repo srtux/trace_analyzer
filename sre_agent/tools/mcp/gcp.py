@@ -237,6 +237,7 @@ async def call_mcp_tool_with_retry(
         }
 
     for attempt in range(max_retries):
+        mcp_toolset = None
         try:
             logger.debug(
                 f"DEBUG: Calling create_toolset_fn for {tool_name} (project_id={project_id})"
@@ -284,6 +285,14 @@ async def call_mcp_tool_with_retry(
                             "status": ToolStatus.ERROR,
                             "error": f"Tool {tool_name} timed out after 30s",
                         }
+                    except asyncio.CancelledError:
+                        logger.warning(f"Tool execution cancelled for {tool_name}")
+                        # Return a specific error status for cancellation instead of raising
+                        # This prevents the evaluation framework from crashing with a traceback
+                        return {
+                            "status": ToolStatus.ERROR,
+                            "error": "Tool execution cancelled by system.",
+                        }
 
             return {
                 "status": ToolStatus.ERROR,
@@ -318,6 +327,21 @@ async def call_mcp_tool_with_retry(
                     "status": ToolStatus.ERROR,
                     "error": f"Execution failed: {e!s}",
                 }
+        finally:
+            if mcp_toolset and hasattr(mcp_toolset, "close"):
+                try:
+                    await mcp_toolset.close()
+                except asyncio.CancelledError:
+                    # Ignore cancellation errors during cleanup to ensure result is returned
+                    logger.debug(
+                        "MCP toolset close interrupted by cancellation (ignored)"
+                    )
+                except RuntimeError as e:
+                    # Ignore "Attempted to exit cancel scope..." errors from anyio/mcp cleanup
+                    # These occur due to task scoping issues in the underlying library during forced cleanup
+                    logger.debug(f"RuntimeError during MCP cleanup (ignored): {e}")
+                except Exception as e:
+                    logger.warning(f"Error closing MCP toolset: {e}")
 
     return {
         "status": ToolStatus.ERROR,
