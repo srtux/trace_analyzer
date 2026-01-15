@@ -23,12 +23,12 @@ web/.env
 web/.env.local
 
 # Project artifacts
-artifacts/
-knowledge/
-brain/
-logs/
-tests/
-evals/
+/artifacts/
+/knowledge/
+/brain/
+/logs/
+/tests/
+/evals/
 
 # Local env
 .env
