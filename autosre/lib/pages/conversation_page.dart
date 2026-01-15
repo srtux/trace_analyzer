@@ -1286,6 +1286,16 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
     );
   }
 
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    super.dispose();
+  }
+
   List<GcpProject> get _filteredProjects {
     if (_searchQuery.isEmpty) return widget.projects;
     final query = _searchQuery.toLowerCase();
@@ -1312,20 +1322,26 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
     });
     // Focus the search field after a short delay
     Future.delayed(const Duration(milliseconds: 100), () {
-      _searchFocusNode.requestFocus();
+      if (mounted) {
+        _searchFocusNode.requestFocus();
+      }
     });
   }
 
   void _closeDropdown() {
     _animationController.reverse().then((_) {
-      _overlayEntry?.remove();
-      _overlayEntry = null;
+      if (mounted) {
+        _overlayEntry?.remove();
+        _overlayEntry = null;
+      }
     });
-    setState(() {
-      _isOpen = false;
-      _searchQuery = '';
-      _searchController.clear();
-    });
+    if (mounted) {
+      setState(() {
+        _isOpen = false;
+        _searchQuery = '';
+        _searchController.clear();
+      });
+    }
   }
 
   void _selectCustomProject(String projectId) {
@@ -1805,15 +1821,7 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
     );
   }
 
-  @override
-  void dispose() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-    _animationController.dispose();
-    _searchController.dispose();
-    _searchFocusNode.dispose();
-    super.dispose();
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1826,7 +1834,7 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
           borderRadius: BorderRadius.circular(12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
             decoration: BoxDecoration(
               gradient: _isOpen
                   ? LinearGradient(
@@ -1872,7 +1880,7 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
                     color: _isOpen ? AppColors.primaryTeal : AppColors.textMuted,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     widget.selectedProject?.name ?? 'Select Project',
@@ -1886,7 +1894,7 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 AnimatedRotation(
                   turns: _isOpen ? 0.5 : 0,
                   duration: const Duration(milliseconds: 200),
