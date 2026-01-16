@@ -40,7 +40,6 @@ Thumbs.db
 
 # Package Managers
 # uv.lock
-uv.lock
 
 # Artifacts
 health_report*.txt
