@@ -92,6 +92,7 @@ from .tools import (
     analyze_log_anomalies,
     analyze_node_conditions,
     analyze_signal_correlation_strength,
+    analyze_trace_patterns,
     analyze_upstream_downstream_impact,
     build_call_graph,
     build_cross_signal_timeline,
@@ -104,6 +105,7 @@ from .tools import (
     compare_metric_windows,
     compare_span_timings,
     compare_time_periods,
+    compute_latency_statistics,
     # SLO correlation
     correlate_incident_with_slo_impact,
     correlate_logs_with_trace,
@@ -112,6 +114,7 @@ from .tools import (
     correlate_trace_with_kubernetes,
     correlate_trace_with_metrics,
     detect_circular_dependencies,
+    detect_latency_anomalies,
     # Metrics analysis tools
     detect_metric_anomalies,
     detect_trend_changes,
@@ -155,6 +158,7 @@ from .tools import (
     list_slos,
     list_time_series,
     list_traces,
+    perform_causal_analysis,
     # SLO prediction
     # SLO prediction
     predict_slo_violation,
@@ -581,9 +585,14 @@ base_tools: list[Any] = [
     # BigQuery OTel tools
     analyze_aggregate_metrics,
     find_exemplar_traces,
+    find_exemplar_traces,
     compare_time_periods,
     detect_trend_changes,
     correlate_logs_with_trace,
+    analyze_trace_patterns,
+    compute_latency_statistics,
+    detect_latency_anomalies,
+    perform_causal_analysis,
     # Log pattern analysis tools (Drain3)
     extract_log_patterns,
     compare_log_patterns,
@@ -680,6 +689,10 @@ TOOL_NAME_MAP: dict[str, Any] = {
     "compare_time_periods": compare_time_periods,
     "detect_trend_changes": detect_trend_changes,
     "correlate_logs_with_trace": correlate_logs_with_trace,
+    "analyze_trace_patterns": analyze_trace_patterns,
+    "compute_latency_statistics": compute_latency_statistics,
+    "detect_latency_anomalies": detect_latency_anomalies,
+    "perform_causal_analysis": perform_causal_analysis,
     # Log pattern analysis tools
     "extract_log_patterns": extract_log_patterns,
     "compare_log_patterns": compare_log_patterns,
@@ -766,13 +779,24 @@ def get_enabled_tools() -> list[Any]:
 sre_agent = LlmAgent(
     name="sre_agent",
     model="gemini-2.0-flash",
-    description=(
-        "The world's most comprehensive SRE Agent for Google Cloud. "
-        "Analyzes traces, logs, and metrics with cross-signal correlation via exemplars. "
-        "Features: SLO/SLI framework with error budget tracking, GKE/Kubernetes debugging, "
-        "critical path analysis, service dependency mapping, and automated remediation suggestions. "
-        "Supports Cloud Trace, Cloud Logging, Cloud Monitoring, BigQuery, GKE, and Cloud Run."
-    ),
+    description="""SRE Agent - Google Cloud Observability & Reliability Expert.
+
+Capabilities:
+- Orchestrates a "Council of Experts" for multi-stage incident analysis (Aggregate -> Triage -> Deep Dive)
+- Performs cross-signal correlation (Traces + Logs + Metrics) to find root causes
+- Analyzes SLO/SLI status, error budgets, and predicts violations
+- Debugs Kubernetes/GKE clusters (Node pressure, Pod crash loops, OOMs)
+- Provides automated remediation suggestions with risk assessment
+
+Structure:
+- Stage 0 (Aggregate): Analyze fleet-wide trends using BigQuery
+- Stage 1 (Triage): Parallel analysis of specific traces (Latency, Error, Structure, Stats)
+- Stage 2 (Deep Dive): Causality, Impact Analysis, and Change Detection
+
+Direct Tools:
+- Observability: fetch_trace, list_log_entries, query_promql, list_slos
+- Analysis: calculate_span_durations, find_bottleneck_services, correlate_logs_with_trace
+- Platform: get_gke_cluster_health, list_alerts, detect_metric_anomalies""",
     instruction=SRE_AGENT_PROMPT,
     tools=base_tools,
     # Sub-agents for specialized analysis (automatically invoked based on task)

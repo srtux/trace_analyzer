@@ -15,13 +15,23 @@ from .filters import (
     select_traces_from_statistical_outliers,
     select_traces_manually,
 )
+from .statistical_analysis import (
+    analyze_trace_patterns,
+    compute_latency_statistics,
+    detect_latency_anomalies,
+    perform_causal_analysis,
+)
 
 __all__ = [
+    "analyze_trace_patterns",
     "build_call_graph",
     "calculate_span_durations",
     "compare_span_timings",
+    "compute_latency_statistics",
+    "detect_latency_anomalies",
     "extract_errors",
     "find_structural_differences",
+    "perform_causal_analysis",
     "select_traces_from_statistical_outliers",
     "select_traces_manually",
     "summarize_trace",

@@ -24,6 +24,7 @@ from ..tools import (
     analyze_aggregate_metrics,
     # Critical path tools
     analyze_critical_path,
+    # Trace tools
     analyze_upstream_downstream_impact,
     build_call_graph,
     build_cross_signal_timeline,
@@ -33,20 +34,21 @@ from ..tools import (
     calculate_span_durations,
     compare_span_timings,
     compare_time_periods,
+    compute_latency_statistics,
     correlate_logs_with_trace,
     correlate_metrics_with_traces_via_exemplars,
     # Cross-signal correlation tools
     correlate_trace_with_metrics,
     detect_circular_dependencies,
+    detect_latency_anomalies,
     detect_trend_changes,
-    # Discovery tools
     discover_telemetry_sources,
     extract_errors,
-    # Trace tools
     fetch_trace,
     find_bottleneck_services,
     find_exemplar_traces,
     find_structural_differences,
+    perform_causal_analysis,
 )
 
 # =============================================================================
@@ -263,7 +265,18 @@ aggregate_analyzer = LlmAgent(
 latency_analyzer = LlmAgent(
     name="latency_analyzer",
     model="gemini-2.0-flash",
-    description="Analyzes span latencies, identifies critical path, and finds bottlenecks.",
+    description="""Latency Analysis Specialist - Compares span timing between baseline and target traces.
+
+Capabilities:
+- Calculate duration for each span in a trace
+- Compare timing between two traces to find slower/faster spans
+- Identify spans with >10% or >50ms latency changes
+- Identify critical path and bottlenecks
+- Report missing or new operations
+
+Tools: fetch_trace, calculate_span_durations, compare_span_timings, analyze_critical_path
+
+Use when: You need to understand what got slower or faster between two requests.""",
     instruction=LATENCY_ANALYZER_PROMPT,
     tools=[
         fetch_trace,
@@ -277,7 +290,17 @@ latency_analyzer = LlmAgent(
 error_analyzer = LlmAgent(
     name="error_analyzer",
     model="gemini-2.0-flash",
-    description="Detects and compares errors between traces.",
+    description="""Error Detection Specialist - Identifies errors and failures in traces.
+
+Capabilities:
+- Detect HTTP 4xx/5xx status codes in span labels
+- Identify gRPC errors (non-OK status)
+- Find exception and fault indicators in span attributes
+- Compare error patterns between baseline and target traces
+
+Tools: fetch_trace, extract_errors
+
+Use when: You need to find what errors occurred in a trace or compare error patterns.""",
     instruction=ERROR_ANALYZER_PROMPT,
     tools=[fetch_trace, extract_errors],
 )
@@ -285,7 +308,17 @@ error_analyzer = LlmAgent(
 structure_analyzer = LlmAgent(
     name="structure_analyzer",
     model="gemini-2.0-flash",
-    description="Compares call graph structures between traces.",
+    description="""Structure Analysis Specialist - Compares call graph topology between traces.
+
+Capabilities:
+- Build hierarchical call tree from parent-child span relationships
+- Identify missing operations (spans in baseline but not target)
+- Detect new operations (spans in target but not baseline)
+- Track changes in call tree depth and fan-out
+
+Tools: fetch_trace, build_call_graph, find_structural_differences
+
+Use when: You need to understand if the code path or service topology changed.""",
     instruction=STRUCTURE_ANALYZER_PROMPT,
     tools=[fetch_trace, build_call_graph, find_structural_differences],
 )
@@ -293,19 +326,48 @@ structure_analyzer = LlmAgent(
 statistics_analyzer = LlmAgent(
     name="statistics_analyzer",
     model="gemini-2.0-flash",
-    description="Performs statistical analysis to detect anomalies.",
+    description="""Statistical Analysis Specialist - Computes distributions, percentiles, and detects anomalies.
+
+Capabilities:
+- Calculate P50/P90/P95/P99 latency percentiles across multiple traces
+- Detect anomalies using z-score analysis (configurable threshold)
+- Identify critical path (sequence determining total latency)
+- Aggregate statistics by service name
+- Detect high-variability and bimodal latency patterns
+
+Tools: fetch_trace, calculate_span_durations
+
+Use when: You need statistical analysis, percentile distributions, or anomaly detection.""",
     instruction=STATISTICS_ANALYZER_PROMPT,
-    tools=[fetch_trace, calculate_span_durations],
+    tools=[
+        fetch_trace,
+        calculate_span_durations,
+        compute_latency_statistics,
+        detect_latency_anomalies,
+    ],
 )
 
 # Stage 2: Deep Dive Analyzers
 causality_analyzer = LlmAgent(
     name="causality_analyzer",
     model="gemini-2.0-flash",
-    description="Determines root cause using cross-signal correlation of traces, logs, and metrics.",
+    description="""Root Cause Analysis Specialist - Identifies the origin of performance issues.
+
+Capabilities:
+- Distinguish ROOT CAUSES from VICTIMS (spans slow due to dependencies)
+- Track slowdown propagation through the call tree
+- Analyze parent-child relationships to determine blame
+- Provide confidence scores for each hypothesis
+- Map how issues cascade through the system
+- Correlate traces with logs and metrics
+
+Tools: fetch_trace, perform_causal_analysis, analyze_critical_path, find_structural_differences
+
+Use when: You need to find WHY something got slow, not just WHAT got slow.""",
     instruction=CAUSALITY_ANALYZER_PROMPT,
     tools=[
         fetch_trace,
+        perform_causal_analysis,
         build_call_graph,
         correlate_logs_with_trace,
         build_cross_signal_timeline,
@@ -317,7 +379,17 @@ causality_analyzer = LlmAgent(
 service_impact_analyzer = LlmAgent(
     name="service_impact_analyzer",
     model="gemini-2.0-flash",
-    description="Assesses blast radius using service dependency analysis.",
+    description="""Impact Assessor - Assesses blast radius and service dependencies.
+
+Capabilities:
+- Map upstream (calling) and downstream (called) dependencies
+- Identify "Blast Radius" of a failure
+- Detect circular dependencies
+- Assess business impact based on affected services
+
+Tools: build_service_dependency_graph, analyze_upstream_downstream_impact
+
+Use when: You need to know 'Who else is broken?' or 'How bad is this?'.""",
     instruction=SERVICE_IMPACT_ANALYZER_PROMPT,
     tools=[
         fetch_trace,

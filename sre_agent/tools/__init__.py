@@ -61,8 +61,6 @@ from .analysis.remediation.suggestions import (
     generate_remediation_suggestions,
     get_gcloud_commands,
 )
-
-# Analysis Tools - Trace
 from .analysis.trace.analysis import (
     build_call_graph,
     calculate_span_durations,
@@ -77,6 +75,14 @@ from .analysis.trace.comparison import (
 from .analysis.trace.filters import (
     select_traces_from_statistical_outliers,
     select_traces_manually,
+)
+
+# Analysis Tools - Trace
+from .analysis.trace.statistical_analysis import (
+    analyze_trace_patterns,
+    compute_latency_statistics,
+    detect_latency_anomalies,
+    perform_causal_analysis,
 )
 from .clients.alerts import get_alert, list_alert_policies, list_alerts
 from .clients.gcp_projects import list_gcp_projects
@@ -148,6 +154,7 @@ __all__ = [
     "analyze_log_anomalies",
     "analyze_node_conditions",
     "analyze_signal_correlation_strength",
+    "analyze_trace_patterns",
     "analyze_upstream_downstream_impact",
     "build_call_graph",
     "build_cross_signal_timeline",
@@ -160,6 +167,7 @@ __all__ = [
     "compare_metric_windows",
     "compare_span_timings",
     "compare_time_periods",
+    "compute_latency_statistics",
     "correlate_incident_with_slo_impact",
     "correlate_logs_with_trace",
     "correlate_metrics_with_traces_via_exemplars",
@@ -169,6 +177,7 @@ __all__ = [
     "create_logging_mcp_toolset",
     "create_monitoring_mcp_toolset",
     "detect_circular_dependencies",
+    "detect_latency_anomalies",
     "detect_metric_anomalies",
     "detect_trend_changes",
     "discover_telemetry_sources",
@@ -206,6 +215,7 @@ __all__ = [
     "mcp_list_log_entries",
     "mcp_list_timeseries",
     "mcp_query_range",
+    "perform_causal_analysis",
     "predict_slo_violation",
     "query_promql",
     "select_traces_from_statistical_outliers",

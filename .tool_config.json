@@ -208,7 +208,7 @@
     {
       "name": "calculate_span_durations",
       "display_name": "Calculate Span Durations",
-      "description": "Calculate durations for all spans in a trace",
+      "description": "Extracts timing information for each span in a trace (Statement of Facts).",
       "category": "analysis",
       "enabled": false,
       "testable": false,
@@ -217,7 +217,7 @@
     {
       "name": "extract_errors",
       "display_name": "Extract Errors",
-      "description": "Extract error information from trace spans",
+      "description": "Finds all spans that contain errors, exceptions, or fault indicators (The Forensics Report).",
       "category": "analysis",
       "enabled": false,
       "testable": false,
@@ -226,7 +226,7 @@
     {
       "name": "build_call_graph",
       "display_name": "Build Call Graph",
-      "description": "Build a call graph from trace data",
+      "description": "Builds a hierarchical call graph (tree structure) from parent-child span relationships.",
       "category": "analysis",
       "enabled": false,
       "testable": false,
@@ -235,7 +235,7 @@
     {
       "name": "summarize_trace",
       "display_name": "Summarize Trace",
-      "description": "Generate a summary of trace data",
+      "description": "Creates a summary of a trace (high-level stats, top 5 slowest spans, errors) to save tokens.",
       "category": "analysis",
       "enabled": false,
       "testable": false,
@@ -244,7 +244,7 @@
     {
       "name": "validate_trace_quality",
       "display_name": "Validate Trace Quality",
-      "description": "Validate the quality and completeness of trace data",
+      "description": "Validates trace data quality (orphaned spans, negative durations, clock skew).",
       "category": "analysis",
       "enabled": false,
       "testable": false,
@@ -253,7 +253,7 @@
     {
       "name": "compare_span_timings",
       "display_name": "Compare Span Timings",
-      "description": "Compare span timings between two traces",
+      "description": "Compares span timings between two traces to find slower/faster spans and detect anti-patterns.",
       "category": "analysis",
       "enabled": false,
       "testable": false,
@@ -262,7 +262,7 @@
     {
       "name": "find_structural_differences",
       "display_name": "Find Structural Differences",
-      "description": "Find structural differences between two traces",
+      "description": "Compares call graph topology to identify missing spans, new operations, and depth changes.",
       "category": "analysis",
       "enabled": false,
       "testable": false,
@@ -361,7 +361,7 @@
     {
       "name": "analyze_critical_path",
       "display_name": "Analyze Critical Path",
-      "description": "Analyze the critical path in a trace",
+      "description": "Identifies the critical path (sequence of spans determining total latency) using blocking analysis.",
       "category": "analysis",
       "enabled": false,
       "testable": false,
@@ -625,6 +625,42 @@
       "description": "Synthesize a comprehensive incident report",
       "category": "analysis",
       "enabled": false,
+      "testable": false,
+      "last_test_result": null
+    },
+    {
+      "name": "analyze_trace_patterns",
+      "display_name": "Analyze Trace Patterns",
+      "description": "Analyzes patterns across multiple traces to detect recurring slowdowns, intermittent issues, and trends.",
+      "category": "analysis",
+      "enabled": true,
+      "testable": false,
+      "last_test_result": null
+    },
+    {
+      "name": "compute_latency_statistics",
+      "display_name": "Compute Latency Stats",
+      "description": "Computes aggregate latency statistics (P50/P90/P99, mean, stdev) for a list of traces.",
+      "category": "analysis",
+      "enabled": true,
+      "testable": false,
+      "last_test_result": null
+    },
+    {
+      "name": "detect_latency_anomalies",
+      "display_name": "Detect Latency Anomalies",
+      "description": "Detects if a trace or specific spans are anomalous using Z-score analysis against a baseline.",
+      "category": "analysis",
+      "enabled": true,
+      "testable": false,
+      "last_test_result": null
+    },
+    {
+      "name": "perform_causal_analysis",
+      "display_name": "Perform Causal Analysis",
+      "description": "Enhanced root cause analysis distinguishing root causes from victims using span-ID precision and critical path analysis.",
+      "category": "analysis",
+      "enabled": true,
       "testable": false,
       "last_test_result": null
     }
