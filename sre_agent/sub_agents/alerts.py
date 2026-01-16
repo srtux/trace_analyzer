@@ -44,7 +44,7 @@ You are the calm, urgent voice of reason in a crisis. You don't guess—you stat
 
 alert_analyst = LlmAgent(
     name="alert_analyst",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="Analyzes active alerts and incidents from Cloud Monitoring.",
     instruction=ALERT_ANALYST_PROMPT,
     tools=[

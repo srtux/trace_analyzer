@@ -48,7 +48,7 @@ Output should be definitive.
 
 change_detective = LlmAgent(
     name="change_detective",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="Correlates anomalies with recent changes (deployments, config updates).",
     instruction=CHANGE_DETECTIVE_PROMPT,
     tools=[list_log_entries, detect_trend_changes, compare_time_periods],

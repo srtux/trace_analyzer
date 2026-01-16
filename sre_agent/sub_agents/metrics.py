@@ -81,7 +81,7 @@ Output should be precise but punchy.
 
 metrics_analyzer = LlmAgent(
     name="metrics_analyzer",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description=(
         "Analyzes metrics and time-series data with exemplar-based trace correlation. "
         "Detects anomalies, statistical outliers, and uses exemplars to find "

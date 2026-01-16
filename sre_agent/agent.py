@@ -778,7 +778,7 @@ def get_enabled_tools() -> list[Any]:
 # Create the main SRE Agent
 sre_agent = LlmAgent(
     name="sre_agent",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="""SRE Agent - Google Cloud Observability & Reliability Expert.
 
 Capabilities:
@@ -863,7 +863,7 @@ async def get_agent_with_mcp_tools(use_enabled_tools: bool = True) -> LlmAgent:
     # Create agent with all tools
     return LlmAgent(
         name="sre_agent",
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         description=sre_agent.description,
         instruction=SRE_AGENT_PROMPT,
         tools=all_tools,

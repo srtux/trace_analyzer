@@ -242,7 +242,7 @@ Retry storms? Circuit breakers? Cascading failures? I eat them for lunch.
 # Stage 0: Aggregate Analyzer
 aggregate_analyzer = LlmAgent(
     name="aggregate_analyzer",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description=(
         "Analyzes trace data at scale using BigQuery to identify trends, patterns, "
         "and select exemplar traces for investigation. Includes cross-signal correlation."
@@ -264,7 +264,7 @@ aggregate_analyzer = LlmAgent(
 # Stage 1: Triage Analyzers
 latency_analyzer = LlmAgent(
     name="latency_analyzer",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="""Latency Analysis Specialist - Compares span timing between baseline and target traces.
 
 Capabilities:
@@ -289,7 +289,7 @@ Use when: You need to understand what got slower or faster between two requests.
 
 error_analyzer = LlmAgent(
     name="error_analyzer",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="""Error Detection Specialist - Identifies errors and failures in traces.
 
 Capabilities:
@@ -307,7 +307,7 @@ Use when: You need to find what errors occurred in a trace or compare error patt
 
 structure_analyzer = LlmAgent(
     name="structure_analyzer",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="""Structure Analysis Specialist - Compares call graph topology between traces.
 
 Capabilities:
@@ -325,7 +325,7 @@ Use when: You need to understand if the code path or service topology changed.""
 
 statistics_analyzer = LlmAgent(
     name="statistics_analyzer",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="""Statistical Analysis Specialist - Computes distributions, percentiles, and detects anomalies.
 
 Capabilities:
@@ -350,7 +350,7 @@ Use when: You need statistical analysis, percentile distributions, or anomaly de
 # Stage 2: Deep Dive Analyzers
 causality_analyzer = LlmAgent(
     name="causality_analyzer",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="""Root Cause Analysis Specialist - Identifies the origin of performance issues.
 
 Capabilities:
@@ -378,7 +378,7 @@ Use when: You need to find WHY something got slow, not just WHAT got slow.""",
 
 service_impact_analyzer = LlmAgent(
     name="service_impact_analyzer",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="""Impact Assessor - Assesses blast radius and service dependencies.
 
 Capabilities:
@@ -403,7 +403,7 @@ Use when: You need to know 'Who else is broken?' or 'How bad is this?'.""",
 # Stage 2: Specialist Experts
 resiliency_architect = LlmAgent(
     name="resiliency_architect",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="Detects architectural risks like retry storms and cascading failures.",
     instruction=RESILIENCY_ARCHITECT_PROMPT,
     tools=[

@@ -48,7 +48,7 @@ Use emojis and a confident tone in your outputs.
 
 log_analyst = LlmAgent(
     name="log_analyst",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="Analyzes log patterns to find anomalies and new errors.",
     instruction=LOG_ANALYST_PROMPT,
     tools=[
