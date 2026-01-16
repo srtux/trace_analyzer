@@ -155,111 +155,115 @@ class _ConversationPageState extends State<ConversationPage>
                   final isCompact = constraints.maxWidth < 600;
                   final isMobile = constraints.maxWidth < 400;
 
-                  return Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isCompact ? 12 : 20,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        // Logo/Icon
-                        Container(
-                          padding: EdgeInsets.all(isMobile ? 8 : 10),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                AppColors.primaryTeal.withValues(alpha: 0.2),
-                                AppColors.primaryCyan.withValues(alpha: 0.2),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.primaryTeal.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.auto_awesome,
-                            color: AppColors.primaryTeal,
-                            size: isMobile ? 18 : 20,
-                          ),
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1600),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isCompact ? 12 : 32,
+                          vertical: 12,
                         ),
-                        SizedBox(width: isMobile ? 10 : 14),
-                        // Title - hide subtitle on mobile
-                        if (!isMobile)
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
+                        child: Row(
+                          children: [
+                            // Logo/Icon
+                            Container(
+                              padding: EdgeInsets.all(isMobile ? 8 : 10),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppColors.primaryTeal.withValues(alpha: 0.2),
+                                    AppColors.primaryCyan.withValues(alpha: 0.2),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.primaryTeal.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.auto_awesome,
+                                color: AppColors.primaryTeal,
+                                size: isMobile ? 18 : 20,
+                              ),
+                            ),
+                            SizedBox(width: isMobile ? 10 : 16),
+                            // Title - hide subtitle on mobile
+                            if (!isMobile)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ShaderMask(
+                                    shaderCallback: (bounds) =>
+                                        AppColors.primaryGradient.createShader(bounds),
+                                    child: Text(
+                                      'AutoSRE',
+                                      style: TextStyle(
+                                        fontSize: isCompact ? 18 : 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  if (!isCompact)
+                                    Text(
+                                      'AI-Powered SRE Assistant',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textMuted,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                ],
+                              )
+                            else
                               ShaderMask(
                                 shaderCallback: (bounds) =>
                                     AppColors.primaryGradient.createShader(bounds),
-                                child: Text(
+                                child: const Text(
                                   'AutoSRE',
                                   style: TextStyle(
-                                    fontSize: isCompact ? 18 : 20,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                     color: Colors.white,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
                               ),
-                              if (!isCompact)
-                                Text(
-                                  'AI-Powered SRE Assistant',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textMuted,
-                                    fontWeight: FontWeight.w400,
-                                  ),
+                            const Spacer(),
+                            // Project Selector - constrained width on mobile
+                            Flexible(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: isMobile ? 120 : (isCompact ? 180 : 250),
                                 ),
-                            ],
-                          )
-                        else
-                          ShaderMask(
-                            shaderCallback: (bounds) =>
-                                AppColors.primaryGradient.createShader(bounds),
-                            child: const Text(
-                              'AutoSRE',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
+                                child: _buildProjectSelector(),
                               ),
                             ),
-                          ),
-                        SizedBox(width: isCompact ? 12 : 20),
-                        const Spacer(),
-                        // Project Selector - constrained width on mobile
-                        Flexible(
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: isMobile ? 120 : (isCompact ? 180 : 250),
-                            ),
-                            child: _buildProjectSelector(),
-                          ),
-                        ),
-                        SizedBox(width: isCompact ? 12 : 20),
-                        // Status indicator
-                        ValueListenableBuilder<bool>(
-                          valueListenable: _contentGenerator.isConnected,
-                          builder: (context, isConnected, _) {
-                            return ValueListenableBuilder<bool>(
-                              valueListenable: _contentGenerator.isProcessing,
-                              builder: (context, isProcessing, _) {
-                                return _buildStatusIndicator(
-                                  isProcessing,
-                                  isConnected,
-                                  compact: isMobile,
+                            SizedBox(width: isCompact ? 12 : 24),
+                            // Status indicator
+                            ValueListenableBuilder<bool>(
+                              valueListenable: _contentGenerator.isConnected,
+                              builder: (context, isConnected, _) {
+                                return ValueListenableBuilder<bool>(
+                                  valueListenable: _contentGenerator.isProcessing,
+                                  builder: (context, isProcessing, _) {
+                                    return _buildStatusIndicator(
+                                      isProcessing,
+                                      isConnected,
+                                      compact: isMobile,
+                                    );
+                                  },
                                 );
                               },
-                            );
-                          },
+                            ),
+                            const SizedBox(width: 12),
+                            // Tool Configuration button
+                            _buildToolConfigButton(compact: isMobile),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        // Tool Configuration button
-                        _buildToolConfigButton(compact: isMobile),
-                      ],
+                      ),
                     ),
                   );
                 },
@@ -534,33 +538,39 @@ class _ConversationPageState extends State<ConversationPage>
               ),
               const SizedBox(height: 48),
               // Category sections
-              _buildSuggestionSection(
-                'Traces & Performance',
-                Icons.timeline_outlined,
-                [
-                  'Analyze recent traces',
-                  'Find slow requests',
-                  'Identify bottlenecks',
-                ],
-              ),
-              const SizedBox(height: 20),
-              _buildSuggestionSection(
-                'Logs & Errors',
-                Icons.article_outlined,
-                [
-                  'Check error logs',
-                  'Find error patterns',
-                  'Investigate exceptions',
-                ],
-              ),
-              const SizedBox(height: 20),
-              _buildSuggestionSection(
-                'Metrics & Monitoring',
-                Icons.show_chart_outlined,
-                [
-                  'View metric anomalies',
-                  'Check SLO status',
-                  'Analyze golden signals',
+              // Category sections - Horizontal wrap for better desktop balance
+              Wrap(
+                spacing: 24,
+                runSpacing: 24,
+                alignment: WrapAlignment.center,
+                children: [
+                  _buildSuggestionSection(
+                    'Traces & Performance',
+                    Icons.timeline_outlined,
+                    [
+                      'Analyze recent traces',
+                      'Find slow requests',
+                      'Identify bottlenecks',
+                    ],
+                  ),
+                  _buildSuggestionSection(
+                    'Logs & Errors',
+                    Icons.article_outlined,
+                    [
+                      'Check error logs',
+                      'Find error patterns',
+                      'Investigate exceptions',
+                    ],
+                  ),
+                  _buildSuggestionSection(
+                    'Metrics & Monitoring',
+                    Icons.show_chart_outlined,
+                    [
+                      'View metric anomalies',
+                      'Check SLO status',
+                      'Analyze golden signals',
+                    ],
+                  ),
                 ],
               ),
             ],
@@ -571,43 +581,45 @@ class _ConversationPageState extends State<ConversationPage>
   }
 
   Widget _buildSuggestionSection(String title, IconData icon, List<String> suggestions) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 500),
+    return Container(
+      width: 280, // Fixed width for consistent grid-like layout
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primaryTeal.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primaryTeal.withValues(alpha: 0.1),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 12),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryTeal.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 16,
-                    color: AppColors.primaryTeal,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: AppColors.primaryTeal,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondary,
                     letterSpacing: 0.3,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+          const SizedBox(height: 16),
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             children: suggestions.map((s) => _buildSuggestionChip(s)).toList(),
           ),
         ],
@@ -642,11 +654,14 @@ class _ConversationPageState extends State<ConversationPage>
                 color: AppColors.primaryTeal,
               ),
               const SizedBox(width: 8),
-              Text(
-                text,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
+              Flexible(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -726,184 +741,189 @@ class _ConversationPageState extends State<ConversationPage>
           ),
           child: SafeArea(
             top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Selected project indicator
-                ValueListenableBuilder<GcpProject?>(
-                  valueListenable: _projectService.selectedProject,
-                  builder: (context, project, _) {
-                    if (project == null) return const SizedBox.shrink();
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryTeal.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppColors.primaryTeal.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.cloud_done_outlined,
-                            size: 14,
-                            color: AppColors.primaryTeal,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1000),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Selected project indicator
+                    ValueListenableBuilder<GcpProject?>(
+                      valueListenable: _projectService.selectedProject,
+                      builder: (context, project, _) {
+                        if (project == null) return const SizedBox.shrink();
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryTeal.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.primaryTeal.withValues(alpha: 0.2),
+                            ),
                           ),
-                          const SizedBox(width: 6),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.cloud_done_outlined,
+                                size: 14,
+                                color: AppColors.primaryTeal,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Project: ${project.name}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.primaryTeal,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    // Input row
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end, // Align to bottom for multiline
+                      children: [
+                        Expanded(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: _focusNode.hasFocus
+                                    ? AppColors.primaryTeal.withValues(alpha: 0.4)
+                                    : Colors.white.withValues(alpha: 0.1),
+                                width: _focusNode.hasFocus ? 1.5 : 1,
+                              ),
+                              boxShadow: _focusNode.hasFocus
+                                  ? [
+                                      BoxShadow(
+                                        color: AppColors.primaryTeal.withValues(alpha: 0.1),
+                                        blurRadius: 12,
+                                        spreadRadius: -2,
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: TextField(
+                              controller: _textController,
+                              focusNode: _focusNode,
+                              onSubmitted: (_) => _sendMessage(),
+                              maxLines: 5,
+                              minLines: 1,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 15,
+                                height: 1.4,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: "Ask AutoSRE anything...",
+                                hintStyle: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 15,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 14,
+                                ),
+                                prefixIcon: Padding(
+                                  padding: const EdgeInsets.only(left: 14, right: 4),
+                                  child: Icon(
+                                    Icons.auto_awesome_outlined,
+                                    color: AppColors.textMuted.withValues(alpha: 0.5),
+                                    size: 18,
+                                  ),
+                                ),
+                                prefixIconConstraints: const BoxConstraints(
+                                  minWidth: 0,
+                                  minHeight: 0,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ValueListenableBuilder<bool>(
+                          valueListenable: _contentGenerator.isProcessing,
+                          builder: (context, isProcessing, _) {
+                            return _SendButton(
+                              isProcessing: isProcessing,
+                              onPressed: _sendMessage,
+                              onCancel: _contentGenerator.cancelRequest,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    // Keyboard hint
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
                           Text(
-                            'Project: ${project.name}',
+                            'Press ',
                             style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.primaryTeal,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 11,
+                              color: AppColors.textMuted.withValues(alpha: 0.6),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Enter',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textMuted.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ),
+                          Text(
+                            ' to send, ',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted.withValues(alpha: 0.6),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Shift + Enter',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textMuted.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ),
+                          Text(
+                            ' for new line',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted.withValues(alpha: 0.6),
                             ),
                           ),
                         ],
                       ),
-                    );
-                  },
-                ),
-                // Input row
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: _focusNode.hasFocus
-                                ? AppColors.primaryTeal.withValues(alpha: 0.4)
-                                : Colors.white.withValues(alpha: 0.1),
-                            width: _focusNode.hasFocus ? 1.5 : 1,
-                          ),
-                          boxShadow: _focusNode.hasFocus
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors.primaryTeal.withValues(alpha: 0.1),
-                                    blurRadius: 12,
-                                    spreadRadius: -2,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: TextField(
-                          controller: _textController,
-                          focusNode: _focusNode,
-                          onSubmitted: (_) => _sendMessage(),
-                          maxLines: 5,
-                          minLines: 1,
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 15,
-                            height: 1.4,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: "Ask AutoSRE anything...",
-                            hintStyle: TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 15,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 14,
-                            ),
-                            prefixIcon: Padding(
-                              padding: const EdgeInsets.only(left: 14, right: 4),
-                              child: Icon(
-                                Icons.auto_awesome_outlined,
-                                color: AppColors.textMuted.withValues(alpha: 0.5),
-                                size: 18,
-                              ),
-                            ),
-                            prefixIconConstraints: const BoxConstraints(
-                              minWidth: 0,
-                              minHeight: 0,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: _contentGenerator.isProcessing,
-                      builder: (context, isProcessing, _) {
-                        return _SendButton(
-                          isProcessing: isProcessing,
-                          onPressed: _sendMessage,
-                          onCancel: _contentGenerator.cancelRequest,
-                        );
-                      },
                     ),
                   ],
                 ),
-                // Keyboard hint
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Press ',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'Enter',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textMuted.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ),
-                      Text(
-                        ' to send, ',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'Shift + Enter',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textMuted.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ),
-                      Text(
-                        ' for new line',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -1836,7 +1856,7 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
           borderRadius: BorderRadius.circular(12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
             decoration: BoxDecoration(
               gradient: _isOpen
                   ? LinearGradient(
@@ -1882,7 +1902,7 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
                     color: _isOpen ? AppColors.primaryTeal : AppColors.textMuted,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     widget.selectedProject?.name ?? 'Select Project',
@@ -1896,7 +1916,7 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 2),
                 AnimatedRotation(
                   turns: _isOpen ? 0.5 : 0,
                   duration: const Duration(milliseconds: 200),

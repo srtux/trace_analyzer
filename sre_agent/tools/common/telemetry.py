@@ -135,6 +135,10 @@ def setup_telemetry(level: int = logging.INFO) -> None:
 
         # Create credentials
         credentials, _ = google.auth.default()
+
+        # Ensure quota project is set to fix INVALID_ARGUMENT errors in OTLP export
+        if project_id and hasattr(credentials, "with_quota_project"):
+            credentials = credentials.with_quota_project(project_id)
         request = google.auth.transport.requests.Request()
 
         ssl_creds = grpc.ssl_channel_credentials()
