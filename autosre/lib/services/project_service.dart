@@ -33,6 +33,9 @@ class ProjectService {
   factory ProjectService() => _instance;
   ProjectService._internal();
 
+  /// HTTP request timeout duration.
+  static const Duration _requestTimeout = Duration(seconds: 30);
+
   /// Returns the projects API URL based on the runtime environment.
   /// Uses localhost in debug mode, relative URL otherwise (for production).
   String get _projectsUrl {
@@ -70,7 +73,7 @@ class ProjectService {
     _error.value = null;
 
     try {
-      final response = await http.get(Uri.parse(_projectsUrl));
+      final response = await http.get(Uri.parse(_projectsUrl)).timeout(_requestTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

@@ -23,6 +23,13 @@ class ADKContentGenerator implements ContentGenerator {
 
   /// Delay between retries (exponential backoff base).
   static const Duration _retryDelay = Duration(seconds: 1);
+
+  /// HTTP request timeout duration.
+  static const Duration _requestTimeout = Duration(seconds: 60);
+
+  /// Health check timeout duration.
+  static const Duration _healthCheckTimeout = Duration(seconds: 5);
+
   String get _baseUrl {
     if (kDebugMode) {
       return 'http://localhost:8001/api/genui/chat';
@@ -59,7 +66,7 @@ class ADKContentGenerator implements ContentGenerator {
   Future<void> _checkConnection() async {
     if (_isDisposed) return;
     try {
-      await http.get(Uri.parse(_healthUrl));
+      await http.get(Uri.parse(_healthUrl)).timeout(_healthCheckTimeout);
       if (_isDisposed) return;
       // Any response from the server means we are connected
       _isConnected.value = true;
@@ -140,7 +147,7 @@ class ADKContentGenerator implements ContentGenerator {
 
           request.body = jsonEncode(requestBody);
 
-          final response = await _currentClient!.send(request);
+          final response = await _currentClient!.send(request).timeout(_requestTimeout);
 
           if (response.statusCode != 200) {
               throw Exception('Failed to connect to agent: ${response.statusCode}');

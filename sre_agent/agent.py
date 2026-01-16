@@ -585,7 +585,6 @@ base_tools: list[Any] = [
     # BigQuery OTel tools
     analyze_aggregate_metrics,
     find_exemplar_traces,
-    find_exemplar_traces,
     compare_time_periods,
     detect_trend_changes,
     correlate_logs_with_trace,

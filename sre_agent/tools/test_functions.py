@@ -1,7 +1,10 @@
-"""Test functions for verifying tool connectivity.
+"""Connectivity check functions for verifying tool availability.
 
-This module registers test functions for tools that can be tested for connectivity.
-These tests perform minimal API calls to verify the tool is working.
+This module registers check functions for tools that can be tested for connectivity.
+These checks perform minimal API calls to verify the tool is working.
+
+Note: Function names intentionally do NOT start with 'test_' to avoid pytest
+picking them up as test cases. These are runtime connectivity checks, not unit tests.
 """
 
 import logging
@@ -12,8 +15,8 @@ from .config import ToolTestResult, ToolTestStatus, get_tool_config_manager
 logger = logging.getLogger(__name__)
 
 
-def get_test_project_id() -> str | None:
-    """Get project ID for testing from environment."""
+def get_check_project_id() -> str | None:
+    """Get project ID for connectivity checks from environment."""
     return (
         os.getenv("TEST_PROJECT_ID")
         or os.getenv("GOOGLE_CLOUD_PROJECT")
@@ -22,17 +25,17 @@ def get_test_project_id() -> str | None:
 
 
 # ============================================================================
-# API Client Test Functions
+# API Client Check Functions
 # ============================================================================
 
 
-async def test_fetch_trace() -> ToolTestResult:
-    """Test Cloud Trace API connectivity."""
+async def check_fetch_trace() -> ToolTestResult:
+    """Check Cloud Trace API connectivity."""
     try:
         from .clients.factory import get_trace_client
 
         client = get_trace_client()
-        project_id = get_test_project_id()
+        project_id = get_check_project_id()
 
         if not project_id:
             return ToolTestResult(
@@ -60,23 +63,23 @@ async def test_fetch_trace() -> ToolTestResult:
         )
 
 
-async def test_list_traces() -> ToolTestResult:
-    """Test list_traces functionality."""
-    return await test_fetch_trace()  # Same underlying client
+async def check_list_traces() -> ToolTestResult:
+    """Check list_traces functionality."""
+    return await check_fetch_trace()  # Same underlying client
 
 
-async def test_find_example_traces() -> ToolTestResult:
-    """Test find_example_traces functionality."""
-    return await test_fetch_trace()  # Same underlying client
+async def check_find_example_traces() -> ToolTestResult:
+    """Check find_example_traces functionality."""
+    return await check_fetch_trace()  # Same underlying client
 
 
-async def test_list_log_entries() -> ToolTestResult:
-    """Test Cloud Logging API connectivity."""
+async def check_list_log_entries() -> ToolTestResult:
+    """Check Cloud Logging API connectivity."""
     try:
         from .clients.factory import get_logging_client
 
         client = get_logging_client()
-        project_id = get_test_project_id()
+        project_id = get_check_project_id()
 
         if not project_id:
             return ToolTestResult(
@@ -102,23 +105,23 @@ async def test_list_log_entries() -> ToolTestResult:
         )
 
 
-async def test_get_logs_for_trace() -> ToolTestResult:
-    """Test get_logs_for_trace functionality."""
-    return await test_list_log_entries()  # Same underlying client
+async def check_get_logs_for_trace() -> ToolTestResult:
+    """Check get_logs_for_trace functionality."""
+    return await check_list_log_entries()  # Same underlying client
 
 
-async def test_list_error_events() -> ToolTestResult:
-    """Test list_error_events functionality."""
-    return await test_list_log_entries()  # Same underlying client
+async def check_list_error_events() -> ToolTestResult:
+    """Check list_error_events functionality."""
+    return await check_list_log_entries()  # Same underlying client
 
 
-async def test_list_time_series() -> ToolTestResult:
-    """Test Cloud Monitoring API connectivity."""
+async def check_list_time_series() -> ToolTestResult:
+    """Check Cloud Monitoring API connectivity."""
     try:
         from .clients.factory import get_monitoring_client
 
         client = get_monitoring_client()
-        project_id = get_test_project_id()
+        project_id = get_check_project_id()
 
         if not project_id:
             return ToolTestResult(
@@ -144,18 +147,18 @@ async def test_list_time_series() -> ToolTestResult:
         )
 
 
-async def test_query_promql() -> ToolTestResult:
-    """Test PromQL query functionality."""
-    return await test_list_time_series()  # Same underlying client
+async def check_query_promql() -> ToolTestResult:
+    """Check PromQL query functionality."""
+    return await check_list_time_series()  # Same underlying client
 
 
-async def test_list_alerts() -> ToolTestResult:
-    """Test alerts API connectivity."""
+async def check_list_alerts() -> ToolTestResult:
+    """Check alerts API connectivity."""
     try:
         from .clients.factory import get_alert_policy_client
 
         client = get_alert_policy_client()
-        project_id = get_test_project_id()
+        project_id = get_check_project_id()
 
         if not project_id:
             return ToolTestResult(
@@ -181,23 +184,23 @@ async def test_list_alerts() -> ToolTestResult:
         )
 
 
-async def test_get_alert() -> ToolTestResult:
-    """Test get_alert functionality."""
-    return await test_list_alerts()  # Same underlying client
+async def check_get_alert() -> ToolTestResult:
+    """Check get_alert functionality."""
+    return await check_list_alerts()  # Same underlying client
 
 
-async def test_list_alert_policies() -> ToolTestResult:
-    """Test list_alert_policies functionality."""
-    return await test_list_alerts()  # Same underlying client
+async def check_list_alert_policies() -> ToolTestResult:
+    """Check list_alert_policies functionality."""
+    return await check_list_alerts()  # Same underlying client
 
 
 # ============================================================================
-# MCP Test Functions
+# MCP Check Functions
 # ============================================================================
 
 
-async def test_mcp_list_log_entries() -> ToolTestResult:
-    """Test MCP Cloud Logging server connectivity."""
+async def check_mcp_list_log_entries() -> ToolTestResult:
+    """Check MCP Cloud Logging server connectivity."""
     try:
         from .mcp.gcp import create_logging_mcp_toolset
 
@@ -221,8 +224,8 @@ async def test_mcp_list_log_entries() -> ToolTestResult:
         )
 
 
-async def test_mcp_list_timeseries() -> ToolTestResult:
-    """Test MCP Cloud Monitoring server connectivity."""
+async def check_mcp_list_timeseries() -> ToolTestResult:
+    """Check MCP Cloud Monitoring server connectivity."""
     try:
         from .mcp.gcp import create_monitoring_mcp_toolset
 
@@ -246,23 +249,23 @@ async def test_mcp_list_timeseries() -> ToolTestResult:
         )
 
 
-async def test_mcp_query_range() -> ToolTestResult:
-    """Test MCP PromQL query functionality."""
-    return await test_mcp_list_timeseries()  # Same underlying MCP server
+async def check_mcp_query_range() -> ToolTestResult:
+    """Check MCP PromQL query functionality."""
+    return await check_mcp_list_timeseries()  # Same underlying MCP server
 
 
 # ============================================================================
-# SLO Test Functions
+# SLO Check Functions
 # ============================================================================
 
 
-async def test_list_slos() -> ToolTestResult:
-    """Test SLO API connectivity."""
+async def check_list_slos() -> ToolTestResult:
+    """Check SLO API connectivity."""
     try:
         from google.cloud import monitoring_v3
 
         client = monitoring_v3.ServiceMonitoringServiceClient()
-        project_id = get_test_project_id()
+        project_id = get_check_project_id()
 
         if not project_id:
             return ToolTestResult(
@@ -290,23 +293,23 @@ async def test_list_slos() -> ToolTestResult:
         )
 
 
-async def test_get_slo_status() -> ToolTestResult:
-    """Test get_slo_status functionality."""
-    return await test_list_slos()  # Same underlying client
+async def check_get_slo_status() -> ToolTestResult:
+    """Check get_slo_status functionality."""
+    return await check_list_slos()  # Same underlying client
 
 
 # ============================================================================
-# GKE Test Functions
+# GKE Check Functions
 # ============================================================================
 
 
-async def test_get_gke_cluster_health() -> ToolTestResult:
-    """Test GKE API connectivity."""
+async def check_get_gke_cluster_health() -> ToolTestResult:
+    """Check GKE API connectivity."""
     try:
         from google.cloud import container_v1  # type: ignore
 
         client = container_v1.ClusterManagerClient()
-        project_id = get_test_project_id()
+        project_id = get_check_project_id()
 
         if not project_id:
             return ToolTestResult(
@@ -332,32 +335,32 @@ async def test_get_gke_cluster_health() -> ToolTestResult:
         )
 
 
-async def test_analyze_node_conditions() -> ToolTestResult:
-    """Test analyze_node_conditions functionality."""
-    return await test_get_gke_cluster_health()  # Same underlying approach
+async def check_analyze_node_conditions() -> ToolTestResult:
+    """Check analyze_node_conditions functionality."""
+    return await check_get_gke_cluster_health()  # Same underlying approach
 
 
-async def test_get_pod_restart_events() -> ToolTestResult:
-    """Test get_pod_restart_events functionality."""
-    # This uses Cloud Logging, so test that
-    return await test_list_log_entries()
+async def check_get_pod_restart_events() -> ToolTestResult:
+    """Check get_pod_restart_events functionality."""
+    # This uses Cloud Logging, so check that
+    return await check_list_log_entries()
 
 
-async def test_analyze_hpa_events() -> ToolTestResult:
-    """Test analyze_hpa_events functionality."""
-    # This uses Cloud Logging, so test that
-    return await test_list_log_entries()
+async def check_analyze_hpa_events() -> ToolTestResult:
+    """Check analyze_hpa_events functionality."""
+    # This uses Cloud Logging, so check that
+    return await check_list_log_entries()
 
 
-async def test_get_container_oom_events() -> ToolTestResult:
-    """Test get_container_oom_events functionality."""
-    # This uses Cloud Logging, so test that
-    return await test_list_log_entries()
+async def check_get_container_oom_events() -> ToolTestResult:
+    """Check get_container_oom_events functionality."""
+    # This uses Cloud Logging, so check that
+    return await check_list_log_entries()
 
 
-async def test_get_workload_health_summary() -> ToolTestResult:
-    """Test get_workload_health_summary functionality."""
-    return await test_get_gke_cluster_health()
+async def check_get_workload_health_summary() -> ToolTestResult:
+    """Check get_workload_health_summary functionality."""
+    return await check_get_gke_cluster_health()
 
 
 # ============================================================================
@@ -365,48 +368,52 @@ async def test_get_workload_health_summary() -> ToolTestResult:
 # ============================================================================
 
 
-def register_all_test_functions() -> None:
-    """Register all test functions with the ToolConfigManager."""
+def register_all_check_functions() -> None:
+    """Register all check functions with the ToolConfigManager."""
     manager = get_tool_config_manager()
 
-    # API Client tests
-    manager.register_test_function("fetch_trace", test_fetch_trace)
-    manager.register_test_function("list_traces", test_list_traces)
-    manager.register_test_function("find_example_traces", test_find_example_traces)
-    manager.register_test_function("list_log_entries", test_list_log_entries)
-    manager.register_test_function("get_logs_for_trace", test_get_logs_for_trace)
-    manager.register_test_function("list_error_events", test_list_error_events)
-    manager.register_test_function("list_time_series", test_list_time_series)
-    manager.register_test_function("query_promql", test_query_promql)
-    manager.register_test_function("list_alerts", test_list_alerts)
-    manager.register_test_function("get_alert", test_get_alert)
-    manager.register_test_function("list_alert_policies", test_list_alert_policies)
+    # API Client checks
+    manager.register_test_function("fetch_trace", check_fetch_trace)
+    manager.register_test_function("list_traces", check_list_traces)
+    manager.register_test_function("find_example_traces", check_find_example_traces)
+    manager.register_test_function("list_log_entries", check_list_log_entries)
+    manager.register_test_function("get_logs_for_trace", check_get_logs_for_trace)
+    manager.register_test_function("list_error_events", check_list_error_events)
+    manager.register_test_function("list_time_series", check_list_time_series)
+    manager.register_test_function("query_promql", check_query_promql)
+    manager.register_test_function("list_alerts", check_list_alerts)
+    manager.register_test_function("get_alert", check_get_alert)
+    manager.register_test_function("list_alert_policies", check_list_alert_policies)
 
-    # MCP tests
-    manager.register_test_function("mcp_list_log_entries", test_mcp_list_log_entries)
-    manager.register_test_function("mcp_list_timeseries", test_mcp_list_timeseries)
-    manager.register_test_function("mcp_query_range", test_mcp_query_range)
+    # MCP checks
+    manager.register_test_function("mcp_list_log_entries", check_mcp_list_log_entries)
+    manager.register_test_function("mcp_list_timeseries", check_mcp_list_timeseries)
+    manager.register_test_function("mcp_query_range", check_mcp_query_range)
 
-    # SLO tests
-    manager.register_test_function("list_slos", test_list_slos)
-    manager.register_test_function("get_slo_status", test_get_slo_status)
+    # SLO checks
+    manager.register_test_function("list_slos", check_list_slos)
+    manager.register_test_function("get_slo_status", check_get_slo_status)
 
-    # GKE tests
+    # GKE checks
     manager.register_test_function(
-        "get_gke_cluster_health", test_get_gke_cluster_health
+        "get_gke_cluster_health", check_get_gke_cluster_health
     )
     manager.register_test_function(
-        "analyze_node_conditions", test_analyze_node_conditions
+        "analyze_node_conditions", check_analyze_node_conditions
     )
     manager.register_test_function(
-        "get_pod_restart_events", test_get_pod_restart_events
+        "get_pod_restart_events", check_get_pod_restart_events
     )
-    manager.register_test_function("analyze_hpa_events", test_analyze_hpa_events)
+    manager.register_test_function("analyze_hpa_events", check_analyze_hpa_events)
     manager.register_test_function(
-        "get_container_oom_events", test_get_container_oom_events
+        "get_container_oom_events", check_get_container_oom_events
     )
     manager.register_test_function(
-        "get_workload_health_summary", test_get_workload_health_summary
+        "get_workload_health_summary", check_get_workload_health_summary
     )
 
-    logger.info("Registered all tool test functions")
+    logger.info("Registered all tool check functions")
+
+
+# Backwards compatibility alias
+register_all_test_functions = register_all_check_functions
