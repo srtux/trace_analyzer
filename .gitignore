@@ -27,6 +27,7 @@ htmlcov/
 *.log
 sre_agent_tmp*/
 session.db
+.sre_agent_sessions.db
 
 # IDEs
 .vscode/
