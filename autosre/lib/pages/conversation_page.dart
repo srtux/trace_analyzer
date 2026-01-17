@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -19,15 +18,14 @@ class ConversationPage extends StatefulWidget {
 
 class _ConversationPageState extends State<ConversationPage>
     with TickerProviderStateMixin {
-  late final A2uiMessageProcessor _messageProcessor;
-  late final GenUiConversation _conversation;
-  late final ADKContentGenerator _contentGenerator;
+  late A2uiMessageProcessor _messageProcessor;
+  late GenUiConversation _conversation;
+  late ADKContentGenerator _contentGenerator;
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
   final ProjectService _projectService = ProjectService();
 
-  late AnimationController _backgroundController;
   late AnimationController _typingController;
 
   @override
@@ -46,18 +44,22 @@ class _ConversationPageState extends State<ConversationPage>
       return KeyEventResult.ignored;
     };
 
-    // Background animation
-    _backgroundController = AnimationController(
-      duration: const Duration(seconds: 15),
-      vsync: this,
-    )..repeat(reverse: true);
-
     // Typing indicator animation
     _typingController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     )..repeat();
 
+    _initializeConversation();
+
+    // Fetch projects on startup
+    _projectService.fetchProjects();
+
+    // Update content generator when project selection changes
+    _projectService.selectedProject.addListener(_onProjectChanged);
+  }
+
+  void _initializeConversation() {
     final sreCatalog = CatalogRegistry.createSreCatalog();
 
     _messageProcessor = A2uiMessageProcessor(
@@ -68,6 +70,7 @@ class _ConversationPageState extends State<ConversationPage>
     );
 
     _contentGenerator = ADKContentGenerator();
+    _contentGenerator.projectId = _projectService.selectedProjectId;
 
     _conversation = GenUiConversation(
       a2uiMessageProcessor: _messageProcessor,
@@ -76,12 +79,17 @@ class _ConversationPageState extends State<ConversationPage>
       onSurfaceUpdated: (update) {},
       onTextResponse: (text) => _scrollToBottom(),
     );
+  }
 
-    // Fetch projects on startup
-    _projectService.fetchProjects();
+  void _startNewSession() {
+    // Dispose old conversation
+    _conversation.dispose();
 
-    // Update content generator when project selection changes
-    _projectService.selectedProject.addListener(_onProjectChanged);
+    // Create new conversation
+    _initializeConversation();
+
+    // Update UI
+    setState(() {});
   }
 
   void _onProjectChanged() {
@@ -112,22 +120,12 @@ class _ConversationPageState extends State<ConversationPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: AppColors.backgroundDark,
       appBar: _buildAppBar(),
-      body: Stack(
+      body: Column(
         children: [
-          // Animated gradient background
-          _buildAnimatedBackground(),
-
-          // Main content
-          SafeArea(
-            child: Column(
-              children: [
-                Expanded(child: _buildMessageList()),
-                _buildInputArea(),
-              ],
-            ),
-          ),
+          Expanded(child: _buildMessageList()),
+          _buildInputArea(),
         ],
       ),
     );
@@ -135,139 +133,156 @@ class _ConversationPageState extends State<ConversationPage>
 
   PreferredSizeWidget _buildAppBar() {
     return PreferredSize(
-      preferredSize: const Size.fromHeight(85),
-      child: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.backgroundDark.withValues(alpha: 0.8),
-              border: Border(
-                bottom: BorderSide(
-                  color: AppColors.surfaceBorder,
-                  width: 1,
-                ),
-              ),
+      preferredSize: const Size.fromHeight(56),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.backgroundCard,
+          border: Border(
+            bottom: BorderSide(
+              color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+              width: 1,
             ),
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isCompact = constraints.maxWidth < 600;
-                  final isMobile = constraints.maxWidth < 400;
+          ),
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 600;
+              final isMobile = constraints.maxWidth < 400;
 
-                  return Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1600),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isCompact ? 12 : 32,
-                          vertical: 12,
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1600),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 12 : 24,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        // Logo/Icon - clickable to return to home
+                        _buildLogoButton(isMobile: isMobile),
+                        SizedBox(width: isMobile ? 8 : 12),
+                        // Title
+                        Text(
+                          'AutoSRE',
+                          style: TextStyle(
+                            fontSize: isMobile ? 15 : 17,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                            letterSpacing: 0.3,
+                          ),
                         ),
-                        child: Row(
-                          children: [
-                            // Logo/Icon
-                            Container(
-                              padding: EdgeInsets.all(isMobile ? 8 : 10),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    AppColors.primaryTeal.withValues(alpha: 0.2),
-                                    AppColors.primaryCyan.withValues(alpha: 0.2),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: AppColors.primaryTeal.withValues(alpha: 0.3),
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.auto_awesome,
-                                color: AppColors.primaryTeal,
-                                size: isMobile ? 18 : 20,
-                              ),
+                        const Spacer(),
+                        // New Session button
+                        _buildNewSessionButton(compact: isMobile),
+                        SizedBox(width: isCompact ? 8 : 12),
+                        // Project Selector - constrained width on mobile
+                        Flexible(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: isMobile ? 110 : (isCompact ? 160 : 200),
                             ),
-                            SizedBox(width: isMobile ? 10 : 16),
-                            // Title - hide subtitle on mobile
-                            if (!isMobile)
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ShaderMask(
-                                    shaderCallback: (bounds) =>
-                                        AppColors.primaryGradient.createShader(bounds),
-                                    child: Text(
-                                      'AutoSRE',
-                                      style: TextStyle(
-                                        fontSize: isCompact ? 18 : 20,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                  if (!isCompact)
-                                    Text(
-                                      'AI-Powered SRE Assistant',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textMuted,
-                                        fontWeight: FontWeight.w400,
-                                      ),
-                                    ),
-                                ],
-                              )
-                            else
-                              ShaderMask(
-                                shaderCallback: (bounds) =>
-                                    AppColors.primaryGradient.createShader(bounds),
-                                child: const Text(
-                                  'AutoSRE',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            const Spacer(),
-                            // Project Selector - constrained width on mobile
-                            Flexible(
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxWidth: isMobile ? 120 : (isCompact ? 180 : 250),
-                                ),
-                                child: _buildProjectSelector(),
-                              ),
-                            ),
-                            SizedBox(width: isCompact ? 12 : 24),
-                            // Status indicator
-                            ValueListenableBuilder<bool>(
-                              valueListenable: _contentGenerator.isConnected,
-                              builder: (context, isConnected, _) {
-                                return ValueListenableBuilder<bool>(
-                                  valueListenable: _contentGenerator.isProcessing,
-                                  builder: (context, isProcessing, _) {
-                                    return _buildStatusIndicator(
-                                      isProcessing,
-                                      isConnected,
-                                      compact: isMobile,
-                                    );
-                                  },
+                            child: _buildProjectSelector(),
+                          ),
+                        ),
+                        SizedBox(width: isCompact ? 8 : 12),
+                        // Status indicator
+                        ValueListenableBuilder<bool>(
+                          valueListenable: _contentGenerator.isConnected,
+                          builder: (context, isConnected, _) {
+                            return ValueListenableBuilder<bool>(
+                              valueListenable: _contentGenerator.isProcessing,
+                              builder: (context, isProcessing, _) {
+                                return _buildStatusIndicator(
+                                  isProcessing,
+                                  isConnected,
+                                  compact: isMobile,
                                 );
                               },
-                            ),
-                            const SizedBox(width: 12),
-                            // Tool Configuration button
-                            _buildToolConfigButton(compact: isMobile),
-                          ],
+                            );
+                          },
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        // Tool Configuration button
+                        _buildToolConfigButton(compact: isMobile),
+                      ],
                     ),
-                  );
-                },
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoButton({bool isMobile = false}) {
+    return Tooltip(
+      message: 'New Session',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _startNewSession,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: EdgeInsets.all(isMobile ? 6 : 8),
+            decoration: BoxDecoration(
+              color: AppColors.primaryTeal.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.terminal,
+              color: AppColors.primaryTeal,
+              size: isMobile ? 18 : 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNewSessionButton({bool compact = false}) {
+    return Tooltip(
+      message: 'Start New Session',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _startNewSession,
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 8 : 10,
+              vertical: compact ? 4 : 6,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: AppColors.surfaceBorder.withValues(alpha: 0.5),
               ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.add,
+                  size: compact ? 14 : 16,
+                  color: AppColors.textSecondary,
+                ),
+                if (!compact) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    'New',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),
@@ -276,30 +291,30 @@ class _ConversationPageState extends State<ConversationPage>
   }
 
   Widget _buildToolConfigButton({bool compact = false}) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const ToolConfigPage(),
+    return Tooltip(
+      message: 'Tool Configuration',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const ToolConfigPage(),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: EdgeInsets.all(compact ? 6 : 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+              ),
             ),
-          );
-        },
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: EdgeInsets.all(compact ? 6 : 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: AppColors.surfaceBorder,
-            ),
-          ),
-          child: Tooltip(
-            message: 'Tool Configuration',
             child: Icon(
-              Icons.build_outlined,
+              Icons.settings_outlined,
               size: compact ? 16 : 18,
               color: AppColors.textMuted,
             ),
@@ -312,63 +327,56 @@ class _ConversationPageState extends State<ConversationPage>
   Widget _buildStatusIndicator(bool isProcessing, bool isConnected, {bool compact = false}) {
     Color statusColor;
     String statusText;
-    IconData? statusIcon;
 
     if (isConnected) {
       statusColor = AppColors.success;
       statusText = 'Connected';
-      statusIcon = Icons.wifi;
     } else {
       statusColor = AppColors.error;
-      statusText = 'Disconnected';
-      statusIcon = Icons.wifi_off;
+      statusText = 'Offline';
     }
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+    return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 8 : 12,
-        vertical: compact ? 4 : 6,
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 3 : 4,
       ),
       decoration: BoxDecoration(
         color: statusColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.3),
-        ),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Activity Blinker (Tx/Rx)
-          if (isProcessing) ...[
-             SizedBox(
-              width: compact ? 8 : 10,
-              height: compact ? 8 : 10,
+          if (isProcessing)
+            SizedBox(
+              width: 10,
+              height: 10,
               child: CircularProgressIndicator(
                 strokeWidth: 1.5,
                 valueColor: AlwaysStoppedAnimation<Color>(statusColor),
               ),
+            )
+          else
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: statusColor,
+                shape: BoxShape.circle,
+              ),
             ),
-             const SizedBox(width: 8),
-          ] else ...[
-             Icon(
-               statusIcon,
-               size: compact ? 12 : 14,
-               color: statusColor,
-             ),
-             const SizedBox(width: 8),
-          ],
-
-          if (!compact)
+          if (!compact) ...[
+            const SizedBox(width: 6),
             Text(
               statusText,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: statusColor,
               ),
             ),
+          ],
         ],
       ),
     );
@@ -403,44 +411,6 @@ class _ConversationPageState extends State<ConversationPage>
     );
   }
 
-  Widget _buildAnimatedBackground() {
-    return AnimatedBuilder(
-      animation: _backgroundController,
-      builder: (context, child) {
-        return Container(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(
-                -0.5 + _backgroundController.value * 1.0,
-                -0.8 + _backgroundController.value * 0.3,
-              ),
-              radius: 1.8,
-              colors: [
-                AppColors.primaryTeal.withValues(alpha: 0.06),
-                AppColors.backgroundDark,
-              ],
-            ),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(
-                  0.8 - _backgroundController.value * 0.5,
-                  0.6 - _backgroundController.value * 0.4,
-                ),
-                radius: 1.5,
-                colors: [
-                  AppColors.primaryBlue.withValues(alpha: 0.04),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildMessageList() {
     return ValueListenableBuilder<List<ChatMessage>>(
       valueListenable: _conversation.conversation,
@@ -451,7 +421,7 @@ class _ConversationPageState extends State<ConversationPage>
 
         return ListView.builder(
           controller: _scrollController,
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           itemCount: messages.length + 1, // +1 for typing indicator
           itemBuilder: (context, index) {
             if (index == messages.length) {
@@ -480,72 +450,52 @@ class _ConversationPageState extends State<ConversationPage>
     return SingleChildScrollView(
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Animated logo with glow effect
+              // Simple icon
               Container(
-                padding: const EdgeInsets.all(28),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.primaryTeal.withValues(alpha: 0.2),
-                      AppColors.primaryCyan.withValues(alpha: 0.15),
-                      AppColors.primaryBlue.withValues(alpha: 0.1),
-                    ],
-                  ),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.primaryTeal.withValues(alpha: 0.4),
-                    width: 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryTeal.withValues(alpha: 0.2),
-                      blurRadius: 30,
-                      spreadRadius: 5,
-                    ),
-                  ],
+                  color: AppColors.primaryTeal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.auto_awesome,
-                  size: 52,
+                child: Icon(
+                  Icons.terminal,
+                  size: 32,
                   color: AppColors.primaryTeal,
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
               Text(
-                'How can I help you today?',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
+                'SRE Assistant',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
+                constraints: const BoxConstraints(maxWidth: 380),
                 child: Text(
-                  'I can help you analyze traces, investigate logs, monitor metrics, and troubleshoot SRE issues.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  'Analyze traces, investigate logs, monitor metrics, and debug production issues.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textMuted,
-                        height: 1.5,
+                        height: 1.4,
                       ),
                   textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: 48),
-              // Category sections
-              // Category sections - Horizontal wrap for better desktop balance
+              const SizedBox(height: 32),
+              // Compact category sections
               Wrap(
-                spacing: 24,
-                runSpacing: 24,
+                spacing: 16,
+                runSpacing: 16,
                 alignment: WrapAlignment.center,
                 children: [
                   _buildSuggestionSection(
-                    'Traces & Performance',
+                    'Traces',
                     Icons.timeline_outlined,
                     [
                       'Analyze recent traces',
@@ -554,7 +504,7 @@ class _ConversationPageState extends State<ConversationPage>
                     ],
                   ),
                   _buildSuggestionSection(
-                    'Logs & Errors',
+                    'Logs',
                     Icons.article_outlined,
                     [
                       'Check error logs',
@@ -563,12 +513,12 @@ class _ConversationPageState extends State<ConversationPage>
                     ],
                   ),
                   _buildSuggestionSection(
-                    'Metrics & Monitoring',
+                    'Metrics',
                     Icons.show_chart_outlined,
                     [
-                      'View metric anomalies',
+                      'View anomalies',
                       'Check SLO status',
-                      'Analyze golden signals',
+                      'Golden signals',
                     ],
                   ),
                 ],
@@ -582,13 +532,13 @@ class _ConversationPageState extends State<ConversationPage>
 
   Widget _buildSuggestionSection(String title, IconData icon, List<String> suggestions) {
     return Container(
-      width: 280, // Fixed width for consistent grid-like layout
-      padding: const EdgeInsets.all(16),
+      width: 220,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.primaryTeal.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.backgroundCard.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: AppColors.primaryTeal.withValues(alpha: 0.1),
+          color: AppColors.surfaceBorder.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -598,28 +548,27 @@ class _ConversationPageState extends State<ConversationPage>
             children: [
               Icon(
                 icon,
-                size: 18,
-                color: AppColors.primaryTeal,
+                size: 14,
+                color: AppColors.textMuted,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondary,
-                    letterSpacing: 0.3,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: suggestions.map((s) => _buildSuggestionChip(s)).toList(),
           ),
         ],
@@ -635,36 +584,23 @@ class _ConversationPageState extends State<ConversationPage>
           _textController.text = text;
           _sendMessage();
         },
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(20),
+            color: Colors.white.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: AppColors.surfaceBorder,
+              color: AppColors.surfaceBorder.withValues(alpha: 0.3),
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.arrow_outward,
-                size: 14,
-                color: AppColors.primaryTeal,
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  text,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+          child: Text(
+            text,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),
@@ -675,9 +611,12 @@ class _ConversationPageState extends State<ConversationPage>
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(top: 8, bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: GlassDecoration.aiMessage(),
+        margin: const EdgeInsets.only(top: 4, bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundCard.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(8),
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (index) {
@@ -694,15 +633,15 @@ class _ConversationPageState extends State<ConversationPage>
                     0.4;
 
                 return Container(
-                  margin: EdgeInsets.only(right: index < 2 ? 6 : 0),
+                  margin: EdgeInsets.only(right: index < 2 ? 4 : 0),
                   child: Transform.translate(
-                    offset: Offset(0, -bounce * 8),
+                    offset: Offset(0, -bounce * 4),
                     child: Container(
-                      width: 8,
-                      height: 8,
+                      width: 6,
+                      height: 6,
                       decoration: BoxDecoration(
-                        color: AppColors.primaryTeal.withValues(
-                          alpha: 0.5 + bounce,
+                        color: AppColors.textMuted.withValues(
+                          alpha: 0.4 + bounce,
                         ),
                         shape: BoxShape.circle,
                       ),
@@ -718,212 +657,90 @@ class _ConversationPageState extends State<ConversationPage>
   }
 
   Widget _buildInputArea() {
-    return ClipRRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppColors.backgroundDark.withValues(alpha: 0.75),
-                AppColors.backgroundDark.withValues(alpha: 0.95),
-              ],
-            ),
-            border: Border(
-              top: BorderSide(
-                color: AppColors.surfaceBorder,
-                width: 1,
-              ),
-            ),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        border: Border(
+          top: BorderSide(
+            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+            width: 1,
           ),
-          child: SafeArea(
-            top: false,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1000),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Input row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // Selected project indicator
-                    ValueListenableBuilder<GcpProject?>(
-                      valueListenable: _projectService.selectedProject,
-                      builder: (context, project, _) {
-                        if (project == null) return const SizedBox.shrink();
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryTeal.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: AppColors.primaryTeal.withValues(alpha: 0.2),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundDark,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+                            width: 1,
+                          ),
+                        ),
+                        child: TextField(
+                          controller: _textController,
+                          focusNode: _focusNode,
+                          onSubmitted: (_) => _sendMessage(),
+                          maxLines: 4,
+                          minLines: 1,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: "Ask a question...",
+                            hintStyle: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 14,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.cloud_done_outlined,
-                                size: 14,
-                                color: AppColors.primaryTeal,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Project: ${project.name}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.primaryTeal,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _contentGenerator.isProcessing,
+                      builder: (context, isProcessing, _) {
+                        return _SendButton(
+                          isProcessing: isProcessing,
+                          onPressed: _sendMessage,
+                          onCancel: _contentGenerator.cancelRequest,
                         );
                       },
                     ),
-                    // Input row
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end, // Align to bottom for multiline
-                      children: [
-                        Expanded(
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.06),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: _focusNode.hasFocus
-                                    ? AppColors.primaryTeal.withValues(alpha: 0.4)
-                                    : Colors.white.withValues(alpha: 0.1),
-                                width: _focusNode.hasFocus ? 1.5 : 1,
-                              ),
-                              boxShadow: _focusNode.hasFocus
-                                  ? [
-                                      BoxShadow(
-                                        color: AppColors.primaryTeal.withValues(alpha: 0.1),
-                                        blurRadius: 12,
-                                        spreadRadius: -2,
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            child: TextField(
-                              controller: _textController,
-                              focusNode: _focusNode,
-                              onSubmitted: (_) => _sendMessage(),
-                              maxLines: 5,
-                              minLines: 1,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 15,
-                                height: 1.4,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: "Ask AutoSRE anything...",
-                                hintStyle: TextStyle(
-                                  color: AppColors.textMuted,
-                                  fontSize: 15,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 14,
-                                ),
-                                prefixIcon: Padding(
-                                  padding: const EdgeInsets.only(left: 14, right: 4),
-                                  child: Icon(
-                                    Icons.auto_awesome_outlined,
-                                    color: AppColors.textMuted.withValues(alpha: 0.5),
-                                    size: 18,
-                                  ),
-                                ),
-                                prefixIconConstraints: const BoxConstraints(
-                                  minWidth: 0,
-                                  minHeight: 0,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        ValueListenableBuilder<bool>(
-                          valueListenable: _contentGenerator.isProcessing,
-                          builder: (context, isProcessing, _) {
-                            return _SendButton(
-                              isProcessing: isProcessing,
-                              onPressed: _sendMessage,
-                              onCancel: _contentGenerator.cancelRequest,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                    // Keyboard hint
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Press ',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textMuted.withValues(alpha: 0.6),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'Enter',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textMuted.withValues(alpha: 0.8),
-                              ),
-                            ),
-                          ),
-                          Text(
-                            ' to send, ',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textMuted.withValues(alpha: 0.6),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'Shift + Enter',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textMuted.withValues(alpha: 0.8),
-                              ),
-                            ),
-                          ),
-                          Text(
-                            ' for new line',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textMuted.withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
-              ),
+                // Compact keyboard hint
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Enter to send • Shift+Enter for new line',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textMuted.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -934,7 +751,6 @@ class _ConversationPageState extends State<ConversationPage>
   @override
   void dispose() {
     _projectService.selectedProject.removeListener(_onProjectChanged);
-    _backgroundController.dispose();
     _typingController.dispose();
     _conversation.dispose();
     _focusNode.dispose();
@@ -1012,24 +828,28 @@ class _MessageItemState extends State<_MessageItem>
       return Align(
         alignment: Alignment.centerRight,
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.75,
           ),
-          decoration: GlassDecoration.userMessage(),
+          decoration: BoxDecoration(
+            color: AppColors.primaryTeal.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
           child: MarkdownBody(
             data: msg.text,
             styleSheet: MarkdownStyleSheet(
               p: const TextStyle(
                 color: AppColors.textPrimary,
-                fontSize: 15,
-                height: 1.5,
+                fontSize: 14,
+                height: 1.4,
               ),
               code: TextStyle(
                 backgroundColor: Colors.black.withValues(alpha: 0.2),
                 color: AppColors.primaryTeal,
-                fontSize: 13,
+                fontSize: 12,
+                fontFamily: 'monospace',
               ),
             ),
           ),
@@ -1039,86 +859,53 @@ class _MessageItemState extends State<_MessageItem>
       return Align(
         alignment: Alignment.centerLeft,
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.85,
           ),
-          decoration: GlassDecoration.aiMessage(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryTeal.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Icon(
-                      Icons.auto_awesome,
-                      size: 12,
-                      color: AppColors.primaryTeal,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'AutoSRE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textMuted,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
+          decoration: BoxDecoration(
+            color: AppColors.backgroundCard.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: MarkdownBody(
+            data: msg.text,
+            styleSheet: MarkdownStyleSheet(
+              p: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                height: 1.5,
               ),
-              const SizedBox(height: 10),
-              MarkdownBody(
-                data: msg.text,
-                styleSheet: MarkdownStyleSheet(
-                  p: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 15,
-                    height: 1.6,
-                  ),
-                  h1: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  h2: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  code: TextStyle(
-                    backgroundColor: Colors.black.withValues(alpha: 0.3),
-                    color: AppColors.primaryTeal,
-                    fontSize: 13,
-                    fontFamily: 'monospace',
-                  ),
-                  codeblockDecoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppColors.surfaceBorder,
-                    ),
-                  ),
-                  blockquoteDecoration: BoxDecoration(
-                    color: AppColors.primaryTeal.withValues(alpha: 0.1),
-                    border: Border(
-                      left: BorderSide(
-                        color: AppColors.primaryTeal,
-                        width: 3,
-                      ),
-                    ),
+              h1: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              h2: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              code: TextStyle(
+                backgroundColor: Colors.black.withValues(alpha: 0.3),
+                color: AppColors.primaryTeal,
+                fontSize: 12,
+                fontFamily: 'monospace',
+              ),
+              codeblockDecoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              blockquoteDecoration: BoxDecoration(
+                color: AppColors.primaryTeal.withValues(alpha: 0.08),
+                border: Border(
+                  left: BorderSide(
+                    color: AppColors.primaryTeal.withValues(alpha: 0.5),
+                    width: 2,
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       );
@@ -1126,13 +913,19 @@ class _MessageItemState extends State<_MessageItem>
       return Align(
         alignment: Alignment.centerLeft,
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 8),
+          margin: const EdgeInsets.symmetric(vertical: 4),
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.95,
           ),
-          decoration: GlassDecoration.card(borderRadius: 16),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundCard.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: AppColors.surfaceBorder.withValues(alpha: 0.3),
+            ),
+          ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
             child: GenUiSurface(
               host: widget.host,
               surfaceId: msg.surfaceId,
@@ -1145,8 +938,8 @@ class _MessageItemState extends State<_MessageItem>
   }
 }
 
-/// Animated send/stop button with pulse effect
-class _SendButton extends StatefulWidget {
+/// Compact send/stop button
+class _SendButton extends StatelessWidget {
   final bool isProcessing;
   final VoidCallback onPressed;
   final VoidCallback onCancel;
@@ -1158,104 +951,30 @@ class _SendButton extends StatefulWidget {
   });
 
   @override
-  State<_SendButton> createState() => _SendButtonState();
-}
-
-class _SendButtonState extends State<_SendButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void didUpdateWidget(_SendButton oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isProcessing && !oldWidget.isProcessing) {
-      _pulseController.repeat(reverse: true);
-    } else if (!widget.isProcessing && oldWidget.isProcessing) {
-      _pulseController.stop();
-      _pulseController.reset();
-    }
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _pulseAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: widget.isProcessing ? _pulseAnimation.value : 1.0,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.isProcessing ? widget.onCancel : widget.onPressed,
-              borderRadius: BorderRadius.circular(18),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(13),
-                decoration: BoxDecoration(
-                  gradient: widget.isProcessing
-                      ? LinearGradient(
-                          colors: [
-                            AppColors.error.withValues(alpha: 0.8),
-                            AppColors.error.withValues(alpha: 0.6),
-                          ],
-                        )
-                      : LinearGradient(
-                          colors: [
-                            AppColors.primaryTeal,
-                            AppColors.primaryCyan,
-                          ],
-                        ),
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (widget.isProcessing
-                              ? AppColors.error
-                              : AppColors.primaryTeal)
-                          .withValues(alpha: 0.35),
-                      blurRadius: widget.isProcessing ? 16 : 12,
-                      offset: const Offset(0, 4),
-                      spreadRadius: widget.isProcessing ? 0 : -2,
-                    ),
-                  ],
-                ),
-                child: widget.isProcessing
-                    ? Tooltip(
-                        message: 'Stop request',
-                        child: Icon(
-                          Icons.stop_rounded,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                      )
-                    : Icon(
-                        Icons.arrow_upward_rounded,
-                        color: AppColors.backgroundDark,
-                        size: 22,
-                      ),
-              ),
+    return Tooltip(
+      message: isProcessing ? 'Stop' : 'Send',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isProcessing ? onCancel : onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isProcessing
+                  ? AppColors.error
+                  : AppColors.primaryTeal,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              isProcessing ? Icons.stop_rounded : Icons.arrow_upward_rounded,
+              color: isProcessing ? Colors.white : AppColors.backgroundDark,
+              size: 20,
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -1853,61 +1572,33 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
         color: Colors.transparent,
         child: InkWell(
           onTap: _toggleDropdown,
-          borderRadius: BorderRadius.circular(12),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
-              gradient: _isOpen
-                  ? LinearGradient(
-                      colors: [
-                        AppColors.primaryTeal.withValues(alpha: 0.2),
-                        AppColors.primaryCyan.withValues(alpha: 0.15),
-                      ],
-                    )
-                  : null,
               color: _isOpen
-                  ? null
+                  ? AppColors.primaryTeal.withValues(alpha: 0.1)
                   : Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: _isOpen
-                    ? AppColors.primaryTeal.withValues(alpha: 0.5)
-                    : AppColors.surfaceBorder,
-                width: _isOpen ? 1.5 : 1,
+                    ? AppColors.primaryTeal.withValues(alpha: 0.3)
+                    : AppColors.surfaceBorder.withValues(alpha: 0.5),
               ),
-              boxShadow: _isOpen
-                  ? [
-                      BoxShadow(
-                        color: AppColors.primaryTeal.withValues(alpha: 0.2),
-                        blurRadius: 12,
-                        spreadRadius: -2,
-                      ),
-                    ]
-                  : null,
             ),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: _isOpen
-                        ? AppColors.primaryTeal.withValues(alpha: 0.2)
-                        : Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    Icons.cloud_outlined,
-                    size: 14,
-                    color: _isOpen ? AppColors.primaryTeal : AppColors.textMuted,
-                  ),
+                Icon(
+                  Icons.folder_outlined,
+                  size: 14,
+                  color: _isOpen ? AppColors.primaryTeal : AppColors.textMuted,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    widget.selectedProject?.name ?? 'Select Project',
+                    widget.selectedProject?.name ?? 'Project',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: widget.selectedProject != null
                           ? AppColors.textPrimary
@@ -1919,10 +1610,10 @@ class _ProjectSelectorDropdownState extends State<_ProjectSelectorDropdown>
                 const SizedBox(width: 2),
                 AnimatedRotation(
                   turns: _isOpen ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 200),
+                  duration: const Duration(milliseconds: 150),
                   child: Icon(
                     Icons.keyboard_arrow_down,
-                    size: 18,
+                    size: 16,
                     color: _isOpen ? AppColors.primaryTeal : AppColors.textMuted,
                   ),
                 ),
