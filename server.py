@@ -521,7 +521,13 @@ class CreateSessionRequest(BaseModel):
 
 @app.post("/api/sessions")
 async def create_session(request: CreateSessionRequest) -> Any:
-    """Create a new session using ADK session service."""
+    """Create a new session using ADK session service.
+
+    This endpoint initializes a new investigation session. It supports:
+    - **Persistence**: Sessions are stored in SQLite (local) or Firestore (Cloud Run).
+    - **Context**: Can be initialized with a specific GCP project context.
+    - **State Management**: Tracks user preferences and conversation history.
+    """
     try:
         session_manager = get_session_service()
         initial_state = {}

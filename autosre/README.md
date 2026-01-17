@@ -40,6 +40,12 @@ It is designed to be served by the unified SRE Agent server, but can also be run
 - **Agent Connection**: `lib/agent/adk_content_generator.dart`
 - **Backend Adapter**: `sre_agent/tools/analysis/genui_adapter.py` (Python schema transformation)
 
+## Session Management
+AutoSRE uses the backend's `SessionService` to persist conversation history.
+- **API**: Connects to `/api/sessions` for listing and managing sessions.
+- **Context**: Maintains `session_id` to allow the backend to restore conversation history from ADK storage (SQLite/Firestore).
+- **History**: Chat history is rehydrated from backend events, ensuring state consistency across reloads.
+
 ## Key Widgets
 - `SessionPanel`: Sidebar for viewing and managing investigation history sessions.
 - `TraceWaterfall`: Gantt chart for distributed traces.
