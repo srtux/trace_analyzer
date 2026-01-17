@@ -24,7 +24,7 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 200),
       vsync: this,
     );
     _expandAnimation = CurvedAnimation(
@@ -102,7 +102,7 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
     String statusLabel;
 
     if (isRunning) {
-      statusColor = AppColors.primaryBlue;
+      statusColor = AppColors.info;
       statusIcon = Icons.sync;
       statusLabel = 'Running';
     } else if (isError) {
@@ -115,130 +115,93 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
       statusLabel = 'Completed';
     }
 
+    // Compact collapsed view vs expanded view
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.symmetric(vertical: 6),
+      duration: const Duration(milliseconds: 150),
+      margin: EdgeInsets.symmetric(vertical: _isExpanded ? 4 : 2),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(14),
+        color: _isExpanded
+            ? AppColors.backgroundCard.withValues(alpha: 0.6)
+            : AppColors.backgroundCard.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(_isExpanded ? 10 : 8),
         border: Border.all(
-          color: statusColor.withValues(alpha: isRunning ? 0.5 : 0.25),
-          width: isRunning ? 1.5 : 1,
+          color: isRunning
+              ? statusColor.withValues(alpha: 0.4)
+              : AppColors.surfaceBorder.withValues(alpha: 0.5),
+          width: 1,
         ),
-        boxShadow: isRunning
-            ? [
-                BoxShadow(
-                  color: statusColor.withValues(alpha: 0.15),
-                  blurRadius: 12,
-                  spreadRadius: -4,
-                ),
-              ]
-            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Header
+          // Compact Header
           Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: _toggleExpand,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              borderRadius: BorderRadius.circular(_isExpanded ? 10 : 8),
               child: Padding(
-                padding: const EdgeInsets.all(14),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: _isExpanded ? 10 : 6,
+                ),
                 child: Row(
                   children: [
-                    // Status indicator
-                    _buildStatusIndicator(isRunning, statusColor, statusIcon),
-                    const SizedBox(width: 14),
-                    // Tool name and status
+                    // Compact status indicator
+                    _buildCompactStatusIndicator(isRunning, statusColor, statusIcon),
+                    const SizedBox(width: 10),
+                    // Tool name and status inline
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'Tool',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textMuted,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  widget.log.toolName,
-                                  style: const TextStyle(
-                                    fontFamily: 'monospace',
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            widget.log.toolName,
+                            style: TextStyle(
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: statusColor,
-                                  shape: BoxShape.circle,
-                                ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              statusLabel,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: statusColor,
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                statusLabel,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: statusColor,
-                                ),
-                              ),
-                              if (widget.log.timestamp != null) ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  '• ${_formatTimestamp(widget.log.timestamp)}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ],
+                            ),
                           ),
+                          if (widget.log.timestamp != null) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              _formatTimestamp(widget.log.timestamp),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.textMuted,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
                     // Expand icon
                     RotationTransition(
                       turns: _rotateAnimation,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.keyboard_arrow_down,
-                          color: AppColors.textMuted,
-                          size: 18,
-                        ),
+                      child: Icon(
+                        Icons.keyboard_arrow_down,
+                        color: AppColors.textMuted,
+                        size: 16,
                       ),
                     ),
                   ],
@@ -255,11 +218,11 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
               children: [
                 Container(
                   height: 1,
-                  color: AppColors.surfaceBorder,
+                  color: AppColors.surfaceBorder.withValues(alpha: 0.5),
                 ),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -275,7 +238,7 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
                       ),
                       // Output section
                       if (completed && widget.log.result != null) ...[
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 10),
                         _buildSection(
                           title: 'Output',
                           icon: Icons.output,
@@ -289,7 +252,7 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
                       ],
                       // Error section
                       if (isError && widget.log.result != null) ...[
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 10),
                         _buildErrorSection(widget.log.result!),
                       ],
                     ],
@@ -303,27 +266,16 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
     );
   }
 
-  Widget _buildStatusIndicator(bool isRunning, Color statusColor, IconData statusIcon) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.3),
-        ),
-      ),
+  Widget _buildCompactStatusIndicator(bool isRunning, Color statusColor, IconData statusIcon) {
+    return SizedBox(
+      width: 18,
+      height: 18,
       child: isRunning
-          ? Padding(
-              padding: const EdgeInsets.all(8),
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-              ),
+          ? CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(statusColor),
             )
-          : Icon(statusIcon, color: statusColor, size: 20),
+          : Icon(statusIcon, color: statusColor, size: 16),
     );
   }
 
@@ -339,26 +291,18 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
       children: [
         Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: (isSuccess ? AppColors.success : AppColors.primaryTeal)
-                    .withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(
-                icon,
-                size: 12,
-                color: isSuccess ? AppColors.success : AppColors.primaryTeal,
-              ),
+            Icon(
+              icon,
+              size: 12,
+              color: isSuccess ? AppColors.success : AppColors.textMuted,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Text(
               title,
               style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                color: AppColors.textMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
             ),
             const Spacer(),
@@ -366,22 +310,22 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
               color: Colors.transparent,
               child: InkWell(
                 onTap: onCopy,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(4),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.copy,
-                        size: 12,
+                        size: 11,
                         color: AppColors.textMuted,
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 3),
                       Text(
                         'Copy',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: AppColors.textMuted,
                         ),
                       ),
@@ -392,7 +336,7 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         _buildCodeBlock(content),
       ],
     );
@@ -401,37 +345,30 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
   Widget _buildErrorSection(String errorMessage) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
+        color: AppColors.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: AppColors.error.withValues(alpha: 0.3),
+          color: AppColors.error.withValues(alpha: 0.2),
         ),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.warning_amber_rounded,
-                  size: 14,
-                  color: AppColors.error,
-                ),
+              Icon(
+                Icons.warning_amber_rounded,
+                size: 12,
+                color: AppColors.error,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
-                'Error Details',
+                'Error',
                 style: TextStyle(
                   color: AppColors.error,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const Spacer(),
@@ -439,22 +376,22 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () => _copyToClipboard(errorMessage, 'Error'),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.copy,
-                          size: 12,
+                          size: 11,
                           color: AppColors.error.withValues(alpha: 0.7),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 3),
                         Text(
                           'Copy',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             color: AppColors.error.withValues(alpha: 0.7),
                           ),
                         ),
@@ -465,21 +402,24 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            constraints: const BoxConstraints(maxHeight: 120),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(4),
             ),
-            child: SelectableText(
-              errorMessage,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                color: AppColors.error.withValues(alpha: 0.9),
-                height: 1.5,
+            child: SingleChildScrollView(
+              child: SelectableText(
+                errorMessage,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  color: AppColors.error.withValues(alpha: 0.9),
+                  height: 1.4,
+                ),
               ),
             ),
           ),
@@ -491,25 +431,22 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
   Widget _buildCodeBlock(String content) {
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(maxHeight: 200),
+      constraints: const BoxConstraints(maxHeight: 160),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.05),
-        ),
+        color: Colors.black.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(8),
           child: SelectableText(
             content,
             style: const TextStyle(
               fontFamily: 'monospace',
-              fontSize: 12,
+              fontSize: 11,
               color: AppColors.textSecondary,
-              height: 1.5,
+              height: 1.4,
             ),
           ),
         ),
