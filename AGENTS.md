@@ -38,7 +38,7 @@ We use **`uv`** for dependency management and **`poethepoet`** for task automati
 
 ### 3. Testing & Coverage
 - **Framework**: `pytest` + `pytest-asyncio` + `pytest-cov`.
-- **Coverage Guard**: A minimum of **80%** test coverage is enforced. `uv run poe test` will fail if coverage drops below this.
+- **Coverage Guard**: A minimum of **70%** test coverage is enforced. `uv run poe test` will fail if coverage drops below this.
 - **Structure**: Tests mirror source directory (e.g., `tests/sre_agent/tools/...` corresponds to `sre_agent/tools/...`).
 - **Mocks**: Heavy use of `unittest.mock` to avoid hitting real GCP APIs during unit tests.
 

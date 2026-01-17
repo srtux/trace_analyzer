@@ -88,9 +88,9 @@ async def test_genui_chat_tool_log_events():
                     pass
 
             # Assertions
-            assert (
-                len(tool_logs) >= 2
-            ), "Should have at least 2 tool log events (running, completed)"
+            assert len(tool_logs) >= 2, (
+                "Should have at least 2 tool log events (running, completed)"
+            )
 
             # Check first log (running)
             running_log = tool_logs[0]
