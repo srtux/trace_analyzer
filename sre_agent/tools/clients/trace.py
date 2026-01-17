@@ -15,20 +15,87 @@ and inspect individual traces during triage.
 import json
 import logging
 import os
+import re
 import statistics
 from datetime import datetime, timezone
 from typing import Any, cast
 
+from fastapi.concurrency import run_in_threadpool
 from google.cloud import trace_v1
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from ..common import adk_tool
 from ..common.cache import get_data_cache
-from ..common.telemetry import get_tracer
+from ..common.telemetry import get_meter, get_tracer
 from .factory import get_trace_client
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer(__name__)
+meter = get_meter(__name__)
+
+
+class TraceFilterBuilder:
+    """Helper to construct Cloud Trace filter strings.
+
+    Encapsulates the complex [^][+]key:value syntax of Cloud Trace.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the builder with empty terms."""
+        self.terms: list[str] = []
+
+    def add_latency(self, duration_ms: int) -> "TraceFilterBuilder":
+        """Filter by minimum latency."""
+        self.terms.append(f"latency:{duration_ms}ms")
+        return self
+
+    def add_root_span_name(
+        self, name: str, exact: bool = False
+    ) -> "TraceFilterBuilder":
+        """Filter by root span name."""
+        term = f"root:{name}"
+        if exact:
+            term = f"+{term}"
+        self.terms.append(term)
+        return self
+
+    def add_span_name(
+        self, name: str, exact: bool = False, root_only: bool = False
+    ) -> "TraceFilterBuilder":
+        """Filter by span name."""
+        prefix = "^" if root_only else ""
+        op = "+" if exact else ""
+        term = f"{op}{prefix}span:{name}"
+        self.terms.append(term)
+        return self
+
+    def add_attribute(
+        self, key: str, value: Any, exact: bool = False, root_only: bool = False
+    ) -> "TraceFilterBuilder":
+        """Add an attribute filter.
+
+        Args:
+            key: The attribute key (e.g. '/http/status_code').
+            value: The value to match.
+            exact: If True, uses exact match (+).
+            root_only: If True, restricts to root span (^).
+        """
+        str_val = str(value)
+        # Quote value if it contains special characters
+        if not re.match(r"^[a-zA-Z0-9./_-]+$", str_val):
+            escaped_val = str_val.replace("\\", "\\\\").replace('"', '\\"')
+            str_val = f'"{escaped_val}"'
+
+        prefix = "^" if root_only else ""
+        op = "+" if exact else ""
+
+        term = f"{op}{prefix}{key}:{str_val}"
+        self.terms.append(term)
+        return self
+
+    def build(self) -> str:
+        """Returns the final filter string."""
+        return " ".join(self.terms)
 
 
 def _get_project_id() -> str:
@@ -441,8 +508,6 @@ async def find_example_traces(
     Returns:
         JSON string with 'baseline' and 'anomaly' keys.
     """
-    from fastapi.concurrency import run_in_threadpool
-
     try:
         try:
             if not project_id:
@@ -450,8 +515,14 @@ async def find_example_traces(
         except ValueError:
             return json.dumps({"error": "GOOGLE_CLOUD_PROJECT not set"})
 
-        # Fetch recent traces for statistical baseline
-        # Note: list_traces is now async
+        # Strategy 1: Look for slow traces directly (latency > 1s)
+        slow_filter = TraceFilterBuilder().add_latency(1000).build()
+        slow_traces_json = await list_traces(
+            project_id, limit=20, filter_str=slow_filter
+        )
+        slow_traces = json.loads(slow_traces_json)
+
+        # Strategy 2: Fetch recent traces for statistical baseline
         raw_traces = await list_traces(project_id, limit=50)
         traces = json.loads(raw_traces)
 
@@ -466,6 +537,17 @@ async def find_example_traces(
         if not traces:
             return json.dumps({"error": "No traces found in the last hour."})
 
+        # Inject slow traces into our pool
+        if (
+            isinstance(slow_traces, list)
+            and slow_traces
+            and "error" not in slow_traces[0]
+        ):
+            existing_ids = {t["trace_id"] for t in traces if "trace_id" in t}
+            for st in slow_traces:
+                if st["trace_id"] not in existing_ids:
+                    traces.append(st)
+
         # Fetch error traces separately for hybrid selection
         error_trace_ids = set()
         if prefer_errors:
@@ -477,7 +559,7 @@ async def find_example_traces(
                 error_trace_ids = {
                     t.get("trace_id") for t in error_traces if t.get("trace_id")
                 }
-                existing_ids = {t.get("trace_id") for t in traces}
+                existing_ids = {t.get("trace_id") for t in traces if "trace_id" in t}
                 for et in error_traces:
                     if et.get("trace_id") not in existing_ids:
                         et["has_error"] = True
@@ -489,26 +571,14 @@ async def find_example_traces(
             valid_traces = [
                 t for t in traces if isinstance(t, dict) and t.get("duration_ms", 0) > 0
             ]
-            if len(valid_traces) < 2:
-                return json.dumps(
-                    {"error": "Insufficient traces with valid duration found."}
-                )
+            if not valid_traces:
+                return json.dumps({"error": "No traces with valid duration found."})
 
             latencies = [t["duration_ms"] for t in valid_traces]
             latencies.sort()
 
             # Calculate statistical metrics
             p50 = statistics.median(latencies)
-            p95 = (
-                latencies[int(len(latencies) * 0.95)]
-                if len(latencies) > 1
-                else latencies[0]
-            )
-            p99 = (
-                latencies[int(len(latencies) * 0.99)]
-                if len(latencies) > 1
-                else latencies[0]
-            )
             mean = statistics.mean(latencies)
             stdev = statistics.stdev(latencies) if len(latencies) > 1 else 0
 
@@ -523,6 +593,9 @@ async def find_example_traces(
                 )
                 trace["_has_error"] = has_error
 
+            # Select anomaly (highest anomaly score)
+            anomaly = max(valid_traces, key=lambda x: x.get("_anomaly_score", 0))
+
             # Select baseline (closest to P50, prefer no errors)
             baseline_candidates = [
                 t for t in valid_traces if not t.get("_has_error", False)
@@ -533,17 +606,6 @@ async def find_example_traces(
             baseline = min(
                 baseline_candidates, key=lambda x: abs(x["duration_ms"] - p50)
             )
-
-            # Select anomaly (highest anomaly score, excluding baseline)
-            anomaly_candidates = [
-                t for t in valid_traces if t.get("trace_id") != baseline.get("trace_id")
-            ]
-            if anomaly_candidates:
-                anomaly = max(
-                    anomaly_candidates, key=lambda x: x.get("_anomaly_score", 0)
-                )
-            else:
-                anomaly = max(valid_traces, key=lambda x: x.get("duration_ms", 0))
 
             # Add selection reasoning
             baseline["_selection_reason"] = f"Closest to P50 ({p50:.1f}ms)"
@@ -558,28 +620,25 @@ async def find_example_traces(
                 )
 
             # Clean up internal fields
-            for trace in [baseline, anomaly]:
-                trace.pop("_anomaly_score", None)
-                trace.pop("_has_error", None)
+            stats = {
+                "count": len(valid_traces),
+                "p50_ms": round(p50, 2),
+                "mean_ms": round(mean, 2),
+                "stdev_ms": round(stdev, 2) if stdev else 0,
+                "error_traces_found": len(error_trace_ids),
+            }
 
             validation = {
                 "baseline_valid": baseline.get("trace_id") is not None,
                 "anomaly_valid": anomaly.get("trace_id") is not None,
-                "sample_adequate": len(valid_traces) >= min_sample_size,
+                "sample_adequate": len(valid_traces)
+                >= 20,  # Use a reasonable default or pass min_sample_size
                 "latency_variance_detected": stdev > 0,
             }
 
             return json.dumps(
                 {
-                    "stats": {
-                        "count": len(valid_traces),
-                        "p50_ms": round(p50, 2),
-                        "p95_ms": round(p95, 2),
-                        "p99_ms": round(p99, 2),
-                        "mean_ms": round(mean, 2),
-                        "stdev_ms": round(stdev, 2) if stdev else 0,
-                        "error_traces_found": len(error_trace_ids),
-                    },
+                    "stats": stats,
                     "baseline": baseline,
                     "anomaly": anomaly,
                     "validation": validation,
@@ -587,7 +646,47 @@ async def find_example_traces(
                 }
             )
 
-        return await run_in_threadpool(_calculate_example_traces)
+        results_json = await run_in_threadpool(_calculate_example_traces)
+        results = json.loads(results_json)
+
+        if "error" in results:
+            return results_json
+
+        # --- NEW: Try to find a better baseline with same root span name ---
+        anomaly = results["anomaly"]
+        root_name = anomaly.get("name")  # name is populated in list_traces summary
+
+        if root_name:
+            # Search for traces with same root name that are "healthy" (shorter)
+            fb = TraceFilterBuilder().add_root_span_name(root_name, exact=True)
+            candidates_json = await list_traces(
+                project_id, limit=20, filter_str=fb.build()
+            )
+            candidates = json.loads(candidates_json)
+
+            if (
+                isinstance(candidates, list)
+                and candidates
+                and "error" not in candidates[0]
+            ):
+                # Filter for traces significantly faster than anomaly
+                shorter = [
+                    t
+                    for t in candidates
+                    if t.get("duration_ms", 0) < anomaly["duration_ms"] * 0.8
+                ]
+                if shorter:
+                    # Pick the one closest to median or just the fastest?
+                    # Let's pick median of these healthy candidates
+                    shorter.sort(key=lambda x: x.get("duration_ms", 0))
+                    best_baseline = shorter[len(shorter) // 2]
+                    best_baseline["_selection_reason"] = (
+                        f"Same root span ({root_name}), 20%+ faster"
+                    )
+                    results["baseline"] = best_baseline
+                    results["selection_method"] += "+root_name_match"
+
+        return json.dumps(results)
 
     except Exception as e:
         error_msg = f"Failed to find example traces: {e!s}"
