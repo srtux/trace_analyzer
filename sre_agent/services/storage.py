@@ -16,6 +16,11 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
+try:
+    import google.cloud.firestore as firestore
+except ImportError:
+    firestore = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -91,9 +96,7 @@ class FirestorePreferencesBackend(PreferencesBackend):
 
     def _get_client(self) -> Any:
         """Lazy-load Firestore client."""
-        if self._client is None:
-            from google.cloud import firestore
-
+        if self._client is None and firestore is not None:
             self._client = firestore.AsyncClient()
         return self._client
 
@@ -132,8 +135,8 @@ class FirestorePreferencesBackend(PreferencesBackend):
 
     @staticmethod
     def _get_timestamp() -> Any:
-        from google.cloud import firestore
-
+        if firestore is None:
+            return None
         return firestore.SERVER_TIMESTAMP
 
 
