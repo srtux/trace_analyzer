@@ -1,238 +1,289 @@
-"""Session Service for SRE Agent.
+"""ADK Session Service Integration for SRE Agent.
 
-Provides session management with history persistence.
-Integrates with ADK sessions and provides conversation history.
+Uses ADK's built-in session service implementations:
+- DatabaseSessionService: For local development (SQLite)
+- VertexAiSessionService: For Agent Engine deployment
+
+Provides persistent session management and state storage.
 """
 
 import logging
-import uuid
-from dataclasses import dataclass, field
-from datetime import datetime
+import os
+import time
+from dataclasses import dataclass
 from typing import Any
 
-from sre_agent.services.storage import StorageService, get_storage_service
+from google.adk.events import Event, EventActions
+from google.adk.sessions import (
+    DatabaseSessionService,
+    InMemorySessionService,
+    Session,
+)
 
 logger = logging.getLogger(__name__)
 
+# State key prefixes for proper scoping
+# See: https://google.github.io/adk-docs/sessions/state/
+STATE_PREFIX_USER = "user:"  # Persists across all sessions for a user
+STATE_PREFIX_APP = "app:"  # Persists across all users/sessions for the app
+STATE_PREFIX_TEMP = "temp:"  # Only for current invocation
 
-@dataclass
-class SessionMessage:
-    """A message in a session."""
-
-    role: str  # "user" or "assistant"
-    content: str
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary."""
-        return {
-            "role": self.role,
-            "content": self.content,
-            "timestamp": self.timestamp,
-            "metadata": self.metadata,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SessionMessage":
-        """Create from dictionary."""
-        return cls(
-            role=data.get("role", "user"),
-            content=data.get("content", ""),
-            timestamp=data.get("timestamp", datetime.utcnow().isoformat()),
-            metadata=data.get("metadata", {}),
-        )
+# State keys for user preferences
+STATE_KEY_SELECTED_PROJECT = f"{STATE_PREFIX_USER}selected_project"
+STATE_KEY_TOOL_CONFIG = f"{STATE_PREFIX_USER}tool_config"
 
 
 @dataclass
-class Session:
-    """A conversation session."""
+class SessionInfo:
+    """Session information for API responses."""
 
     id: str
     user_id: str
+    app_name: str
     title: str | None = None
     project_id: str | None = None
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    messages: list[SessionMessage] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: float | None = None
+    updated_at: float | None = None
+    message_count: int = 0
+    preview: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "id": self.id,
             "user_id": self.user_id,
+            "app_name": self.app_name,
             "title": self.title,
             "project_id": self.project_id,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
-            "messages": [m.to_dict() for m in self.messages],
-            "metadata": self.metadata,
+            "message_count": self.message_count,
+            "preview": self.preview,
         }
 
-    def to_summary(self) -> dict[str, Any]:
-        """Convert to summary (without full message history)."""
-        return {
-            "id": self.id,
-            "user_id": self.user_id,
-            "title": self.title,
-            "project_id": self.project_id,
-            "created_at": self.created_at,
-            "updated_at": self.updated_at,
-            "message_count": len(self.messages),
-            "preview": self._get_preview(),
-        }
 
-    def _get_preview(self) -> str:
-        """Get a preview of the session (first user message)."""
-        for msg in self.messages:
-            if msg.role == "user":
-                content = msg.content
-                if len(content) > 100:
-                    return content[:100] + "..."
-                return content
-        return ""
+class ADKSessionManager:
+    """Manager for ADK sessions with helper methods.
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Session":
-        """Create from dictionary."""
-        return cls(
-            id=data.get("id", str(uuid.uuid4())),
-            user_id=data.get("user_id", "default"),
-            title=data.get("title"),
-            project_id=data.get("project_id"),
-            created_at=data.get("created_at", datetime.utcnow().isoformat()),
-            updated_at=data.get("updated_at", datetime.utcnow().isoformat()),
-            messages=[
-                SessionMessage.from_dict(m) for m in data.get("messages", [])
-            ],
-            metadata=data.get("metadata", {}),
+    Wraps ADK's SessionService with convenience methods for:
+    - Session listing and management
+    - User preference storage via session state
+    - Message history tracking
+    """
+
+    APP_NAME = "sre_agent"
+
+    def __init__(self) -> None:
+        """Initialize the session manager with appropriate backend."""
+        self._session_service = self._create_session_service()
+        logger.info(
+            f"ADKSessionManager initialized with {type(self._session_service).__name__}"
         )
 
+    def _create_session_service(self) -> Any:
+        """Create the appropriate session service based on environment.
 
-class SessionService:
-    """Service for managing conversation sessions."""
+        Uses:
+        - VertexAiSessionService when SRE_AGENT_ID is set (Agent Engine)
+        - DatabaseSessionService for local development (SQLite)
+        - InMemorySessionService as fallback
+        """
+        # Check for Agent Engine deployment
+        agent_engine_id = os.getenv("SRE_AGENT_ID")
+        if agent_engine_id:
+            try:
+                from google.adk.sessions import VertexAiSessionService
 
-    COLLECTION_SESSIONS = "sessions"
+                project = os.getenv("GOOGLE_CLOUD_PROJECT")
+                location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+                if project:
+                    logger.info(
+                        f"Using VertexAiSessionService for Agent Engine: {agent_engine_id}"
+                    )
+                    return VertexAiSessionService(
+                        project=project,
+                        location=location,
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to initialize VertexAiSessionService: {e}")
 
-    def __init__(self, storage: StorageService):
-        self.storage = storage
+        # Use SQLite for local persistence
+        use_database = os.getenv("USE_DATABASE_SESSIONS", "true").lower() == "true"
+        if use_database:
+            try:
+                db_path = os.getenv("SESSION_DB_PATH", ".sre_agent_sessions.db")
+                db_url = f"sqlite+aiosqlite:///{db_path}"
+                logger.info(f"Using DatabaseSessionService with SQLite: {db_path}")
+                return DatabaseSessionService(db_url=db_url)
+            except Exception as e:
+                logger.warning(f"Failed to initialize DatabaseSessionService: {e}")
+
+        # Fallback to in-memory
+        logger.info("Using InMemorySessionService (no persistence)")
+        return InMemorySessionService()
+
+    @property
+    def session_service(self) -> Any:
+        """Get the underlying ADK session service."""
+        return self._session_service
 
     async def create_session(
         self,
         user_id: str = "default",
-        title: str | None = None,
-        project_id: str | None = None,
+        initial_state: dict[str, Any] | None = None,
     ) -> Session:
-        """Create a new session."""
-        session_id = str(uuid.uuid4())
-        session = Session(
-            id=session_id,
+        """Create a new session.
+
+        Args:
+            user_id: User identifier
+            initial_state: Optional initial state dictionary
+
+        Returns:
+            The created Session object
+        """
+        state = initial_state or {}
+        state["created_at"] = time.time()
+
+        session = await self._session_service.create_session(
+            app_name=self.APP_NAME,
             user_id=user_id,
-            title=title,
-            project_id=project_id,
+            state=state,
         )
-
-        # Save to storage
-        await self.storage.backend.set(
-            self.COLLECTION_SESSIONS,
-            session_id,
-            session.to_dict(),
-        )
-
-        logger.info(f"Created session {session_id} for user {user_id}")
+        logger.info(f"Created session {session.id} for user {user_id}")
         return session
 
-    async def get_session(self, session_id: str) -> Session | None:
-        """Get a session by ID."""
-        data = await self.storage.backend.get(self.COLLECTION_SESSIONS, session_id)
-        if data:
-            return Session.from_dict(data)
-        return None
+    async def get_session(
+        self,
+        session_id: str,
+        user_id: str = "default",
+    ) -> Session | None:
+        """Get a session by ID.
 
-    async def update_session(self, session: Session) -> None:
-        """Update a session."""
-        session.updated_at = datetime.utcnow().isoformat()
-        await self.storage.backend.set(
-            self.COLLECTION_SESSIONS,
-            session.id,
-            session.to_dict(),
-        )
+        Args:
+            session_id: Session identifier
+            user_id: User identifier
 
-    async def delete_session(self, session_id: str) -> bool:
-        """Delete a session."""
-        result = await self.storage.backend.delete(
-            self.COLLECTION_SESSIONS,
-            session_id,
-        )
-        if result:
-            logger.info(f"Deleted session {session_id}")
-        return result
+        Returns:
+            Session object or None if not found
+        """
+        try:
+            session = await self._session_service.get_session(
+                app_name=self.APP_NAME,
+                user_id=user_id,
+                session_id=session_id,
+            )
+            return session
+        except Exception as e:
+            logger.warning(f"Failed to get session {session_id}: {e}")
+            return None
 
     async def list_sessions(
         self,
         user_id: str = "default",
-        limit: int = 50,
-    ) -> list[dict[str, Any]]:
-        """List sessions for a user (returns summaries)."""
-        # Query by user_id
-        sessions = await self.storage.backend.query(
-            self.COLLECTION_SESSIONS,
-            "user_id",
-            user_id,
-            limit=limit,
-        )
+    ) -> list[SessionInfo]:
+        """List all sessions for a user.
 
-        # Convert to Session objects and return summaries
-        result = []
-        for data in sessions:
-            try:
-                session = Session.from_dict(data)
-                result.append(session.to_summary())
-            except Exception as e:
-                logger.warning(f"Error parsing session: {e}")
+        Args:
+            user_id: User identifier
 
-        # Sort by updated_at descending
-        result.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
-        return result
+        Returns:
+            List of SessionInfo objects
+        """
+        try:
+            sessions = await self._session_service.list_sessions(
+                app_name=self.APP_NAME,
+                user_id=user_id,
+            )
 
-    async def add_message(
-        self,
-        session_id: str,
-        role: str,
-        content: str,
-        metadata: dict[str, Any] | None = None,
-    ) -> Session | None:
-        """Add a message to a session."""
-        session = await self.get_session(session_id)
-        if not session:
-            logger.warning(f"Session {session_id} not found")
-            return None
+            result = []
+            for session in sessions.sessions:
+                # Extract info from session
+                state = session.state or {}
+                events = session.events or []
 
-        message = SessionMessage(
-            role=role,
-            content=content,
-            metadata=metadata or {},
-        )
-        session.messages.append(message)
+                # Get preview from first user message
+                preview = None
+                message_count = 0
+                for event in events:
+                    if event.content and event.content.parts:
+                        for part in event.content.parts:
+                            if hasattr(part, "text") and part.text:
+                                if event.author == "user":
+                                    if not preview:
+                                        preview = (
+                                            part.text[:100] + "..."
+                                            if len(part.text) > 100
+                                            else part.text
+                                        )
+                                message_count += 1
 
-        # Auto-generate title from first user message
-        if not session.title and role == "user":
-            # Use first 50 chars of first user message as title
-            session.title = content[:50] + ("..." if len(content) > 50 else "")
+                info = SessionInfo(
+                    id=session.id,
+                    user_id=user_id,
+                    app_name=self.APP_NAME,
+                    title=state.get("title"),
+                    project_id=state.get("project_id"),
+                    created_at=state.get("created_at"),
+                    updated_at=session.last_update_time,
+                    message_count=message_count,
+                    preview=preview,
+                )
+                result.append(info)
 
-        await self.update_session(session)
-        return session
+            # Sort by updated_at descending
+            result.sort(key=lambda x: x.updated_at or 0, reverse=True)
+            return result
 
-    async def get_session_history(
-        self,
-        session_id: str,
-    ) -> list[dict[str, Any]]:
-        """Get message history for a session."""
-        session = await self.get_session(session_id)
-        if not session:
+        except Exception as e:
+            logger.error(f"Failed to list sessions: {e}")
             return []
-        return [m.to_dict() for m in session.messages]
+
+    async def delete_session(
+        self,
+        session_id: str,
+        user_id: str = "default",
+    ) -> bool:
+        """Delete a session.
+
+        Args:
+            session_id: Session identifier
+            user_id: User identifier
+
+        Returns:
+            True if deleted successfully
+        """
+        try:
+            await self._session_service.delete_session(
+                app_name=self.APP_NAME,
+                user_id=user_id,
+                session_id=session_id,
+            )
+            logger.info(f"Deleted session {session_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete session {session_id}: {e}")
+            return False
+
+    async def update_session_state(
+        self,
+        session: Session,
+        state_delta: dict[str, Any],
+    ) -> None:
+        """Update session state using proper event-based approach.
+
+        Args:
+            session: The session to update
+            state_delta: Dictionary of state changes
+        """
+        actions = EventActions(state_delta=state_delta)
+        event = Event(
+            invocation_id=f"state-update-{time.time()}",
+            author="system",
+            actions=actions,
+            timestamp=time.time(),
+        )
+        await self._session_service.append_event(session, event)
+        logger.debug(f"Updated session {session.id} state: {list(state_delta.keys())}")
 
     async def get_or_create_session(
         self,
@@ -240,30 +291,126 @@ class SessionService:
         user_id: str = "default",
         project_id: str | None = None,
     ) -> Session:
-        """Get existing session or create new one."""
+        """Get existing session or create a new one.
+
+        Args:
+            session_id: Optional session ID to retrieve
+            user_id: User identifier
+            project_id: Optional project ID for context
+
+        Returns:
+            Session object
+        """
         if session_id:
-            session = await self.get_session(session_id)
+            session = await self.get_session(session_id, user_id)
             if session:
                 return session
 
-        # Create new session
-        return await self.create_session(
-            user_id=user_id,
-            project_id=project_id,
-        )
+        # Create new session with initial state
+        initial_state = {}
+        if project_id:
+            initial_state["project_id"] = project_id
+
+        return await self.create_session(user_id=user_id, initial_state=initial_state)
+
+    # =========================================================================
+    # User Preferences via Session State
+    # =========================================================================
+
+    async def get_user_preferences_session(
+        self,
+        user_id: str = "default",
+    ) -> Session:
+        """Get or create the preferences session for a user.
+
+        Uses a special session ID for storing user preferences.
+        """
+        prefs_session_id = f"preferences-{user_id}"
+        session = await self.get_session(prefs_session_id, user_id)
+        if not session:
+            session = await self._session_service.create_session(
+                app_name=self.APP_NAME,
+                user_id=user_id,
+                state={"is_preferences_session": True},
+            )
+            # Note: We can't set the session ID directly, but we track it
+        return session
+
+    async def get_selected_project(self, user_id: str = "default") -> str | None:
+        """Get the selected project for a user from state."""
+        try:
+            sessions = await self._session_service.list_sessions(
+                app_name=self.APP_NAME,
+                user_id=user_id,
+            )
+            # Look for the most recent session with project_id in state
+            for session in sessions.sessions:
+                if session.state and STATE_KEY_SELECTED_PROJECT in session.state:
+                    return session.state.get(STATE_KEY_SELECTED_PROJECT)
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get selected project: {e}")
+            return None
+
+    async def set_selected_project(
+        self,
+        project_id: str,
+        user_id: str = "default",
+    ) -> None:
+        """Set the selected project for a user in state."""
+        try:
+            # Get or create a preferences session
+            session = await self.get_or_create_session(user_id=user_id)
+            await self.update_session_state(
+                session,
+                {STATE_KEY_SELECTED_PROJECT: project_id},
+            )
+        except Exception as e:
+            logger.error(f"Failed to set selected project: {e}")
+
+    async def get_tool_config(
+        self, user_id: str = "default"
+    ) -> dict[str, bool] | None:
+        """Get tool configuration from state."""
+        try:
+            sessions = await self._session_service.list_sessions(
+                app_name=self.APP_NAME,
+                user_id=user_id,
+            )
+            for session in sessions.sessions:
+                if session.state and STATE_KEY_TOOL_CONFIG in session.state:
+                    return session.state.get(STATE_KEY_TOOL_CONFIG)
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get tool config: {e}")
+            return None
+
+    async def set_tool_config(
+        self,
+        enabled_tools: dict[str, bool],
+        user_id: str = "default",
+    ) -> None:
+        """Set tool configuration in state."""
+        try:
+            session = await self.get_or_create_session(user_id=user_id)
+            await self.update_session_state(
+                session,
+                {STATE_KEY_TOOL_CONFIG: enabled_tools},
+            )
+        except Exception as e:
+            logger.error(f"Failed to set tool config: {e}")
 
 
 # ============================================================================
 # Singleton Access
 # ============================================================================
 
-_session_service: SessionService | None = None
+_session_manager: ADKSessionManager | None = None
 
 
-def get_session_service() -> SessionService:
-    """Get the singleton SessionService instance."""
-    global _session_service
-    if _session_service is None:
-        storage = get_storage_service()
-        _session_service = SessionService(storage)
-    return _session_service
+def get_session_service() -> ADKSessionManager:
+    """Get the singleton ADKSessionManager instance."""
+    global _session_manager
+    if _session_manager is None:
+        _session_manager = ADKSessionManager()
+    return _session_manager

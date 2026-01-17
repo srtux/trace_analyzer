@@ -508,6 +508,7 @@ async def test_all_tools(category: str | None = None) -> Any:
 
 # ============================================================================
 # SESSION MANAGEMENT ENDPOINTS
+# Uses ADK's built-in session service for persistence
 # ============================================================================
 
 
@@ -515,55 +516,74 @@ class CreateSessionRequest(BaseModel):
     """Request model for creating a session."""
 
     user_id: str = "default"
-    title: str | None = None
     project_id: str | None = None
-
-
-class AddMessageRequest(BaseModel):
-    """Request model for adding a message to a session."""
-
-    role: str  # "user" or "assistant"
-    content: str
-    metadata: dict[str, Any] | None = None
 
 
 @app.post("/api/sessions")
 async def create_session(request: CreateSessionRequest) -> Any:
-    """Create a new session."""
+    """Create a new session using ADK session service."""
     try:
-        session_service = get_session_service()
-        session = await session_service.create_session(
+        session_manager = get_session_service()
+        initial_state = {}
+        if request.project_id:
+            initial_state["project_id"] = request.project_id
+
+        session = await session_manager.create_session(
             user_id=request.user_id,
-            title=request.title,
-            project_id=request.project_id,
+            initial_state=initial_state,
         )
-        return session.to_dict()
+        return {
+            "id": session.id,
+            "user_id": request.user_id,
+            "project_id": request.project_id,
+            "state": session.state,
+        }
     except Exception as e:
         logger.error(f"Error creating session: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/api/sessions")
-async def list_sessions(user_id: str = "default", limit: int = 50) -> Any:
-    """List sessions for a user."""
+async def list_sessions(user_id: str = "default") -> Any:
+    """List sessions for a user using ADK session service."""
     try:
-        session_service = get_session_service()
-        sessions = await session_service.list_sessions(user_id=user_id, limit=limit)
-        return {"sessions": sessions}
+        session_manager = get_session_service()
+        sessions = await session_manager.list_sessions(user_id=user_id)
+        return {"sessions": [s.to_dict() for s in sessions]}
     except Exception as e:
         logger.error(f"Error listing sessions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/api/sessions/{session_id}")
-async def get_session(session_id: str) -> Any:
-    """Get a session by ID."""
+async def get_session(session_id: str, user_id: str = "default") -> Any:
+    """Get a session by ID using ADK session service."""
     try:
-        session_service = get_session_service()
-        session = await session_service.get_session(session_id)
+        session_manager = get_session_service()
+        session = await session_manager.get_session(session_id, user_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
-        return session.to_dict()
+
+        # Convert ADK session to response format
+        events = session.events or []
+        messages = []
+        for event in events:
+            if event.content and event.content.parts:
+                for part in event.content.parts:
+                    if hasattr(part, "text") and part.text:
+                        messages.append({
+                            "role": event.author,
+                            "content": part.text,
+                            "timestamp": event.timestamp,
+                        })
+
+        return {
+            "id": session.id,
+            "user_id": user_id,
+            "state": session.state,
+            "messages": messages,
+            "last_update_time": session.last_update_time,
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -572,11 +592,11 @@ async def get_session(session_id: str) -> Any:
 
 
 @app.delete("/api/sessions/{session_id}")
-async def delete_session(session_id: str) -> Any:
-    """Delete a session."""
+async def delete_session(session_id: str, user_id: str = "default") -> Any:
+    """Delete a session using ADK session service."""
     try:
-        session_service = get_session_service()
-        result = await session_service.delete_session(session_id)
+        session_manager = get_session_service()
+        result = await session_manager.delete_session(session_id, user_id)
         if not result:
             raise HTTPException(status_code=404, detail="Session not found")
         return {"message": "Session deleted", "session_id": session_id}
@@ -587,34 +607,31 @@ async def delete_session(session_id: str) -> Any:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/api/sessions/{session_id}/messages")
-async def add_session_message(session_id: str, request: AddMessageRequest) -> Any:
-    """Add a message to a session."""
+@app.get("/api/sessions/{session_id}/history")
+async def get_session_history(session_id: str, user_id: str = "default") -> Any:
+    """Get message history for a session from ADK events."""
     try:
-        session_service = get_session_service()
-        session = await session_service.add_message(
-            session_id=session_id,
-            role=request.role,
-            content=request.content,
-            metadata=request.metadata,
-        )
+        session_manager = get_session_service()
+        session = await session_manager.get_session(session_id, user_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
-        return session.to_dict()
+
+        # Extract messages from ADK events
+        events = session.events or []
+        messages = []
+        for event in events:
+            if event.content and event.content.parts:
+                for part in event.content.parts:
+                    if hasattr(part, "text") and part.text:
+                        messages.append({
+                            "role": event.author,
+                            "content": part.text,
+                            "timestamp": event.timestamp,
+                        })
+
+        return {"session_id": session_id, "messages": messages}
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error adding message: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.get("/api/sessions/{session_id}/history")
-async def get_session_history(session_id: str) -> Any:
-    """Get message history for a session."""
-    try:
-        session_service = get_session_service()
-        history = await session_service.get_session_history(session_id)
-        return {"session_id": session_id, "messages": history}
     except Exception as e:
         logger.error(f"Error getting session history: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -731,6 +748,8 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
 
     Receives a user message, runs logic via the SRE Agent,
     and streams back A2UI events (BeginRendering, SurfaceUpdate) + Text.
+
+    Uses ADK sessions for conversation history persistence.
     """
     logger.info("Received GenUI chat request")
     user_message = request.messages[-1]["text"] if request.messages else ""
@@ -738,21 +757,13 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
     session_id = request.session_id  # Optional session ID
     logger.info(f"Project ID from request: {project_id}, Session ID: {session_id}")
 
-    # Get or create session for tracking conversation history
-    session_service = get_session_service()
-    current_session = await session_service.get_or_create_session(
+    # Get or create ADK session for tracking conversation history
+    session_manager = get_session_service()
+    current_session = await session_manager.get_or_create_session(
         session_id=session_id,
         project_id=project_id,
     )
     active_session_id = current_session.id
-
-    # Save user message to session
-    if user_message:
-        await session_service.add_message(
-            session_id=active_session_id,
-            role="user",
-            content=user_message,
-        )
 
     async def event_generator() -> AsyncGenerator[str, None]:
         import json
@@ -760,16 +771,16 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
 
         from google.genai import types
 
-        # Emit session info first
+        # Emit session info first so frontend can track session ID
         yield json.dumps({
             "type": "session",
             "session_id": active_session_id,
         }) + "\n"
 
-        # Collect assistant response for saving
+        # Collect assistant response for tracking
         assistant_response_parts: list[str] = []
 
-        # Check for Remote Agent Override
+        # Check for Remote Agent Override (Agent Engine deployment)
         remote_agent_id = os.getenv("SRE_AGENT_ID")
 
         if remote_agent_id:
@@ -780,36 +791,24 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
                 # Instantiate remote agent
                 remote_agent = reasoning_engines.ReasoningEngine(remote_agent_id)
 
-                # Query the remote agent
-                # Note: This is currently synchronous/blocking in the thread, effectively.
-                # Ideally we offload to threadpool but for simplicity:
-                response = remote_agent.query(input=user_message)  # type: ignore[attr-defined]
+                # Query the remote agent with session context
+                # Agent Engine handles session persistence automatically
+                response = remote_agent.query(
+                    input=user_message,
+                    session_id=active_session_id,
+                )  # type: ignore[attr-defined]
 
-                # The response from AdkApp/ReasoningEngine is typically just the text content if not structured.
-                # If we lose events, we just stream the text.
+                # The response from AdkApp/ReasoningEngine is typically just the text content
                 if response:
                     response_text = str(response)
                     assistant_response_parts.append(response_text)
                     yield json.dumps({"type": "text", "content": response_text}) + "\n"
 
-                # Save assistant response to session
-                if assistant_response_parts:
-                    await session_service.add_message(
-                        session_id=active_session_id,
-                        role="assistant",
-                        content="".join(assistant_response_parts),
-                    )
                 return
             except Exception as e:
                 logger.error(f"Remote Agent Error: {e}", exc_info=True)
                 error_msg = f"Error communicating with remote agent: {e}"
                 yield json.dumps({"type": "text", "content": error_msg}) + "\n"
-                # Save error response to session
-                await session_service.add_message(
-                    session_id=active_session_id,
-                    role="assistant",
-                    content=error_msg,
-                )
                 return
 
         # 1. Setup Context
@@ -1146,16 +1145,8 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
             assistant_response_parts.append(error_msg)
             yield json.dumps({"type": "text", "content": error_msg}) + "\n"
         finally:
-            # Save assistant response to session
-            if assistant_response_parts:
-                try:
-                    await session_service.add_message(
-                        session_id=active_session_id,
-                        role="assistant",
-                        content="".join(assistant_response_parts),
-                    )
-                except Exception as save_error:
-                    logger.warning(f"Failed to save assistant response to session: {save_error}")
+            # Note: Session history is managed by ADK session service
+            # When using Agent Engine, events are automatically persisted
 
             # Ensure all tools are marked as completed/error if stream ends
             if active_tools:

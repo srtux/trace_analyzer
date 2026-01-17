@@ -37,19 +37,23 @@ class SessionMessage {
 /// Model representing a session summary (for listing).
 class SessionSummary {
   final String id;
+  final String userId;
+  final String appName;
   final String? title;
   final String? projectId;
-  final String createdAt;
-  final String updatedAt;
+  final double? createdAt;
+  final double? updatedAt;
   final int messageCount;
   final String? preview;
 
   const SessionSummary({
     required this.id,
+    required this.userId,
+    required this.appName,
     this.title,
     this.projectId,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
     required this.messageCount,
     this.preview,
   });
@@ -57,54 +61,81 @@ class SessionSummary {
   factory SessionSummary.fromJson(Map<String, dynamic> json) {
     return SessionSummary(
       id: json['id'] as String,
+      userId: json['user_id'] as String? ?? 'default',
+      appName: json['app_name'] as String? ?? 'sre_agent',
       title: json['title'] as String?,
       projectId: json['project_id'] as String?,
-      createdAt: json['created_at'] as String,
-      updatedAt: json['updated_at'] as String,
+      createdAt: (json['created_at'] as num?)?.toDouble(),
+      updatedAt: (json['updated_at'] as num?)?.toDouble(),
       messageCount: json['message_count'] as int? ?? 0,
       preview: json['preview'] as String?,
     );
   }
 
   /// Get display title (title or preview or "New Session")
-  String get displayTitle => title ?? preview ?? 'New Session';
+  String get displayTitle => title ?? preview ?? 'New Investigation';
+
+  /// Get formatted date string
+  String get formattedDate {
+    if (updatedAt == null) return '';
+    try {
+      final date = DateTime.fromMillisecondsSinceEpoch((updatedAt! * 1000).toInt());
+      final now = DateTime.now();
+      final diff = now.difference(date);
+      if (diff.inDays == 0) {
+        return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      } else if (diff.inDays == 1) {
+        return 'Yesterday';
+      } else if (diff.inDays < 7) {
+        return '${diff.inDays} days ago';
+      } else {
+        return '${date.month}/${date.day}/${date.year}';
+      }
+    } catch (e) {
+      return '';
+    }
+  }
 }
 
 /// Model representing a full session.
 class Session {
   final String id;
   final String userId;
-  final String? title;
-  final String? projectId;
-  final String createdAt;
-  final String updatedAt;
+  final Map<String, dynamic>? state;
+  final double? lastUpdateTime;
   final List<SessionMessage> messages;
 
   const Session({
     required this.id,
     required this.userId,
-    this.title,
-    this.projectId,
-    required this.createdAt,
-    required this.updatedAt,
+    this.state,
+    this.lastUpdateTime,
     required this.messages,
   });
 
   factory Session.fromJson(Map<String, dynamic> json) {
     return Session(
       id: json['id'] as String,
-      userId: json['user_id'] as String,
-      title: json['title'] as String?,
-      projectId: json['project_id'] as String?,
-      createdAt: json['created_at'] as String,
-      updatedAt: json['updated_at'] as String,
+      userId: json['user_id'] as String? ?? 'default',
+      state: json['state'] as Map<String, dynamic>?,
+      lastUpdateTime: (json['last_update_time'] as num?)?.toDouble(),
       messages: (json['messages'] as List<dynamic>?)
           ?.map((m) => SessionMessage.fromJson(m as Map<String, dynamic>))
           .toList() ?? [],
     );
   }
 
-  String get displayTitle => title ?? (messages.isNotEmpty ? messages.first.content.substring(0, messages.first.content.length.clamp(0, 50)) : 'New Session');
+  String? get title => state?['title'] as String?;
+  String? get projectId => state?['project_id'] as String?;
+
+  String get displayTitle {
+    if (title != null && title!.isNotEmpty) return title!;
+    if (messages.isNotEmpty) {
+      final firstMsg = messages.first.content;
+      return firstMsg.length > 50 ? '${firstMsg.substring(0, 50)}...' : firstMsg;
+    }
+    return 'New Investigation';
+  }
 }
 
 /// Service for managing conversation sessions.

@@ -29,26 +29,6 @@ class _SessionPanelState extends State<SessionPanel> {
     widget.sessionService.fetchSessions();
   }
 
-  String _formatDate(String isoDate) {
-    try {
-      final date = DateTime.parse(isoDate);
-      final now = DateTime.now();
-      final difference = now.difference(date);
-
-      if (difference.inDays == 0) {
-        // Today - show time
-        return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-      } else if (difference.inDays == 1) {
-        return 'Yesterday';
-      } else if (difference.inDays < 7) {
-        return '${difference.inDays} days ago';
-      } else {
-        return '${date.month}/${date.day}/${date.year}';
-      }
-    } catch (e) {
-      return '';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -193,7 +173,6 @@ class _SessionPanelState extends State<SessionPanel> {
               isSelected: isSelected,
               onTap: () => widget.onSessionSelected(session.id),
               onDelete: () => _deleteSession(session.id),
-              formatDate: _formatDate,
             );
           },
         );
@@ -280,14 +259,12 @@ class _SessionItem extends StatefulWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback onDelete;
-  final String Function(String) formatDate;
 
   const _SessionItem({
     required this.session,
     required this.isSelected,
     required this.onTap,
     required this.onDelete,
-    required this.formatDate,
   });
 
   @override
@@ -369,7 +346,7 @@ class _SessionItemState extends State<_SessionItem> {
                         Row(
                           children: [
                             Text(
-                              widget.formatDate(widget.session.updatedAt),
+                              widget.session.formattedDate,
                               style: TextStyle(
                                 fontSize: 11,
                                 color: AppColors.textMuted,
