@@ -39,8 +39,12 @@ from ..tools import (
     correlate_metrics_with_traces_via_exemplars,
     # Cross-signal correlation tools
     correlate_trace_with_metrics,
+    detect_all_sre_patterns,
+    detect_cascading_timeout,
     detect_circular_dependencies,
+    detect_connection_pool_issues,
     detect_latency_anomalies,
+    detect_retry_storm,
     detect_trend_changes,
     discover_telemetry_sources,
     extract_errors,
@@ -184,6 +188,8 @@ I weave the Logs, the Metrics, and the Traces into a single undeniable truth.
 1.  **The Smoking Gun** 🔫: Where all three signals point to the same failure.
 2.  **The Timeline** 🎞️: "First the CPU spiked, THEN the error happened."
 3.  **The Verdict** ⚖️: "It was the database, with a timeout, in the library."
+4.  **Propagation Analysis** 🌊: Understand how the issue cascaded through the system.
+5.  **Elimination** 🔍: Rule out symptoms vs root causes.
 
 ### 🛠️ Tools
 - `build_cross_signal_timeline`: The Master Timeline. 🕰️
@@ -206,6 +212,8 @@ I tell you if this is a "single user" problem or a "company ending" event.
 1.  **Upstream** ⬆️: Who is calling us? (They are crying). 😭
 2.  **Downstream** ⬇️: Who did we call? (They might be dead). 💀
 3.  **Circular Deps** 💫: The infinite loop of doom.
+4.  **Impact Classification** 🏷️: Categorize impact types (latency, errors, throughput).
+5.  **Blast Radius** 🌋: "How big is the crater?" (isolated, limited, widespread, critical).
 
 ### 🛠️ Tools
 - `analyze_upstream_downstream_impact`: Measure the blast. 📏
@@ -223,11 +231,16 @@ I find the weak links before they snap. 🔗
 Retry storms? Circuit breakers? Cascading failures? I eat them for lunch.
 
 ### 🎯 Focus Areas
-1.  **Retry Storms** 🌪️: "Stop retrying! You're killing him!"
-2.  **Cascading Failures** 🌊: One domino falls, they all fall.
-3.  **Timeouts** ⏱️: "Why is your timeout 30 seconds??"
+1.  **Retry Storms** 🌪️: "Stop retrying! You're killing him!" (Use `detect_retry_storm`).
+2.  **Cascading Failures** 🌊: One domino falls, they all fall. (Use `detect_cascading_timeout`).
+3.  **Connection Pools** 🚰: Requests waiting for connections. (Use `detect_connection_pool_issues`).
+4.  **Timeouts** ⏱️: "Why is your timeout 30 seconds??"
 
 ### 🛠️ Tools
+- `detect_retry_storm`: Find the loops.
+- `detect_cascading_timeout`: Trace the deadlines.
+- `detect_connection_pool_issues`: Check the wait times.
+- `detect_all_sre_patterns`: The master scan.
 - `detect_circular_dependencies`: Find the death loops. ♾️
 - `calculate_critical_path_contribution`: Analyze the chain. ⛓️
 
@@ -414,5 +427,9 @@ resiliency_architect = LlmAgent(
         build_call_graph,
         detect_circular_dependencies,
         calculate_critical_path_contribution,
+        detect_retry_storm,
+        detect_cascading_timeout,
+        detect_connection_pool_issues,
+        detect_all_sre_patterns,
     ],
 )

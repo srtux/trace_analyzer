@@ -331,6 +331,37 @@ TOOL_DEFINITIONS: list[ToolConfig] = [
         testable=False,
     ),
     # -------------------------------------------------------------------------
+    # SRE Pattern Detection Tools
+    # -------------------------------------------------------------------------
+    ToolConfig(
+        name="detect_retry_storm",
+        display_name="Detect Retry Storm",
+        description="Identify excessive retries and exponential backoff patterns",
+        category=ToolCategory.ANALYSIS,
+        testable=False,
+    ),
+    ToolConfig(
+        name="detect_cascading_timeout",
+        display_name="Detect Cascading Timeout",
+        description="Trace timeout propagation through the call chain",
+        category=ToolCategory.ANALYSIS,
+        testable=False,
+    ),
+    ToolConfig(
+        name="detect_connection_pool_issues",
+        display_name="Detect Connection Pool Issues",
+        description="Detect waits for database or HTTP connections",
+        category=ToolCategory.ANALYSIS,
+        testable=False,
+    ),
+    ToolConfig(
+        name="detect_all_sre_patterns",
+        display_name="Detect All SRE Patterns",
+        description="Comprehensive scan for multiple SRE anti-patterns",
+        category=ToolCategory.ANALYSIS,
+        testable=False,
+    ),
+    # -------------------------------------------------------------------------
     # Log Analysis Tools
     # -------------------------------------------------------------------------
     ToolConfig(

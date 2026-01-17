@@ -113,10 +113,14 @@ from .tools import (
     # Cross-signal correlation tools
     correlate_trace_with_kubernetes,
     correlate_trace_with_metrics,
+    detect_all_sre_patterns,
+    detect_cascading_timeout,
     detect_circular_dependencies,
+    detect_connection_pool_issues,
     detect_latency_anomalies,
     # Metrics analysis tools
     detect_metric_anomalies,
+    detect_retry_storm,
     detect_trend_changes,
     # Discovery tools
     discover_telemetry_sources,
@@ -573,6 +577,11 @@ base_tools: list[Any] = [
     # Trace comparison tools
     compare_span_timings,
     find_structural_differences,
+    # SRE Pattern Detection tools
+    detect_retry_storm,
+    detect_cascading_timeout,
+    detect_connection_pool_issues,
+    detect_all_sre_patterns,
     # GCP direct API tools
     list_log_entries,
     list_time_series,
@@ -674,6 +683,11 @@ TOOL_NAME_MAP: dict[str, Any] = {
     # Trace comparison tools
     "compare_span_timings": compare_span_timings,
     "find_structural_differences": find_structural_differences,
+    # SRE Pattern Detection tools
+    "detect_retry_storm": detect_retry_storm,
+    "detect_cascading_timeout": detect_cascading_timeout,
+    "detect_connection_pool_issues": detect_connection_pool_issues,
+    "detect_all_sre_patterns": detect_all_sre_patterns,
     # GCP direct API tools
     "list_log_entries": list_log_entries,
     "list_time_series": list_time_series,

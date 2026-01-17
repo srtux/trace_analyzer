@@ -77,6 +77,14 @@ from .analysis.trace.filters import (
     select_traces_manually,
 )
 
+# Analysis Tools - Trace Patterns
+from .analysis.trace.patterns import (
+    detect_all_sre_patterns,
+    detect_cascading_timeout,
+    detect_connection_pool_issues,
+    detect_retry_storm,
+)
+
 # Analysis Tools - Trace
 from .analysis.trace.statistical_analysis import (
     analyze_trace_patterns,
@@ -147,6 +155,12 @@ from .mcp.gcp import (
 from .reporting import synthesize_report
 
 __all__ = [
+    # Configuration
+    "ToolCategory",
+    "ToolConfig",
+    "ToolConfigManager",
+    "ToolTestResult",
+    "ToolTestStatus",
     "analyze_aggregate_metrics",
     "analyze_bigquery_log_patterns",
     "analyze_critical_path",
@@ -177,9 +191,13 @@ __all__ = [
     "create_bigquery_mcp_toolset",
     "create_logging_mcp_toolset",
     "create_monitoring_mcp_toolset",
+    "detect_all_sre_patterns",
+    "detect_cascading_timeout",
     "detect_circular_dependencies",
+    "detect_connection_pool_issues",
     "detect_latency_anomalies",
     "detect_metric_anomalies",
+    "detect_retry_storm",
     "detect_trend_changes",
     "discover_telemetry_sources",
     "estimate_remediation_risk",
@@ -203,6 +221,7 @@ __all__ = [
     "get_pod_restart_events",
     "get_project_id_with_fallback",
     "get_slo_status",
+    "get_tool_config_manager",
     "get_trace_by_url",
     "get_workload_health_summary",
     "list_alert_policies",
@@ -213,10 +232,10 @@ __all__ = [
     "list_slos",
     "list_time_series",
     "list_traces",
+    "mcp_execute_sql",
     "mcp_list_log_entries",
     "mcp_list_timeseries",
     "mcp_query_range",
-    "mcp_execute_sql",
     "perform_causal_analysis",
     "predict_slo_violation",
     "query_promql",
@@ -225,11 +244,4 @@ __all__ = [
     "summarize_trace",
     "synthesize_report",
     "validate_trace_quality",
-    # Configuration
-    "ToolCategory",
-    "ToolConfig",
-    "ToolConfigManager",
-    "ToolTestResult",
-    "ToolTestStatus",
-    "get_tool_config_manager",
 ]
