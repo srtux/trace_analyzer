@@ -51,20 +51,26 @@ Automates the IAM policy bindings for the service account.
 - `roles/bigquery.dataViewer`
 - `roles/aiplatform.user`
 - `roles/secretmanager.secretAccessor`
+- `roles/datastore.user` (Required for session history)
 
 ## 🔐 Prerequisites & Secrets
 
-Before running the deployment, ensure you have set up your Google Cloud project and created the required secret:
+1.  **Firestore Database**:
+    - Enable Firestore in **Native Mode** in your GCP project.
+    - This is used for persisting conversation sessions and user preferences.
 
-```bash
-# 1. Create the Gemini API Key secret
-echo -n "YOUR_API_KEY" | gcloud secrets create gemini-api-key --data-file=-
+2.  **Gemini API Key**:
+    ```bash
+    echo -n "YOUR_API_KEY" | gcloud secrets create gemini-api-key --data-file=-
+    ```
 
-# 2. Ensure your .env file has the following
-GOOGLE_CLOUD_PROJECT=your-project
-GOOGLE_CLOUD_LOCATION=us-central1
-GOOGLE_CLOUD_STORAGE_BUCKET=your-bucket
-```
+3.  **Environment Configuration**:
+    Ensure your `.env` file has the following:
+    ```bash
+    GOOGLE_CLOUD_PROJECT=your-project
+    GOOGLE_CLOUD_LOCATION=us-central1
+    GOOGLE_CLOUD_STORAGE_BUCKET=your-bucket
+    ```
 
 ## 🧪 Verification after Deployment
 

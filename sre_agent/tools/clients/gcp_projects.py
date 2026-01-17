@@ -46,7 +46,7 @@ async def list_gcp_projects() -> dict[str, Any]:
 
             data = response.json()
             projects = [
-                {"id": p["projectId"], "name": p["name"]}
+                {"project_id": p["projectId"], "display_name": p["name"]}
                 for p in data.get("projects", [])
             ]
 

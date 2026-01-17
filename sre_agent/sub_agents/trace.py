@@ -48,6 +48,7 @@ from ..tools import (
     find_bottleneck_services,
     find_exemplar_traces,
     find_structural_differences,
+    mcp_execute_sql,
     perform_causal_analysis,
 )
 
@@ -64,8 +65,9 @@ Role: You are the **Data Analyst** 🥷🐼 - The Big Data Ninja.
 **Tool Strategy (STRICT HIERARCHY):**
 1.  **Discovery**: Run `discover_telemetry_sources` to find the `_AllSpans` table.
 2.  **Analysis (BigQuery)**:
-    -   Use `analyze_aggregate_metrics`. This tool runs SQL Aggregations (P50/P95/P99).
-    -   **Do NOT** use `fetch_trace` loop. It is too slow.
+    -   Use `analyze_aggregate_metrics` to generate SQL for fleet-wide metrics.
+    -   Use `mcp_execute_sql` to actually run the generated SQL.
+    -   **Do NOT** use `fetch_trace` loop for initial analysis. It is too slow.
 3.  **Selection**:
     -   Use `find_exemplar_traces` to pick the *worst* offenders.
 
@@ -249,6 +251,7 @@ aggregate_analyzer = LlmAgent(
     ),
     instruction=AGGREGATE_ANALYZER_PROMPT,
     tools=[
+        mcp_execute_sql,
         analyze_aggregate_metrics,
         find_exemplar_traces,
         compare_time_periods,

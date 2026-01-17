@@ -41,6 +41,7 @@ It is designed to be served by the unified SRE Agent server, but can also be run
 - **Backend Adapter**: `sre_agent/tools/analysis/genui_adapter.py` (Python schema transformation)
 
 ## Key Widgets
+- `SessionPanel`: Sidebar for viewing and managing investigation history sessions.
 - `TraceWaterfall`: Gantt chart for distributed traces.
 - `MetricCorrelationChart`: Timeline of metrics with anomaly detection.
 - `LogPatternViewer`: Visualizes aggregated log patterns.

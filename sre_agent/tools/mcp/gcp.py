@@ -70,35 +70,32 @@ def create_bigquery_mcp_toolset(project_id: str | None = None) -> Any:
         )
         return None
 
-    try:
-        logger.info(f"Creating BigQuery MCP toolset for project: {project_id}")
-
-        default_server = "google-bigquery.googleapis.com-mcp"
-        mcp_server = os.environ.get("BIGQUERY_MCP_SERVER", default_server)
-        mcp_server_name = (
-            f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
-        )
-
-        api_registry = ApiRegistry(
-            project_id, header_provider=lambda _: {"x-goog-user-project": project_id}
-        )
-
-        mcp_toolset = api_registry.get_toolset(
-            mcp_server_name=mcp_server_name,
-            tool_filter=[
-                "execute_sql",
-                "list_dataset_ids",
-                "list_table_ids",
-                "get_table_info",
-            ],
-        )
-
-        return mcp_toolset
-
-    except Exception as e:
-        logger.error(f"Failed to create BigQuery MCP toolset: {e}")
-        logger.info("Falling back to Mock BigQuery MCP toolset")
+    # Check for test environment
+    if os.environ.get("USE_MOCK_MCP") == "true" or os.environ.get("ADK_ENV") == "test":
+        logger.info("Using Mock BigQuery MCP toolset (Test Environment)")
         return MockMcpToolset()
+
+    logger.info(f"Creating BigQuery MCP toolset for project: {project_id}")
+
+    default_server = "google-bigquery.googleapis.com-mcp"
+    mcp_server = os.environ.get("BIGQUERY_MCP_SERVER", default_server)
+    mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
+
+    api_registry = ApiRegistry(
+        project_id, header_provider=lambda _: {"x-goog-user-project": project_id}
+    )
+
+    mcp_toolset = api_registry.get_toolset(
+        mcp_server_name=mcp_server_name,
+        tool_filter=[
+            "execute_sql",
+            "list_dataset_ids",
+            "list_table_ids",
+            "get_table_info",
+        ],
+    )
+
+    return mcp_toolset
 
 
 def create_logging_mcp_toolset(project_id: str | None = None) -> Any:
@@ -125,30 +122,27 @@ def create_logging_mcp_toolset(project_id: str | None = None) -> Any:
         )
         return None
 
-    try:
-        logger.info(f"Creating Cloud Logging MCP toolset for project: {project_id}")
-
-        default_server = "logging.googleapis.com-mcp"
-        mcp_server = os.environ.get("LOGGING_MCP_SERVER", default_server)
-        mcp_server_name = (
-            f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
-        )
-
-        api_registry = ApiRegistry(
-            project_id, header_provider=lambda _: {"x-goog-user-project": project_id}
-        )
-
-        mcp_toolset = api_registry.get_toolset(
-            mcp_server_name=mcp_server_name,
-            tool_filter=["list_log_entries"],
-        )
-
-        return mcp_toolset
-
-    except Exception as e:
-        logger.error(f"Failed to create Cloud Logging MCP toolset: {e}")
-        logger.info("Falling back to Mock Cloud Logging MCP toolset")
+    # Check for test environment
+    if os.environ.get("USE_MOCK_MCP") == "true" or os.environ.get("ADK_ENV") == "test":
+        logger.info("Using Mock Cloud Logging MCP toolset (Test Environment)")
         return MockMcpToolset()
+
+    logger.info(f"Creating Cloud Logging MCP toolset for project: {project_id}")
+
+    default_server = "logging.googleapis.com-mcp"
+    mcp_server = os.environ.get("LOGGING_MCP_SERVER", default_server)
+    mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
+
+    api_registry = ApiRegistry(
+        project_id, header_provider=lambda _: {"x-goog-user-project": project_id}
+    )
+
+    mcp_toolset = api_registry.get_toolset(
+        mcp_server_name=mcp_server_name,
+        tool_filter=["list_log_entries"],
+    )
+
+    return mcp_toolset
 
 
 def create_monitoring_mcp_toolset(project_id: str | None = None) -> Any:
@@ -176,30 +170,27 @@ def create_monitoring_mcp_toolset(project_id: str | None = None) -> Any:
         )
         return None
 
-    try:
-        logger.info(f"Creating Cloud Monitoring MCP toolset for project: {project_id}")
-
-        default_server = "monitoring.googleapis.com-mcp"
-        mcp_server = os.environ.get("MONITORING_MCP_SERVER", default_server)
-        mcp_server_name = (
-            f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
-        )
-
-        api_registry = ApiRegistry(
-            project_id, header_provider=lambda _: {"x-goog-user-project": project_id}
-        )
-
-        mcp_toolset = api_registry.get_toolset(
-            mcp_server_name=mcp_server_name,
-            tool_filter=["list_timeseries", "query_range"],
-        )
-
-        return mcp_toolset
-
-    except Exception as e:
-        logger.error(f"Failed to create Cloud Monitoring MCP toolset: {e}")
-        logger.info("Falling back to Mock Cloud Monitoring MCP toolset")
+    # Check for test environment
+    if os.environ.get("USE_MOCK_MCP") == "true" or os.environ.get("ADK_ENV") == "test":
+        logger.info("Using Mock Cloud Monitoring MCP toolset (Test Environment)")
         return MockMcpToolset()
+
+    logger.info(f"Creating Cloud Monitoring MCP toolset for project: {project_id}")
+
+    default_server = "monitoring.googleapis.com-mcp"
+    mcp_server = os.environ.get("MONITORING_MCP_SERVER", default_server)
+    mcp_server_name = f"projects/{project_id}/locations/global/mcpServers/{mcp_server}"
+
+    api_registry = ApiRegistry(
+        project_id, header_provider=lambda _: {"x-goog-user-project": project_id}
+    )
+
+    mcp_toolset = api_registry.get_toolset(
+        mcp_server_name=mcp_server_name,
+        tool_filter=["list_timeseries", "query_range"],
+    )
+
+    return mcp_toolset
 
 
 async def call_mcp_tool_with_retry(
@@ -639,6 +630,41 @@ async def mcp_query_range(
     return await call_mcp_tool_with_retry(
         create_monitoring_mcp_toolset,
         "query_range",
+        args,
+        tool_context,
+        project_id=project_id,
+    )
+
+
+@adk_tool
+async def mcp_execute_sql(
+    sql_query: str,
+    project_id: str | None = None,
+    tool_context: ToolContext | None = None,
+) -> dict[str, Any]:
+    """Execute a SQL query against BigQuery via MCP.
+
+    Use this tool to run analytical queries against trace and log data
+    exported to BigQuery. This is essential for Stage 0 (Aggregate Analysis).
+
+    Args:
+        sql_query: The SQL query to execute.
+        project_id: GCP project ID. If not provided, uses default credentials.
+        tool_context: ADK tool context (required).
+
+    Returns:
+        Query results or error.
+    """
+    if tool_context is None:
+        raise ValueError("tool_context is required for MCP tools")
+
+    args = {
+        "sql_query": sql_query,
+    }
+
+    return await call_mcp_tool_with_retry(
+        create_bigquery_mcp_toolset,
+        "execute_sql",
         args,
         tool_context,
         project_id=project_id,

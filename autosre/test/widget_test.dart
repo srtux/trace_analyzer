@@ -19,7 +19,7 @@ void main() {
     expect(find.text('AutoSRE'), findsOneWidget);
 
     // Verify input hint is present
-    expect(find.text('Ask AutoSRE anything...'), findsOneWidget);
+    expect(find.text('Ask a question...'), findsOneWidget);
 
     // Verify send button is present
     expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);

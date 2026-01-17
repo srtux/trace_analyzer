@@ -29,9 +29,11 @@ class _FunctionCallWarningFilter(logging.Filter):
         )
 
 
-# Apply filter to root logger and google.generativeai logger
+# Apply filter to root logger and specific GenAI loggers
 logging.getLogger().addFilter(_FunctionCallWarningFilter())
 logging.getLogger("google.generativeai").addFilter(_FunctionCallWarningFilter())
+logging.getLogger("google_genai.types").addFilter(_FunctionCallWarningFilter())
+logging.getLogger("google_genai._api_client").addFilter(_FunctionCallWarningFilter())
 
 
 class GenAiAttributes:

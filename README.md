@@ -25,6 +25,8 @@ The agent is built using the Google Agent Development Kit (ADK). It uses a **"Co
 - **Resiliency Architect**: Detects architectural patterns like retry storms and cascading failures.
 - **Friendly Expert Persona**: Combines deep technical expertise with a fun, approachable response style. 🕵️‍♂️✨
 - **Tool Call Visualization**: Deep visibility into agent thinking with real-time "Running/Completed/Error" states for every tool call.
+- **Investigation Persistence**: Automatic sync and storage of investigation sessions with Firestore support.
+- **Multi-Session History**: View, load, and manage previous investigations through the Mission Control history panel.
 
 ### System Architecture
 
@@ -268,7 +270,14 @@ sequenceDiagram
     *   **Policy Mapping**: Link alerts to their defining policies
     *   **First Responder**: "Smoking gun" evidence for starting investigations
 
-9.  **Web Dashboard (Mission Control)**
+9.  **Session Management & History** (NEW!)
+    *   **Investigation History**: Automatic background syncing of conversations to persistent storage.
+    *   **Firestore Integration**: Scalable session storage for Cloud Run deployments.
+    *   **Local Persistence**: Automated local filesystem storage for development environments.
+    *   **Stateful Context**: Backend maintains full conversation context across session reloads.
+    *   **User Preferences**: Persistent storage of project selections and tool configurations.
+
+10. **Web Dashboard (Mission Control)**
     *   **GenAI Interface**: A modern Chat UX powered by **Flutter** and **GenUI**.
     *   **Generative UI**: Dynamic Flutter widgets generated on-the-fly for traces, logs, and metrics.
     *   **Tool Execution Logs**: Integrated visual debugger showing the status, arguments, and results of every tool invocation.

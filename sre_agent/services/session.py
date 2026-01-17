@@ -12,7 +12,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from google.adk.events import Event, EventActions
 from google.adk.sessions import (
@@ -111,7 +111,7 @@ class ADKSessionManager:
 
         # Fallback to in-memory
         logger.info("Using InMemorySessionService (no persistence)")
-        return InMemorySessionService()
+        return InMemorySessionService()  # type: ignore[no-untyped-call]
 
     @property
     def session_service(self) -> Any:
@@ -141,7 +141,7 @@ class ADKSessionManager:
             state=state,
         )
         logger.info(f"Created session {session.id} for user {user_id}")
-        return session
+        return cast(Session, session)
 
     async def get_session(
         self,
@@ -163,7 +163,7 @@ class ADKSessionManager:
                 user_id=user_id,
                 session_id=session_id,
             )
-            return session
+            return cast(Session | None, session)
         except Exception as e:
             logger.warning(f"Failed to get session {session_id}: {e}")
             return None

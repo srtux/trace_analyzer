@@ -802,10 +802,10 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
 
                 # Query the remote agent with session context
                 # Agent Engine handles session persistence automatically
-                response = remote_agent.query(
+                response = remote_agent.query(  # type: ignore[attr-defined]
                     input=user_message,
                     session_id=active_session_id,
-                )  # type: ignore[attr-defined]
+                )
 
                 # The response from AdkApp/ReasoningEngine is typically just the text content
                 if response:

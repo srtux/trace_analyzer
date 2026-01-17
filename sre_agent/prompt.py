@@ -133,6 +133,7 @@ When MCP tools fail, I use these alternatives:
 | `discover_telemetry_sources` | Skip discovery, use `list_log_entries` and `fetch_trace` directly |
 | `mcp_list_log_entries` | `list_log_entries` (direct API) |
 | `mcp_list_timeseries` | `list_time_series` or `query_promql` (direct API) |
+| `mcp_execute_sql` | `analyze_bigquery_log_patterns` with direct client |
 | BigQuery MCP tools | `analyze_bigquery_log_patterns` with direct client |
 
 ### The Golden Rule 🥇

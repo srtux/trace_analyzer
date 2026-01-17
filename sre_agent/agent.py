@@ -174,6 +174,7 @@ from .tools.mcp.gcp import (
     create_logging_mcp_toolset,
     create_monitoring_mcp_toolset,
     get_project_id_with_fallback,
+    mcp_execute_sql,
     mcp_list_log_entries,
     mcp_list_timeseries,
     mcp_query_range,
@@ -600,6 +601,7 @@ base_tools: list[Any] = [
     mcp_list_log_entries,
     mcp_list_timeseries,
     mcp_query_range,
+    mcp_execute_sql,
     # Orchestrator tools
     run_aggregate_analysis,
     run_triage_analysis,
@@ -700,6 +702,7 @@ TOOL_NAME_MAP: dict[str, Any] = {
     "mcp_list_log_entries": mcp_list_log_entries,
     "mcp_list_timeseries": mcp_list_timeseries,
     "mcp_query_range": mcp_query_range,
+    "mcp_execute_sql": mcp_execute_sql,
     # Orchestrator tools
     "run_aggregate_analysis": run_aggregate_analysis,
     "run_triage_analysis": run_triage_analysis,

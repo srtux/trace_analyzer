@@ -35,6 +35,7 @@ dependencies = [
     "mcp>=0.1.0",
     "pydantic-core>=2.10.0",
     "tomli>=2.0.1 ; python_version < '3.11'",
+    "greenlet>=3.0.3",
 ]
 
 requires-python = ">=3.10,<3.13"
@@ -46,7 +47,7 @@ dev = [
     "google-adk[eval]>=1.0.0",
     "nest-asyncio>=1.6.0",
     "pytest-xdist>=3.8.0",
-    "ruff==0.4.6",
+    "ruff==0.14.13",
     "mypy>=1.15.0",
     "pytest-cov>=5.0.0",
     "absl-py>=2.1.0",
@@ -117,7 +118,7 @@ ignore-words-list = "allReady,ot"
 ignore = ["DEP001", "DEP004"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["grpcio", "requests", "opentelemetry-exporter-otlp-proto-grpc"]
+DEP002 = ["grpcio", "requests", "opentelemetry-exporter-otlp-proto-grpc", "aiosqlite", "greenlet"]
 DEP003 = ["mcp", "pydantic_core"]
 
 [tool.agent-starter-pack]
