@@ -16,6 +16,10 @@ web/node_modules/
 web/.next/
 web/out/
 web/build/
+autosre/build/
+autosre/.dart_tool/
+autosre/.pub-cache/
+autosre/.packages
 
 # Frontend builds
 web/public/
