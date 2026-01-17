@@ -81,26 +81,23 @@ class TestMCPIntegration(unittest.TestCase):
     @patch("sre_agent.tools.mcp.gcp.ApiRegistry")
     @patch("sre_agent.tools.mcp.gcp.google.auth.default")
     @patch("sre_agent.tools.mcp.gcp.os.environ")
-    def test_create_bigquery_mcp_toolset_handles_creation_error_gracefully(
+    def test_create_bigquery_mcp_toolset_raises_on_creation_error(
         self, mock_environ, mock_auth_default, mock_api_registry_cls
     ):
-        """Test that create_bigquery_mcp_toolset handles errors gracefully."""
+        """Test that create_bigquery_mcp_toolset raises errors."""
         mock_auth_default.return_value = (MagicMock(), "mock-project-id")
         mock_environ.get.return_value = "mock-project-id"
 
         # Setup mock to raise error during get_toolset
-        mock_api_registry_cls.return_value.get_toolset.side_effect = Exception(
+        mock_api_registry_cls.return_value.get_toolset.side_effect = RuntimeError(
             "Connection error"
         )
 
         from sre_agent.tools.mcp.gcp import create_bigquery_mcp_toolset
 
-        # Should return MockMcpToolset on error (not raise)
-        result = create_bigquery_mcp_toolset()
-
-        from sre_agent.tools.mcp.mock_mcp import MockMcpToolset
-
-        self.assertIsInstance(result, MockMcpToolset)
+        # Should raise RuntimeError
+        with self.assertRaises(RuntimeError):
+            create_bigquery_mcp_toolset()
 
     def test_mcp_toolset_not_created_at_module_import(self):
         """Test that MCP toolsets are not created just by importing agent."""
