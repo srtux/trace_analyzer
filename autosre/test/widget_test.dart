@@ -7,10 +7,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:autosre/app.dart';
+import 'package:google_sign_in_platform_interface/google_sign_in_platform_interface.dart';
 
 void main() {
+  setUp(() {
+    GoogleSignInPlatform.instance = MockGoogleSignIn();
+  });
+
   testWidgets('App renders correctly', (WidgetTester tester) async {
     // Set a fixed size to ensure desktop layout and visibility of elements
     tester.view.physicalSize = const Size(1280, 720);
@@ -32,4 +37,21 @@ void main() {
     // Clear size override
     addTearDown(tester.view.resetPhysicalSize);
   });
+}
+
+class MockGoogleSignIn extends Fake with MockPlatformInterfaceMixin implements GoogleSignInPlatform {
+  @override
+  Future<void> init(InitParameters params) async {}
+
+  Future<GoogleSignInUserData?> signInSilently() async {
+    return null;
+  }
+
+  @override
+  Future<AuthenticationResults?> attemptLightweightAuthentication(dynamic options) async {
+    return null;
+  }
+
+  @override
+  Stream<AuthenticationEvent> get authenticationEvents => const Stream.empty();
 }
