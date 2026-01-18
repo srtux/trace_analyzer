@@ -73,24 +73,49 @@ def start_frontend() -> bool:
 
     frontend_dir = os.path.join(os.getcwd(), "autosre")
 
-    # Inject Google Client ID if present in env
+    # 1. Read Client ID
     try:
         from dotenv import load_dotenv
 
         load_dotenv(os.path.join(frontend_dir, ".env"))
     except ImportError:
-        pass  # python-dotenv might not be installed in system python, relying on os.environ
+        pass
 
     client_id = os.getenv("GOOGLE_CLIENT_ID")
-    if client_id:
+    original_index_content = None
+    index_path = os.path.join(frontend_dir, "web", "index.html")
+
+    if client_id and os.path.exists(index_path):
         print("🔑 Injecting Google Client ID into web/index.html...")
-        index_path = os.path.join(frontend_dir, "web", "index.html")
-        # Use sed to replace in place. Using subprocess for simplicity on mac/linux
-        # We target the $GOOGLE_CLIENT_ID placeholder
-        subprocess.run(
-            ["sed", "-i", "", f"s/$GOOGLE_CLIENT_ID/{client_id}/", index_path],
-            check=False,
-        )
+        try:
+            with open(index_path) as f:
+                content = f.read()
+
+            if "$GOOGLE_CLIENT_ID" in content:
+                original_index_content = content
+                new_content = content.replace("$GOOGLE_CLIENT_ID", client_id)
+
+                with open(index_path, "w") as f:
+                    f.write(new_content)
+
+                # Register restoration on cleanup
+                def restore_index():
+                    if original_index_content:
+                        print("🧹 Restoring web/index.html...")
+                        try:
+                            with open(index_path, "w") as f:
+                                f.write(original_index_content)
+                        except Exception as e:
+                            print(f"⚠️ Failed to restore index.html: {e}")
+
+                # Hook into existing cleanup
+                # We can append this to the global cleanup logic or register atexit
+                import atexit
+
+                atexit.register(restore_index)
+
+        except Exception as e:
+            print(f"⚠️ Failed to inject Client ID: {e}")
 
     # Run flutter for Chrome (web) to avoid Xcode dependency
     frontend_proc = subprocess.Popen(
