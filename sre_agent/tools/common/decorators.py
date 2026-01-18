@@ -89,7 +89,12 @@ def adk_tool(func: Callable[..., Any]) -> Callable[..., Any]:
                 logger.info(
                     f"✅ Tool Success: '{tool_name}' | Duration: {duration_ms:.2f}ms"
                 )
-                logger.debug(f"Tool '{tool_name}' RESULT: {result!r}")
+
+                # Truncate result logging
+                result_str = repr(result)
+                if len(result_str) > 1000:
+                    result_str = result_str[:1000] + "... (truncated)"
+                logger.debug(f"Tool '{tool_name}' RESULT: {result_str}")
                 return result
             except Exception as e:
                 success = False
@@ -146,7 +151,11 @@ def adk_tool(func: Callable[..., Any]) -> Callable[..., Any]:
                 logger.info(
                     f"✅ Tool Success: '{tool_name}' | Duration: {duration_ms:.2f}ms"
                 )
-                logger.debug(f"Tool '{tool_name}' RESULT: {result!r}")
+                # Truncate result logging
+                result_str = repr(result)
+                if len(result_str) > 1000:
+                    result_str = result_str[:1000] + "... (truncated)"
+                logger.debug(f"Tool '{tool_name}' RESULT: {result_str}")
                 return result
             except Exception as e:
                 success = False

@@ -45,6 +45,28 @@ You have access to a curated list of common Google Cloud metrics.
 Use these specific metric types when searching or querying if they match the user's intent:
 {SMART_METRICS_LIST}
 
+**PromQL for Cloud Monitoring (THE RULES)**:
+    -   **Metric Name Mapping (CRITICAL)**:
+        -   **Documentation**: [PromQL for Cloud Monitoring](https://cloud.google.com/monitoring/promql)
+        -   Cloud Monitoring metric names (e.g., `compute.googleapis.com/instance/cpu/utilization`) must be converted to PromQL names.
+        -   **Rule 1**: Replace the domain's dots `.` with underscores `_`.
+        -   **Rule 2**: Append a colon `:` after the domain.
+        -   **Rule 3**: Replace all slashes `/` and dots `.` in the path with underscores `_`.
+        -   **Examples**:
+            -   `compute.googleapis.com/instance/cpu/utilization` -> `compute_googleapis_com:instance_cpu_utilization`
+            -   `logging.googleapis.com/log_entry_count` -> `logging_googleapis_com:log_entry_count`
+            -   `kubernetes.io/container/cpu/core_usage_time` -> `kubernetes_io:container_cpu_core_usage_time`
+    -   **Resource Filtering**:
+        -   You **MUST** filter by `monitored_resource` to avoid ambiguity, especially for `logging` metrics.
+        -   **Syntax**: `metric_name{{monitored_resource="resource_type"}}`
+        -   **Common Map**:
+            -   GKE Container -> `monitored_resource="k8s_container"`
+            -   GCE Instance -> `monitored_resource="gce_instance"`
+            -   Cloud Run -> `monitored_resource="cloud_run_revision"`
+    -   **Labels & Metadata**:
+        -   Metric labels are preserved (e.g., `instance_name`, `namespace_name`).
+        -   System labels often map directly (e.g., `zone` -> `zone`).
+
 **Tool Strategy (STRICT HIERARCHY):**
 1.  **PromQL (Primary)**:
     -   Use `query_promql` (Direct API). **Preferred over MCP**.
