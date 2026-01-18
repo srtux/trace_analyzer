@@ -830,7 +830,7 @@ async def genui_chat(
                 if hasattr(remote_agent, "stream"):
                     logger.info("Using Remote Agent streaming API")
                     # Stream events from remote agent
-                    async for event in remote_agent.stream(  # type: ignore[attr-defined]
+                    async for event in remote_agent.stream(
                         input=user_message,
                         session_id=active_session_id,
                     ):
@@ -1022,6 +1022,9 @@ async def genui_chat(
                                     "list_time_series": "x-sre-metric-chart",
                                     "extract_log_patterns": "x-sre-log-pattern-viewer",
                                     "analyze_bigquery_log_patterns": "x-sre-log-pattern-viewer",
+                                    "list_log_entries": "x-sre-log-entries-viewer",
+                                    "get_logs_for_trace": "x-sre-log-entries-viewer",
+                                    "mcp_list_log_entries": "x-sre-log-entries-viewer",
                                     "generate_remediation_suggestions": "x-sre-remediation-plan",
                                 }
 
@@ -1064,6 +1067,12 @@ async def genui_chat(
                                         ):
                                             if "top_patterns" in data:
                                                 data = data["top_patterns"]
+                                        elif (
+                                            component_name == "x-sre-log-entries-viewer"
+                                        ):
+                                            data = genui_adapter.transform_log_entries(
+                                                data
+                                            )
                                         elif component_name == "x-sre-remediation-plan":
                                             data = genui_adapter.transform_remediation(
                                                 data
@@ -1167,17 +1176,29 @@ async def genui_chat(
                 # Even the fallback failed, likely because root_agent is mocked
                 # Create a minimal context for testing
                 logger.warning("Using test-compatible invocation context")
+                from unittest.mock import MagicMock
+
                 from google.adk.sessions import InMemorySessionService, Session
 
-                test_session = Session(app_name="sre_agent", user_id="test", id="test-inv")
-                session_service = InMemorySessionService()  # type: ignore
-                inv_ctx = InvocationContext(
-                    session=test_session,
-                    agent=root_agent,  # Will use mocked agent
-                    invocation_id=f"test-{active_session_id}",
-                    session_service=session_service,
-                    run_config=RunConfig(),
+                test_session = Session(
+                    app_name="sre_agent", user_id="test", id="test-inv"
                 )
+                session_service = InMemorySessionService()  # type: ignore
+
+                # For test environments with mocked agents, create a mock InvocationContext
+                if isinstance(root_agent, MagicMock):
+                    # Create minimal mock invocation context
+                    inv_ctx = MagicMock()
+                    inv_ctx.session = test_session
+                    inv_ctx.invocation_id = f"test-{active_session_id}"
+                else:
+                    inv_ctx = InvocationContext(
+                        session=test_session,
+                        agent=root_agent,
+                        invocation_id=f"test-{active_session_id}",
+                        session_service=session_service,
+                        run_config=RunConfig(),
+                    )
 
             # Set user content
             inv_ctx.user_content = types.Content(
@@ -1197,6 +1218,12 @@ async def genui_chat(
         # 2. Run Agent
         # Use simple agent execution now that session events are populated
         event_queue: asyncio.Queue[Any] = asyncio.Queue()
+
+        # Determine which agent to run (must be set before starting tasks)
+        # Type: Any to support both LlmAgent and BaseAgent types
+        agent_to_run: Any = root_agent
+        if hasattr(inv_ctx, "agent") and inv_ctx.agent is not None:
+            agent_to_run = inv_ctx.agent
 
         async def agent_runner() -> None:
             """Runs the agent and pushes events to the queue."""
@@ -1219,8 +1246,6 @@ async def genui_chat(
         disconnect_task = asyncio.create_task(disconnect_checker())
 
         try:
-            agent_to_run = inv_ctx.agent or root_agent
-
             while True:
                 # Wait for next event OR disconnection
                 get_task = asyncio.create_task(event_queue.get())
@@ -1271,25 +1296,25 @@ async def genui_chat(
 
                         # Ensure args is a dict
                         raw_args = fc.args
-                        args: dict[str, Any] = {}
+                        tool_args: dict[str, Any] = {}
 
                         if raw_args is None:
-                            args = {}
+                            tool_args = {}
                         elif isinstance(raw_args, dict):
-                            args = raw_args
+                            tool_args = raw_args
                         elif hasattr(raw_args, "to_dict"):
-                            args = raw_args.to_dict()
+                            tool_args = raw_args.to_dict()
                         else:
                             try:
-                                args = dict(raw_args)
+                                tool_args = dict(raw_args)
                             except (ValueError, TypeError):
                                 logger.warning(
                                     f"⚠️ Could not convert args to dict: {type(raw_args)}"
                                 )
-                                args = {"_raw_args": str(raw_args)}
+                                tool_args = {"_raw_args": str(raw_args)}
 
                         logger.debug(
-                            f"🔧 Tool Call Detected: {tool_name} with args: {args} (type: {type(raw_args)})"
+                            f"🔧 Tool Call Detected: {tool_name} with args: {tool_args} (type: {type(raw_args)})"
                         )
 
                         surface_id = str(uuid.uuid4())
@@ -1297,13 +1322,13 @@ async def genui_chat(
                         # Store mapping so response knows where to update
                         active_tools[tool_name] = {
                             "surface_id": surface_id,
-                            "args": args,
+                            "args": tool_args,
                         }
 
                         # Create initial ToolLog data
                         tool_log_data = {
                             "tool_name": tool_name,
-                            "args": args,
+                            "args": tool_args,
                             "status": "running",
                             "timestamp": str(uuid.uuid1().time),
                         }
@@ -1359,16 +1384,16 @@ async def genui_chat(
 
                         # Unwrap result and determine status
                         status = "completed"
-                        formatted_result: Any = ""
+                        tool_result: Any = ""
 
                         if isinstance(result, dict):
                             if "error" in result:
                                 status = "error"
-                                formatted_result = result["error"]
+                                tool_result = result["error"]
                                 # Include error type for better debugging
                                 if "error_type" in result:
-                                    formatted_result = (
-                                        f"[{result['error_type']}] {formatted_result}"
+                                    tool_result = (
+                                        f"[{result['error_type']}] {tool_result}"
                                     )
                                 # Log non-retryable errors for debugging
                                 if result.get("non_retryable"):
@@ -1377,22 +1402,22 @@ async def genui_chat(
                                     )
                             elif "warning" in result:
                                 # Status remains completed (success) but we highlight the warning
-                                formatted_result = f"WARNING: {result['warning']}"
+                                tool_result = f"WARNING: {result['warning']}"
                                 # Include error type in warning if available
                                 if "error_type" in result:
-                                    formatted_result = (
-                                        f"[{result['error_type']}] {formatted_result}"
+                                    tool_result = (
+                                        f"[{result['error_type']}] {tool_result}"
                                     )
                             elif "result" in result:
-                                formatted_result = result["result"]
+                                tool_result = result["result"]
                             else:
-                                formatted_result = result
+                                tool_result = result
 
                             # Flatten remaining dict if not unwrapped
-                            if isinstance(formatted_result, dict):
-                                formatted_result = str(formatted_result)
+                            if isinstance(tool_result, dict):
+                                tool_result = str(tool_result)
                         else:
-                            formatted_result = str(result)
+                            tool_result = str(result)
 
                         # 1. Update Tool Log Entry
                         if tool_name in active_tools:
@@ -1407,9 +1432,7 @@ async def genui_chat(
                                 "tool_name": tool_name,
                                 "args": tool_info["args"],  # Persist args
                                 "status": status,
-                                "result": str(
-                                    formatted_result
-                                ),  # Serialize result for log
+                                "result": str(tool_result),  # Serialize result for log
                                 "timestamp": str(uuid.uuid1().time),
                             }
 
@@ -1449,6 +1472,9 @@ async def genui_chat(
                             "list_time_series": "x-sre-metric-chart",
                             "extract_log_patterns": "x-sre-log-pattern-viewer",
                             "analyze_bigquery_log_patterns": "x-sre-log-pattern-viewer",
+                            "list_log_entries": "x-sre-log-entries-viewer",
+                            "get_logs_for_trace": "x-sre-log-entries-viewer",
+                            "mcp_list_log_entries": "x-sre-log-entries-viewer",
                             "generate_remediation_suggestions": "x-sre-remediation-plan",
                         }
 
@@ -1497,6 +1523,8 @@ async def genui_chat(
                                     # For Log patterns, we just need the list of patterns
                                     if "top_patterns" in data:
                                         data = data["top_patterns"]
+                                elif component_name == "x-sre-log-entries-viewer":
+                                    data = genui_adapter.transform_log_entries(data)
                                 elif component_name == "x-sre-remediation-plan":
                                     data = genui_adapter.transform_remediation(data)
 

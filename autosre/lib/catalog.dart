@@ -5,6 +5,7 @@ import 'package:json_schema_builder/json_schema_builder.dart';
 import 'models/adk_schema.dart';
 import 'theme/app_theme.dart';
 import 'widgets/error_placeholder.dart';
+import 'widgets/log_entries_viewer.dart';
 import 'widgets/log_pattern_viewer.dart';
 import 'widgets/metric_chart.dart';
 import 'widgets/remediation_plan.dart';
@@ -83,6 +84,22 @@ class CatalogRegistry {
               return _buildWidgetContainer(
                 child: LogPatternViewer(patterns: patterns),
                 height: 450,
+              );
+            } catch (e) {
+              return ErrorPlaceholder(error: e);
+            }
+          },
+        ),
+        CatalogItem(
+          name: "x-sre-log-entries-viewer",
+          dataSchema: S.object(),
+          widgetBuilder: (context) {
+            try {
+              final data = context.data as Map<String, dynamic>;
+              final logData = LogEntriesData.fromJson(Map<String, dynamic>.from(data));
+              return _buildWidgetContainer(
+                child: LogEntriesViewer(data: logData),
+                height: 500,
               );
             } catch (e) {
               return ErrorPlaceholder(error: e);
