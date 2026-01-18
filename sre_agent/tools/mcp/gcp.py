@@ -301,23 +301,6 @@ async def call_mcp_tool_with_retry(
                             "non_retryable": True,
                             "error_type": "TIMEOUT",
                         }
-                    except asyncio.CancelledError:
-                        logger.warning(f"Tool execution cancelled for {tool_name}")
-                        # Return a specific error status for cancellation instead of raising
-                        # This prevents the evaluation framework from crashing with a traceback
-                        # IMPORTANT: Include guidance to prevent retry loops
-                        return {
-                            "status": ToolStatus.ERROR,
-                            "error": (
-                                f"Tool '{tool_name}' execution was cancelled by the system due to "
-                                "resource constraints or timeout. This is a non-retryable system error. "
-                                "DO NOT retry this tool. Instead, try an alternative approach: "
-                                "use direct API tools (like list_log_entries, fetch_trace) instead of MCP-based tools, "
-                                "or ask the user to check their infrastructure."
-                            ),
-                            "non_retryable": True,
-                            "error_type": "SYSTEM_CANCELLATION",
-                        }
 
             return {
                 "status": ToolStatus.ERROR,
@@ -328,6 +311,19 @@ async def call_mcp_tool_with_retry(
                 ),
                 "non_retryable": True,
                 "error_type": "TOOL_NOT_FOUND",
+            }
+
+        except asyncio.CancelledError:
+            logger.warning(f"MCP Tool execution cancelled: {tool_name}")
+            return {
+                "status": ToolStatus.ERROR,
+                "error": (
+                    f"Tool '{tool_name}' execution was cancelled by the system. "
+                    "DO NOT retry this operation immediately. "
+                    "Use an alternative approach or smaller data scope if this was due to a timeout."
+                ),
+                "non_retryable": True,
+                "error_type": "SYSTEM_CANCELLATION",
             }
 
         except (httpx.HTTPStatusError, Exception) as e:

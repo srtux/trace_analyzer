@@ -21,6 +21,7 @@ except ImportError:
     pass
 
 
+import asyncio
 import logging
 import os
 from collections.abc import AsyncGenerator
@@ -758,7 +759,10 @@ if os.getenv("SRE_AGENT_ID"):
 
 
 @app.post("/api/genui/chat")
-async def genui_chat(request: ChatRequest) -> StreamingResponse:
+async def genui_chat(
+    chat_request: ChatRequest,
+    raw_request: Request,
+) -> StreamingResponse:
     """Experimental GenUI endpoint.
 
     Receives a user message, runs logic via the SRE Agent,
@@ -766,9 +770,17 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
 
     Uses ADK sessions for conversation history persistence.
     """
-    user_message = request.messages[-1]["text"] if request.messages else ""
-    project_id = request.project_id  # Extract project_id from request
-    session_id = request.session_id  # Optional session ID
+    user_message = chat_request.messages[-1]["text"] if chat_request.messages else ""
+    project_id = chat_request.project_id  # Extract project_id from request
+    session_id = chat_request.session_id  # Optional session ID
+
+    # Inject project context into user message to ensure Agent is aware of it
+    if project_id:
+        context_str = f"\n\n[Context: Active Google Cloud Project ID: '{project_id}']"
+        if user_message:
+            user_message += context_str
+        else:
+            user_message = f"Hello.{context_str}"
 
     # Get or create ADK session for tracking conversation history
     session_manager = get_session_service()
@@ -842,38 +854,86 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
 
         logger.info(f"inv_ctx.user_content: {inv_ctx.user_content}")
 
-        # WORKAROUND: Inject user message into system instruction
-        # adk-py 0.1.0 LlmAgent seems to ignore user_content in stateless (single-turn) runs.
-        # We clone the agent and append the user message to the instruction to ensure it's seen.
-        if user_message or project_id:
-            # properly clone the agent
-            cloned_agent = root_agent.clone()
-            if isinstance(cloned_agent.instruction, str):
-                # Add project context if provided
-                if project_id:
-                    cloned_agent.instruction += (
-                        f"\n\nIMPORTANT PROJECT CONTEXT: The user has selected project '{project_id}'. "
-                        "Use this project_id for all tool calls that require a project_id parameter. "
-                        "Do not ask the user which project to use - always use this selected project."
-                    )
+        # FIX: Ensure user message is treated as a Session Event
+        # The LlmAgent (via AutoFlow) primarily looks at session history.
+        # Although we set inv_ctx.user_content for logging/metadata, we must also
+        # append the event to the session for the model to "see" it properly in the flow.
+        if user_message:
+            from google.adk.events.event import Event
 
-                # Add user message
-                if user_message:
-                    cloned_agent.instruction += (
-                        f"\n\nIMPORTANT: The user just said: '{user_message}'. "
-                        "Respond to this request immediately. Do not greet the user again."
-                    )
-            inv_ctx.agent = cloned_agent
+            # Construct context-enhanced message for the session
+            # Note: We already updated user_message with context above if project_id was present.
+            user_event = Event(
+                author="user",
+                content=types.Content(
+                    role="user", parts=[types.Part(text=user_message)]
+                ),
+            )
+            inv_ctx.session.events.append(user_event)
 
         # Track surfaces to avoid duplicate beginRendering
         # Map tool_name -> {'surface_id': str, 'args': dict}
         active_tools: dict[str, dict[str, Any]] = {}
 
         # 2. Run Agent
-        # Use the agent from the context (which might be the cloned one)
+        # Use simple agent execution now that session events are populated
+        event_queue: asyncio.Queue[Any] = asyncio.Queue()
+
+        async def agent_runner() -> None:
+            """Runs the agent and pushes events to the queue."""
+            try:
+                async for evt in agent_to_run.run_async(inv_ctx):
+                    await event_queue.put(evt)
+                await event_queue.put(None)  # Sentinel
+            except Exception as ex:
+                await event_queue.put(ex)
+
+        async def disconnect_checker() -> bool:
+            """Checks for client disconnection periodically."""
+            while True:
+                if await raw_request.is_disconnected():
+                    return True
+                await asyncio.sleep(0.1)  # Check every 0.1s
+
+        # Start background tasks
+        runner_task = asyncio.create_task(agent_runner())
+        disconnect_task = asyncio.create_task(disconnect_checker())
+
         try:
             agent_to_run = inv_ctx.agent or root_agent
-            async for event in agent_to_run.run_async(inv_ctx):
+
+            while True:
+                # Wait for next event OR disconnection
+                get_task = asyncio.create_task(event_queue.get())
+                done, _ = await asyncio.wait(
+                    [get_task, disconnect_task], return_when=asyncio.FIRST_COMPLETED
+                )
+
+                # Case 1: Client disconnected
+                if disconnect_task in done:
+                    # Cancel the get_task if it's not done
+                    if not get_task.done():
+                        get_task.cancel()
+
+                    if not runner_task.done():
+                        runner_task.cancel()
+
+                    logger.warning(
+                        f"Client disconnected - cancelling agent execution for session {active_session_id}"
+                    )
+                    raise asyncio.CancelledError("Client disconnected")
+
+                # Case 2: New event available
+                event_or_error = await get_task
+
+                if event_or_error is None:
+                    break  # End of stream
+
+                if isinstance(event_or_error, Exception):
+                    raise event_or_error
+
+                event = event_or_error
+
                 if not event.content or not event.content.parts:
                     continue
 
@@ -889,10 +949,28 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
                         tool_name = fc.name
                         if not tool_name:
                             continue
-                        args = fc.args
+
+                        # Ensure args is a dict
+                        raw_args = fc.args
+                        args: dict[str, Any] = {}
+
+                        if raw_args is None:
+                            args = {}
+                        elif isinstance(raw_args, dict):
+                            args = raw_args
+                        elif hasattr(raw_args, "to_dict"):
+                            args = raw_args.to_dict()
+                        else:
+                            try:
+                                args = dict(raw_args)
+                            except (ValueError, TypeError):
+                                logger.warning(
+                                    f"⚠️ Could not convert args to dict: {type(raw_args)}"
+                                )
+                                args = {"_raw_args": str(raw_args)}
 
                         logger.debug(
-                            f"🔧 Tool Call Detected: {tool_name} with args: {args}"
+                            f"🔧 Tool Call Detected: {tool_name} with args: {args} (type: {type(raw_args)})"
                         )
 
                         surface_id = str(uuid.uuid4())
@@ -1163,6 +1241,18 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
             assistant_response_parts.append(error_msg)
             yield json.dumps({"type": "text", "content": error_msg}) + "\n"
         finally:
+            # Clean up background tasks
+            if "disconnect_task" in locals() and not disconnect_task.done():
+                disconnect_task.cancel()
+            if "runner_task" in locals() and not runner_task.done():
+                runner_task.cancel()
+                try:
+                    # Await cancellation to ensure proper cleanup if needed
+                    # but use timeout to avoid hanging if cancellation logic is slow
+                    await asyncio.wait_for(runner_task, timeout=0.1)
+                except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+                    pass
+
             # Note: Session history is managed by ADK session service
             # When using Agent Engine, events are automatically persisted
 
@@ -1208,6 +1298,7 @@ async def genui_chat(request: ChatRequest) -> StreamingResponse:
                         break
                     except Exception as e:
                         logger.debug(f"Error during cleanup yield: {e}")
+                        break
 
     return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 

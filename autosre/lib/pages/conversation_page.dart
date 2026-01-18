@@ -111,6 +111,13 @@ class _ConversationPageState extends State<ConversationPage>
     _contentGenerator.clearSession();
     // Clear current session in service
     _sessionService.startNewSession();
+
+    // Reset conversation state
+    setState(() {
+      _conversation.dispose();
+      _initializeConversation();
+    });
+
     // Show confirmation
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -126,12 +133,43 @@ class _ConversationPageState extends State<ConversationPage>
     final session = await _sessionService.getSession(sessionId);
     if (session == null) return;
 
-    // Set session ID in content generator - backend will use session history for context
+    // Set session ID in content generator
     _contentGenerator.sessionId = sessionId;
     _sessionService.setCurrentSession(sessionId);
 
+    // Reset and hydrate conversation
+    setState(() {
+      _conversation.dispose();
+      _initializeConversation();
+    });
+
+    // Hydrate history if available
+    if (session.messages.isNotEmpty) {
+      final history = <ChatMessage>[];
+      for (final msg in session.messages) {
+        if (msg.role == 'user' || msg.role == 'human') {
+          history.add(UserMessage.text(msg.content));
+        } else {
+          // Default to AiTextMessage for model responses in history
+          // (Original UI events are not preserved in text-only history yet)
+          history.add(AiTextMessage([TextPart(msg.content)]));
+        }
+      }
+
+      // Inject history into conversation state
+      // Note: Cast to ValueNotifier to update state directly
+      try {
+        if (_conversation.conversation is ValueNotifier) {
+          (_conversation.conversation as ValueNotifier<List<ChatMessage>>).value = history;
+          // Scroll to bottom after frame
+          WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+        }
+      } catch (e) {
+        debugPrint("Could not hydrate session history: $e");
+      }
+    }
+
     // Show a message indicating the session is loaded
-    // The backend will maintain the conversation context
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

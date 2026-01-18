@@ -99,7 +99,7 @@ def start_frontend() -> bool:
                     f.write(new_content)
 
                 # Register restoration on cleanup
-                def restore_index():
+                def restore_index() -> None:
                     if original_index_content:
                         print("🧹 Restoring web/index.html...")
                         try:

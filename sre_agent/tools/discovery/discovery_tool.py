@@ -98,10 +98,19 @@ async def discover_telemetry_sources(
         }
 
     datasets = list_datasets_result.get("result", [])
+    if isinstance(datasets, dict):
+        # Handle wrapped response (common in MCP)
+        # Try common keys like 'datasets', 'ids', or 'names'
+        datasets = (
+            datasets.get("datasets")
+            or datasets.get("ids")
+            or datasets.get("names")
+            or []
+        )
+
     if not isinstance(datasets, list):
-        # Handle potential string or wrapped response (MCP outputs vary)
-        # Assuming list of strings for now based on typical MCP behavior
-        logger.warning(f"Unexpected dataset format: {type(datasets)}")
+        # Handle potential string or other unexpected formats
+        logger.warning(f"Unexpected dataset format: {type(datasets)} - {datasets}")
         datasets = []
 
     trace_table = None

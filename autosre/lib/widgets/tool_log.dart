@@ -455,6 +455,7 @@ class _ToolLogWidgetState extends State<ToolLogWidget>
   }
 
   String _formatJson(Map<String, dynamic> json) {
+    if (json.isEmpty) return '(No arguments)';
     try {
       const encoder = JsonEncoder.withIndent('  ');
       return encoder.convert(json);

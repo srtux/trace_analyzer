@@ -65,9 +65,9 @@ class TestLogPatternExtractor:
 
         # Most should cluster together (Drain3 may split first few)
         unique_patterns = len(set(ids))
-        assert unique_patterns <= 3, (
-            f"Expected at most 3 patterns, got {unique_patterns}"
-        )
+        assert (
+            unique_patterns <= 3
+        ), f"Expected at most 3 patterns, got {unique_patterns}"
 
         # Total count should match
         total_count = sum(p.count for p in extractor.patterns.values())

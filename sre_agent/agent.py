@@ -290,8 +290,8 @@ async def _get_monitoring_mcp_toolset() -> BaseToolset | None:
 
 @adk_tool
 async def run_aggregate_analysis(
-    dataset_id: str,
-    table_name: str,
+    dataset_id: str | None = None,
+    table_name: str | None = None,
     time_window_hours: int = 24,
     service_name: str | None = None,
     tool_context: ToolContext | None = None,
@@ -301,9 +301,12 @@ async def run_aggregate_analysis(
     This is the entry point for fleet-wide analysis. It queries BigQuery telemetry tables
     to find statistical anomalies across thousands of traces.
 
+    If `dataset_id` or `table_name` are not provided, this tool will automatically
+    attempt to discover them using `discover_telemetry_sources`.
+
     Args:
-        dataset_id: BigQuery dataset ID (e.g., 'your_project.telemetry_dataset').
-        table_name: Table name containing OTel spans (e.g., '_AllSpans').
+        dataset_id: BigQuery dataset ID (e.g., 'your_project.telemetry_dataset'). Optional.
+        table_name: Table name containing OTel spans (e.g., '_AllSpans'). Optional.
         time_window_hours: Lookback window in hours (default: 24).
         service_name: Optional filter to restrict analysis to a specific service.
         tool_context: ADK tool context (required for sub-agent execution).
@@ -312,17 +315,47 @@ async def run_aggregate_analysis(
         A dictionary containing:
         - "stage": "aggregate"
         - "status": "success" or "error"
-        - "result": The output from the `aggregate_analyzer` sub-agent, which typically includes:
-            - Detected high-latency or high-error-rate services.
-            - Trend analysis (did latency jump at a specific time?).
-            - Selected "Exemplar Traces" (trace IDs) for further investigation.
+        - "result": The output from the `aggregate_analyzer` sub-agent.
     """
-    logger.info(f"🎺 Running aggregate analysis on {dataset_id}.{table_name}")
+    logger.info(
+        f"🎺 Running aggregate analysis (Dataset: {dataset_id}, Table: {table_name})"
+    )
 
     if tool_context is None:
         raise ValueError("tool_context is required")
 
     try:
+        # 1. Auto-Discovery if needed
+        if not dataset_id or not table_name:
+            logger.info("Dataset or table not provided. Running discovery...")
+            discovery_result = await discover_telemetry_sources(
+                tool_context=tool_context
+            )
+
+            trace_table_full = discovery_result.get("trace_table")
+            if not trace_table_full:
+                return {
+                    "stage": "aggregate",
+                    "status": "success",
+                    "result": "Telemetry discovery completed but found no trace tables. Please ask the user to provide the 'dataset_id' manually.",
+                }
+
+            # trace_table_full is likely "project.dataset.table"
+            # We need to split it if possible, or just pass it as is to the prompt
+            logger.info(f"Discovered trace table: {trace_table_full}")
+
+            parts = trace_table_full.split(".")
+            if len(parts) >= 3:
+                dataset_id = f"{parts[0]}.{parts[1]}"
+                table_name = parts[2]
+            elif len(parts) == 2:
+                dataset_id = parts[0]
+                table_name = parts[1]
+            else:
+                # Fallback: just use what we have
+                dataset_id = trace_table_full
+                table_name = "_AllSpans"  # Default guess if parsing fails
+
         # Run aggregate analyzer sub-agent
         result = await AgentTool(aggregate_analyzer).run_async(
             args={
