@@ -156,3 +156,87 @@ class ToolLog {
         );
     }
 }
+
+/// Individual log entry with full payload for expandable JSON view
+class LogEntry {
+    final String insertId;
+    final DateTime timestamp;
+    final String severity; // 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+    final dynamic payload; // Can be String (text) or Map (JSON)
+    final Map<String, String> resourceLabels;
+    final String resourceType;
+    final String? traceId;
+    final String? spanId;
+    final Map<String, dynamic>? httpRequest;
+
+    LogEntry({
+        required this.insertId,
+        required this.timestamp,
+        required this.severity,
+        required this.payload,
+        required this.resourceLabels,
+        required this.resourceType,
+        this.traceId,
+        this.spanId,
+        this.httpRequest,
+    });
+
+    bool get isJsonPayload => payload is Map;
+
+    String get payloadPreview {
+        if (payload is String) {
+            return payload.length > 200 ? '${payload.substring(0, 200)}...' : payload;
+        }
+        if (payload is Map) {
+            final message = payload['message'] ?? payload['msg'] ?? payload['text'];
+            if (message != null) return message.toString();
+            return payload.toString().length > 200
+                ? '${payload.toString().substring(0, 200)}...'
+                : payload.toString();
+        }
+        return payload?.toString() ?? '';
+    }
+
+    factory LogEntry.fromJson(Map<String, dynamic> json) {
+        return LogEntry(
+            insertId: json['insert_id'] ?? '',
+            timestamp: DateTime.parse(json['timestamp']),
+            severity: json['severity'] ?? 'INFO',
+            payload: json['payload'],
+            resourceLabels: Map<String, String>.from(json['resource_labels'] ?? {}),
+            resourceType: json['resource_type'] ?? 'unknown',
+            traceId: json['trace_id'],
+            spanId: json['span_id'],
+            httpRequest: json['http_request'] != null
+                ? Map<String, dynamic>.from(json['http_request'])
+                : null,
+        );
+    }
+}
+
+/// Container for log entries viewer
+class LogEntriesData {
+    final List<LogEntry> entries;
+    final String? filter;
+    final String? projectId;
+    final String? nextPageToken;
+
+    LogEntriesData({
+        required this.entries,
+        this.filter,
+        this.projectId,
+        this.nextPageToken,
+    });
+
+    factory LogEntriesData.fromJson(Map<String, dynamic> json) {
+        final entriesList = (json['entries'] as List? ?? [])
+            .map((e) => LogEntry.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+        return LogEntriesData(
+            entries: entriesList,
+            filter: json['filter'],
+            projectId: json['project_id'],
+            nextPageToken: json['next_page_token'],
+        );
+    }
+}

@@ -12,6 +12,7 @@ COMPONENT_TRACE_WATERFALL = "x-sre-trace-waterfall"
 COMPONENT_METRIC_CHART = "x-sre-metric-chart"
 COMPONENT_REMEDIATION_PLAN = "x-sre-remediation-plan"
 COMPONENT_LOG_PATTERN_VIEWER = "x-sre-log-pattern-viewer"
+COMPONENT_LOG_ENTRIES_VIEWER = "x-sre-log-entries-viewer"
 COMPONENT_TOOL_LOG = "x-sre-tool-log"
 COMPONENT_AGENT_ACTIVITY = "x-sre-agent-activity"
 COMPONENT_SERVICE_TOPOLOGY = "x-sre-service-topology"
@@ -551,5 +552,196 @@ def create_demo_incident_timeline() -> dict[str, Any]:
             "root_cause": "Database connection pool limit reached after v2.3.1 deployment increased query complexity",
             "ttd_seconds": 300,
             "ttm_seconds": 5400,
+        }
+    )
+
+
+def transform_log_entries(log_data: dict[str, Any]) -> dict[str, Any]:
+    """Transform log entries data for LogEntriesViewer widget.
+
+    Args:
+        log_data: Dictionary containing:
+            - entries: List of log entry objects from list_log_entries
+            - filter: Optional filter string used
+            - project_id: Optional project ID
+            - next_page_token: Optional pagination token
+
+    Returns:
+        Dictionary formatted for the LogEntriesViewer widget.
+    """
+    entries = []
+    raw_entries = log_data.get("entries", [])
+
+    # Handle case where log_data is the raw entries list
+    if isinstance(log_data, list):
+        raw_entries = log_data
+
+    for entry in raw_entries:
+        # Extract payload (can be text, JSON, or proto)
+        payload = entry.get("payload")
+        if payload is None:
+            # Try different payload formats from Cloud Logging
+            payload = (
+                entry.get("textPayload")
+                or entry.get("jsonPayload")
+                or entry.get("protoPayload", {})
+            )
+
+        # Extract resource information
+        resource = entry.get("resource", {})
+        resource_type = resource.get("type", "unknown")
+        resource_labels = resource.get("labels", {})
+
+        # Extract trace correlation if present
+        trace = entry.get("trace")
+        trace_id = None
+        if trace:
+            # Extract trace ID from full resource name
+            # Format: projects/{project}/traces/{trace_id}
+            parts = trace.split("/")
+            if len(parts) >= 4:
+                trace_id = parts[-1]
+
+        entries.append(
+            {
+                "insert_id": entry.get("insertId", entry.get("insert_id", "")),
+                "timestamp": entry.get(
+                    "timestamp", datetime.now(timezone.utc).isoformat()
+                ),
+                "severity": entry.get("severity", "INFO"),
+                "payload": payload,
+                "resource_type": resource_type,
+                "resource_labels": {str(k): str(v) for k, v in resource_labels.items()},
+                "trace_id": trace_id,
+                "span_id": entry.get("spanId") or entry.get("span_id"),
+                "http_request": entry.get("httpRequest") or entry.get("http_request"),
+            }
+        )
+
+    return {
+        "entries": entries,
+        "filter": log_data.get("filter") if isinstance(log_data, dict) else None,
+        "project_id": log_data.get("project_id")
+        if isinstance(log_data, dict)
+        else None,
+        "next_page_token": log_data.get("next_page_token")
+        if isinstance(log_data, dict)
+        else None,
+    }
+
+
+def create_demo_log_entries() -> dict[str, Any]:
+    """Create demo data for Log Entries Viewer."""
+    base_time = datetime.now(timezone.utc)
+    return transform_log_entries(
+        {
+            "entries": [
+                {
+                    "insertId": "log-001",
+                    "timestamp": base_time.isoformat(),
+                    "severity": "ERROR",
+                    "payload": {
+                        "message": "Connection pool exhausted",
+                        "error_code": "POOL_EXHAUSTED",
+                        "pool_size": 100,
+                        "active_connections": 100,
+                        "waiting_requests": 45,
+                    },
+                    "resource": {
+                        "type": "k8s_container",
+                        "labels": {
+                            "cluster_name": "prod-cluster",
+                            "namespace_name": "order-service",
+                            "pod_name": "order-service-7d8f9c6b5-xk2p4",
+                        },
+                    },
+                    "trace": "projects/my-project/traces/abc123def456",
+                    "spanId": "span-789",
+                },
+                {
+                    "insertId": "log-002",
+                    "timestamp": (
+                        base_time.replace(second=base_time.second - 5)
+                    ).isoformat(),
+                    "severity": "WARNING",
+                    "payload": "High latency detected: 450ms > threshold 200ms",
+                    "resource": {
+                        "type": "k8s_container",
+                        "labels": {
+                            "cluster_name": "prod-cluster",
+                            "namespace_name": "order-service",
+                            "pod_name": "order-service-7d8f9c6b5-xk2p4",
+                        },
+                    },
+                },
+                {
+                    "insertId": "log-003",
+                    "timestamp": (
+                        base_time.replace(second=base_time.second - 10)
+                    ).isoformat(),
+                    "severity": "INFO",
+                    "payload": {
+                        "message": "Request processed",
+                        "request_id": "req-12345",
+                        "method": "POST",
+                        "path": "/api/orders",
+                        "status": 200,
+                        "duration_ms": 125,
+                    },
+                    "resource": {
+                        "type": "k8s_container",
+                        "labels": {
+                            "cluster_name": "prod-cluster",
+                            "namespace_name": "order-service",
+                            "pod_name": "order-service-7d8f9c6b5-abc12",
+                        },
+                    },
+                    "httpRequest": {
+                        "requestMethod": "POST",
+                        "status": 200,
+                        "latency": "0.125s",
+                    },
+                },
+                {
+                    "insertId": "log-004",
+                    "timestamp": (
+                        base_time.replace(second=base_time.second - 15)
+                    ).isoformat(),
+                    "severity": "DEBUG",
+                    "payload": "Cache miss for key: order:12345",
+                    "resource": {
+                        "type": "k8s_container",
+                        "labels": {
+                            "cluster_name": "prod-cluster",
+                            "namespace_name": "order-service",
+                            "pod_name": "order-service-7d8f9c6b5-abc12",
+                        },
+                    },
+                },
+                {
+                    "insertId": "log-005",
+                    "timestamp": (
+                        base_time.replace(second=base_time.second - 20)
+                    ).isoformat(),
+                    "severity": "CRITICAL",
+                    "payload": {
+                        "message": "Database connection failed",
+                        "error": "ECONNREFUSED",
+                        "host": "order-db.internal",
+                        "port": 5432,
+                        "retry_count": 3,
+                    },
+                    "resource": {
+                        "type": "k8s_container",
+                        "labels": {
+                            "cluster_name": "prod-cluster",
+                            "namespace_name": "order-service",
+                            "pod_name": "order-service-7d8f9c6b5-xk2p4",
+                        },
+                    },
+                },
+            ],
+            "filter": 'severity>=WARNING AND resource.type="k8s_container"',
+            "project_id": "my-gcp-project",
         }
     )
