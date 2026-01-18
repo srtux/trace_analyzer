@@ -51,15 +51,18 @@ async def test_genui_chat_tool_log_events():
     mock_agent.run_async = mock_run_async
     mock_agent.clone.return_value = mock_agent  # Handle cloning
 
-    # Patch the get_tool_context and root_agent in server.py
-    with patch("server.get_tool_context", new_callable=AsyncMock) as mock_ctx_getter:
-        # Setup mock context
-        mock_ctx = MagicMock()
-        mock_ctx._invocation_context.agent = mock_agent  # Ensure our mock agent is used
-        mock_ctx_getter.return_value = mock_ctx
+    # Patch the root_agent and session manager in server.py
+    with patch("server.root_agent", mock_agent):
+        # Mock session manager to return a mock session
+        mock_session = MagicMock()
+        mock_session.id = "test-session"
+        mock_session.events = []
 
-        # We also need to patch root_agent in server.py because it might be used directly if inv_ctx.agent is None
-        with patch("server.root_agent", mock_agent):
+        mock_session_manager = MagicMock()
+        mock_session_manager.get_or_create_session = AsyncMock(return_value=mock_session)
+        mock_session_manager.session_service.append_event = AsyncMock()
+
+        with patch("server.get_session_service", return_value=mock_session_manager):
             # Send request
             response = client.post(
                 "/api/genui/chat",
@@ -67,43 +70,43 @@ async def test_genui_chat_tool_log_events():
             )
             assert response.status_code == 200
 
-            # Parse NDJSON stream
-            lines = response.text.strip().split("\n")
+        # Parse NDJSON stream
+        lines = response.text.strip().split("\n")
 
-            tool_logs = []
+        tool_logs = []
 
-            for line in lines:
-                try:
-                    data = json.loads(line)
-                    if data.get("type") == "a2ui":
-                        msg = data.get("message", {})
-                        if "surfaceUpdate" in msg:
-                            update = msg["surfaceUpdate"]
-                            for comp in update.get("components", []):
-                                if "x-sre-tool-log" in comp.get("component", {}):
-                                    tool_logs.append(
-                                        comp["component"]["x-sre-tool-log"]
-                                    )
-                except Exception:
-                    pass
+        for line in lines:
+            try:
+                data = json.loads(line)
+                if data.get("type") == "a2ui":
+                    msg = data.get("message", {})
+                    if "surfaceUpdate" in msg:
+                        update = msg["surfaceUpdate"]
+                        for comp in update.get("components", []):
+                            if "x-sre-tool-log" in comp.get("component", {}):
+                                tool_logs.append(
+                                    comp["component"]["x-sre-tool-log"]
+                                )
+            except Exception:
+                pass
 
-            # Assertions
-            assert (
-                len(tool_logs) >= 2
-            ), "Should have at least 2 tool log events (running, completed)"
+        # Assertions
+        assert len(tool_logs) >= 2, (
+            "Should have at least 2 tool log events (running, completed)"
+        )
 
-            # Check first log (running)
-            running_log = tool_logs[0]
-            assert running_log["tool_name"] == "test_tool"
-            assert running_log["status"] == "running"
-            assert running_log["args"] == {"arg1": "value1"}
+        # Check first log (running)
+        running_log = tool_logs[0]
+        assert running_log["tool_name"] == "test_tool"
+        assert running_log["status"] == "running"
+        assert running_log["args"] == {"arg1": "value1"}
 
-            # Check second log (completed)
-            # Find the one with status completed (iteration order in list might correspond to emission)
-            completed_log = next(
-                (log for log in tool_logs if log["status"] == "completed"), None
-            )
-            assert completed_log is not None
-            assert completed_log["tool_name"] == "test_tool"
-            # Server unwraps {"result": "val"} to "val"
-            assert completed_log["result"] == "success"
+        # Check second log (completed)
+        # Find the one with status completed (iteration order in list might correspond to emission)
+        completed_log = next(
+            (log for log in tool_logs if log["status"] == "completed"), None
+        )
+        assert completed_log is not None
+        assert completed_log["tool_name"] == "test_tool"
+        # Server unwraps {"result": "val"} to "val"
+        assert completed_log["result"] == "success"
