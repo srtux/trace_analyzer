@@ -1,0 +1,33 @@
+name: Qodo AI Code Review (Gemini 3)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  pr_agent_job:
+    if: ${{ github.event.sender.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR Agent Action
+        uses: Codium-ai/pr-agent@main
+        env:
+          # Your Gemini API Key from AI Studio
+          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+          # Configuration for Gemini 3 Flash
+          CONFIG.MODEL: "gemini/gemini-3-flash-preview" 
+          CONFIG.ADD_REPO_METADATA: "true" # This pulls in your AGENTS.md
+          
+          # Review Settings
+          PR_REVIEWER.REQUIRE_SCORE_REVIEW: "true"
+          PR_REVIEWER.ENABLE_REVIEW_LABELS_SECURITY: "true"
+          PR_DESCRIPTION.PUBLISH_DESCRIPTION_AS_COMMENT: "true"
