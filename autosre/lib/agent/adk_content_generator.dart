@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:genui/genui.dart';
 import 'package:http/http.dart' as http;
+import '../services/auth_service.dart';
 
 
 
@@ -123,7 +124,12 @@ class ADKContentGenerator implements ContentGenerator {
     StackTrace? lastStackTrace;
 
     // Create a new client for this request (allows cancellation)
-    _currentClient = http.Client();
+    try {
+      _currentClient = await AuthService().getAuthenticatedClient();
+    } catch (e) {
+      debugPrint("Error getting authenticated client: $e");
+      _currentClient = http.Client(); // Fallback ?? Or fail?
+    }
 
     for (int attempt = 0; attempt <= _maxRetries; attempt++) {
       if (_isDisposed || _currentClient == null) break;

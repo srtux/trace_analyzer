@@ -7,6 +7,7 @@ import google.auth
 import google.auth.transport.requests
 import httpx
 
+from ...auth import get_current_credentials
 from ..common import adk_tool
 
 logger = logging.getLogger(__name__)
@@ -25,13 +26,20 @@ async def list_gcp_projects() -> dict[str, Any]:
         }
     """
     try:
-        credentials, _ = google.auth.default(
-            scopes=["https://www.googleapis.com/auth/cloud-platform.read-only"]
-        )
+        credentials, _ = get_current_credentials()
 
-        # Refresh credentials if needed
-        auth_request = google.auth.transport.requests.Request()
-        credentials.refresh(auth_request)  # type: ignore[no-untyped-call]
+        # If credentials were specifically created from an access token (no refresh),
+        # checking .valid might be tricky or unnecessary as it won't have expiry set correctly implies always valid until failed.
+        # But if it's default(), it might need refresh.
+        # google.auth.default() returns valid credentials usually.
+
+        if not credentials.token:
+            # Refresh credentials if needed (only if they support it)
+            try:
+                auth_request = google.auth.transport.requests.Request()
+                credentials.refresh(auth_request)  # type: ignore[no-untyped-call]
+            except Exception:
+                pass  # Might be an access token credential which doesn't support refresh
 
         async with httpx.AsyncClient() as client:
             headers = {"Authorization": f"Bearer {credentials.token}"}

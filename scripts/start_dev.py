@@ -73,6 +73,25 @@ def start_frontend() -> bool:
 
     frontend_dir = os.path.join(os.getcwd(), "autosre")
 
+    # Inject Google Client ID if present in env
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(os.path.join(frontend_dir, ".env"))
+    except ImportError:
+        pass  # python-dotenv might not be installed in system python, relying on os.environ
+
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if client_id:
+        print("🔑 Injecting Google Client ID into web/index.html...")
+        index_path = os.path.join(frontend_dir, "web", "index.html")
+        # Use sed to replace in place. Using subprocess for simplicity on mac/linux
+        # We target the $GOOGLE_CLIENT_ID placeholder
+        subprocess.run(
+            ["sed", "-i", "", f"s/$GOOGLE_CLIENT_ID/{client_id}/", index_path],
+            check=False,
+        )
+
     # Run flutter for Chrome (web) to avoid Xcode dependency
     frontend_proc = subprocess.Popen(
         [

@@ -14,20 +14,19 @@ import logging
 from datetime import datetime
 from typing import Any
 
-import google.auth
 from google.auth.transport.requests import AuthorizedSession
 from google.cloud import monitoring_v3
 
+from ...auth import get_current_credentials
 from ..common import adk_tool
+from .factory import get_monitoring_client
 
 logger = logging.getLogger(__name__)
 
 
 def _get_authorized_session() -> AuthorizedSession:
     """Get an authorized session for REST API calls."""
-    credentials, _ = google.auth.default(
-        scopes=["https://www.googleapis.com/auth/cloud-platform"]
-    )
+    credentials, _ = get_current_credentials()
     return AuthorizedSession(credentials)  # type: ignore[no-untyped-call]
 
 
@@ -53,7 +52,8 @@ def list_slos(
         list_slos("my-project", "checkout-service")
     """
     try:
-        client = monitoring_v3.ServiceMonitoringServiceClient()
+        credentials, _ = get_current_credentials()
+        client = monitoring_v3.ServiceMonitoringServiceClient(credentials=credentials)
 
         if service_id:
             # List SLOs for a specific service
@@ -221,7 +221,7 @@ def analyze_error_budget_burn(
 
         # Get time series data for the SLO
         # Cloud Monitoring provides built-in SLO metrics
-        client = monitoring_v3.MetricServiceClient()
+        client = get_monitoring_client()
 
         import time
 
@@ -351,7 +351,7 @@ def get_golden_signals(
         get_golden_signals("my-project", "frontend-service", 30)
     """
     try:
-        client = monitoring_v3.MetricServiceClient()
+        client = get_monitoring_client()
         project_name = f"projects/{project_id}"
 
         import time

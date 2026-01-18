@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'auth_service.dart';
 
 /// Model representing a session message.
 class SessionMessage {
@@ -180,7 +180,8 @@ class SessionService {
     _error.value = null;
 
     try {
-      final response = await http.get(
+      final client = await AuthService().getAuthenticatedClient();
+      final response = await client.get(
         Uri.parse('$_baseUrl/api/sessions?user_id=$userId'),
       ).timeout(_requestTimeout);
 
@@ -209,7 +210,8 @@ class SessionService {
     String? projectId,
   }) async {
     try {
-      final response = await http.post(
+      final client = await AuthService().getAuthenticatedClient();
+      final response = await client.post(
         Uri.parse('$_baseUrl/api/sessions'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -244,7 +246,8 @@ class SessionService {
   /// Gets a session by ID.
   Future<Session?> getSession(String sessionId) async {
     try {
-      final response = await http.get(
+      final client = await AuthService().getAuthenticatedClient();
+      final response = await client.get(
         Uri.parse('$_baseUrl/api/sessions/$sessionId'),
       ).timeout(_requestTimeout);
 
@@ -265,7 +268,8 @@ class SessionService {
   /// Deletes a session.
   Future<bool> deleteSession(String sessionId) async {
     try {
-      final response = await http.delete(
+      final client = await AuthService().getAuthenticatedClient();
+      final response = await client.delete(
         Uri.parse('$_baseUrl/api/sessions/$sessionId'),
       ).timeout(_requestTimeout);
 

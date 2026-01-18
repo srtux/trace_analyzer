@@ -7,7 +7,15 @@
       "category": "api_client",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Cloud Trace API client initialized successfully",
+        "latency_ms": 3447.224792002089,
+        "timestamp": "2026-01-18T01:22:09.703765",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "list_traces",
@@ -16,7 +24,15 @@
       "category": "api_client",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Cloud Trace API client initialized successfully",
+        "latency_ms": 0.03024999750778079,
+        "timestamp": "2026-01-18T01:22:09.704420",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "find_example_traces",
@@ -25,7 +41,15 @@
       "category": "api_client",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Cloud Trace API client initialized successfully",
+        "latency_ms": 0.03949999882024713,
+        "timestamp": "2026-01-18T01:22:09.705072",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "get_trace_by_url",
@@ -46,8 +70,8 @@
       "last_test_result": {
         "status": "success",
         "message": "Cloud Logging API client initialized successfully",
-        "latency_ms": 0.06983298226259649,
-        "timestamp": "2026-01-15T23:00:32.300355",
+        "latency_ms": 432.77999999918393,
+        "timestamp": "2026-01-18T01:22:10.138299",
         "details": {
           "project_id": "summitt-gcp"
         }
@@ -60,7 +84,15 @@
       "category": "api_client",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Cloud Logging API client initialized successfully",
+        "latency_ms": 0.06337499871733598,
+        "timestamp": "2026-01-18T01:22:10.139286",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "list_error_events",
@@ -69,7 +101,15 @@
       "category": "api_client",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Cloud Logging API client initialized successfully",
+        "latency_ms": 0.01779100057319738,
+        "timestamp": "2026-01-18T01:22:10.139885",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "list_time_series",
@@ -81,8 +121,8 @@
       "last_test_result": {
         "status": "success",
         "message": "Cloud Monitoring API client initialized successfully",
-        "latency_ms": 3597.265749995131,
-        "timestamp": "2026-01-15T23:00:39.155802",
+        "latency_ms": 403.4005409994279,
+        "timestamp": "2026-01-18T01:22:10.543692",
         "details": {
           "project_id": "summitt-gcp"
         }
@@ -95,7 +135,15 @@
       "category": "api_client",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Cloud Monitoring API client initialized successfully",
+        "latency_ms": 0.03724999987753108,
+        "timestamp": "2026-01-18T01:22:10.544615",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "list_alerts",
@@ -104,7 +152,15 @@
       "category": "api_client",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Alert Policy API client initialized successfully",
+        "latency_ms": 409.2963749972114,
+        "timestamp": "2026-01-18T01:22:10.954479",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "get_alert",
@@ -113,7 +169,15 @@
       "category": "api_client",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Alert Policy API client initialized successfully",
+        "latency_ms": 0.0413330017181579,
+        "timestamp": "2026-01-18T01:22:10.955414",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "list_alert_policies",
@@ -122,7 +186,15 @@
       "category": "api_client",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Alert Policy API client initialized successfully",
+        "latency_ms": 0.027917001716559753,
+        "timestamp": "2026-01-18T01:22:10.956189",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "get_current_time",
@@ -140,7 +212,13 @@
       "category": "mcp",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "failed",
+        "message": "Failed to create MCP Logging toolset: MCP server projects/summitt-gcp/locations/global/mcpServers/logging.googleapis.com-mcp not found in API Registry.",
+        "latency_ms": 2479.5876670032158,
+        "timestamp": "2026-01-18T01:22:13.436088",
+        "details": {}
+      }
     },
     {
       "name": "mcp_list_timeseries",
@@ -149,7 +227,13 @@
       "category": "mcp",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "failed",
+        "message": "Failed to create MCP Monitoring toolset: MCP server projects/summitt-gcp/locations/global/mcpServers/monitoring.googleapis.com-mcp not found in API Registry.",
+        "latency_ms": 1916.3514579995535,
+        "timestamp": "2026-01-18T01:22:15.354146",
+        "details": {}
+      }
     },
     {
       "name": "mcp_query_range",
@@ -158,7 +242,13 @@
       "category": "mcp",
       "enabled": true,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "failed",
+        "message": "Failed to create MCP Monitoring toolset: MCP server projects/summitt-gcp/locations/global/mcpServers/monitoring.googleapis.com-mcp not found in API Registry.",
+        "latency_ms": 1615.7407909995527,
+        "timestamp": "2026-01-18T01:22:16.972725",
+        "details": {}
+      }
     },
     {
       "name": "analyze_aggregate_metrics",
@@ -263,6 +353,42 @@
       "name": "find_structural_differences",
       "display_name": "Find Structural Differences",
       "description": "Find structural differences between two traces",
+      "category": "analysis",
+      "enabled": true,
+      "testable": false,
+      "last_test_result": null
+    },
+    {
+      "name": "detect_retry_storm",
+      "display_name": "Detect Retry Storm",
+      "description": "Identify excessive retries and exponential backoff patterns",
+      "category": "analysis",
+      "enabled": true,
+      "testable": false,
+      "last_test_result": null
+    },
+    {
+      "name": "detect_cascading_timeout",
+      "display_name": "Detect Cascading Timeout",
+      "description": "Trace timeout propagation through the call chain",
+      "category": "analysis",
+      "enabled": true,
+      "testable": false,
+      "last_test_result": null
+    },
+    {
+      "name": "detect_connection_pool_issues",
+      "display_name": "Detect Connection Pool Issues",
+      "description": "Detect waits for database or HTTP connections",
+      "category": "analysis",
+      "enabled": true,
+      "testable": false,
+      "last_test_result": null
+    },
+    {
+      "name": "detect_all_sre_patterns",
+      "display_name": "Detect All SRE Patterns",
+      "description": "Comprehensive scan for multiple SRE anti-patterns",
       "category": "analysis",
       "enabled": true,
       "testable": false,
@@ -428,7 +554,15 @@
       "category": "slo",
       "enabled": false,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Service Monitoring API client initialized successfully",
+        "latency_ms": 442.2536249985569,
+        "timestamp": "2026-01-18T01:22:17.418430",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "get_slo_status",
@@ -437,7 +571,15 @@
       "category": "slo",
       "enabled": false,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Service Monitoring API client initialized successfully",
+        "latency_ms": 411.3383750009234,
+        "timestamp": "2026-01-18T01:22:17.830532",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "analyze_error_budget_burn",
@@ -482,7 +624,13 @@
       "category": "gke",
       "enabled": false,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "failed",
+        "message": "Failed to initialize GKE Cluster Manager client: cannot import name 'container_v1' from 'google.cloud' (unknown location)",
+        "latency_ms": 0.26391600113129243,
+        "timestamp": "2026-01-18T01:22:17.831606",
+        "details": {}
+      }
     },
     {
       "name": "analyze_node_conditions",
@@ -491,7 +639,13 @@
       "category": "gke",
       "enabled": false,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "failed",
+        "message": "Failed to initialize GKE Cluster Manager client: cannot import name 'container_v1' from 'google.cloud' (unknown location)",
+        "latency_ms": 0.0429579995397944,
+        "timestamp": "2026-01-18T01:22:17.832106",
+        "details": {}
+      }
     },
     {
       "name": "get_pod_restart_events",
@@ -500,7 +654,15 @@
       "category": "gke",
       "enabled": false,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Cloud Logging API client initialized successfully",
+        "latency_ms": 0.049375001253793016,
+        "timestamp": "2026-01-18T01:22:17.832944",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "analyze_hpa_events",
@@ -509,7 +671,15 @@
       "category": "gke",
       "enabled": false,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Cloud Logging API client initialized successfully",
+        "latency_ms": 0.026458998036105186,
+        "timestamp": "2026-01-18T01:22:17.833618",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "get_container_oom_events",
@@ -518,7 +688,15 @@
       "category": "gke",
       "enabled": false,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "success",
+        "message": "Cloud Logging API client initialized successfully",
+        "latency_ms": 0.025291999918408692,
+        "timestamp": "2026-01-18T01:22:17.834284",
+        "details": {
+          "project_id": "summitt-gcp"
+        }
+      }
     },
     {
       "name": "correlate_trace_with_kubernetes",
@@ -536,7 +714,13 @@
       "category": "gke",
       "enabled": false,
       "testable": true,
-      "last_test_result": null
+      "last_test_result": {
+        "status": "failed",
+        "message": "Failed to initialize GKE Cluster Manager client: cannot import name 'container_v1' from 'google.cloud' (unknown location)",
+        "latency_ms": 0.08483299825456925,
+        "timestamp": "2026-01-18T01:22:17.835025",
+        "details": {}
+      }
     },
     {
       "name": "generate_remediation_suggestions",
@@ -630,5 +814,5 @@
     }
   ],
   "version": "1.0",
-  "updated_at": "2026-01-17T04:53:57.772198"
+  "updated_at": "2026-01-18T01:22:17.835053"
 }

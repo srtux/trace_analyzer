@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'auth_service.dart';
 
 /// Model representing a GCP project.
 class GcpProject {
@@ -79,7 +79,8 @@ class ProjectService {
   /// Loads the previously selected project from backend storage.
   Future<void> loadSavedProject() async {
     try {
-      final response = await http.get(
+      final client = await AuthService().getAuthenticatedClient();
+      final response = await client.get(
         Uri.parse(_preferencesUrl),
       ).timeout(_requestTimeout);
 
@@ -105,7 +106,8 @@ class ProjectService {
   /// Saves the selected project to backend storage.
   Future<void> _saveSelectedProject(String projectId) async {
     try {
-      await http.post(
+      final client = await AuthService().getAuthenticatedClient();
+      await client.post(
         Uri.parse(_preferencesUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'project_id': projectId}),
@@ -124,7 +126,8 @@ class ProjectService {
     _error.value = null;
 
     try {
-      final response = await http.get(Uri.parse(_projectsUrl)).timeout(_requestTimeout);
+      final client = await AuthService().getAuthenticatedClient();
+      final response = await client.get(Uri.parse(_projectsUrl)).timeout(_requestTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

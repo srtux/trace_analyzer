@@ -12,19 +12,24 @@ import 'package:autosre/app.dart';
 
 void main() {
   testWidgets('App renders correctly', (WidgetTester tester) async {
+    // Set a fixed size to ensure desktop layout and visibility of elements
+    tester.view.physicalSize = const Size(1280, 720);
+    tester.view.devicePixelRatio = 1.0;
+
     // Build our app and trigger a frame.
     await tester.pumpWidget(const SreNexusApp());
+    await tester.pumpAndSettle();
 
-    // Verify that our title is present.
-    expect(find.text('AutoSRE'), findsOneWidget);
+    // Verify Login Page is shown
+    expect(find.text('Welcome to AutoSRE'), findsOneWidget);
 
-    // Verify input hint is present
-    expect(find.text('Ask a question...'), findsOneWidget);
+    // Verify logo icon
+    expect(find.byIcon(Icons.smart_toy), findsOneWidget);
 
-    // Verify send button is present
-    expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
+    // Verify Sign In button
+    expect(find.text('Sign in with Google'), findsOneWidget);
 
-    // Trigger disposal to clean up timers
-    await tester.pumpWidget(const SizedBox());
+    // Clear size override
+    addTearDown(tester.view.resetPhysicalSize);
   });
 }

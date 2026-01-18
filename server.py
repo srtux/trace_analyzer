@@ -104,6 +104,26 @@ app.add_middleware(
 )
 
 
+# Auth Middleware
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next: Any) -> Any:
+    """Middleware to extract Authorization header and set credentials context."""
+    from google.oauth2.credentials import Credentials
+
+    from sre_agent.auth import set_current_credentials
+
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        # Create credentials from the token (Access Token)
+        # Note: We trust the token format here; downstream APIs will fail if invalid.
+        creds = Credentials(token=token)  # type: ignore[no-untyped-call]
+        set_current_credentials(creds)
+
+    response = await call_next(request)
+    return response
+
+
 # HELPER: Create ToolContext
 async def get_tool_context() -> "ToolContext":
     """Create a ToolContext with a dummy session/invocation."""

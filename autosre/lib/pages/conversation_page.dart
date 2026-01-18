@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:genui/genui.dart';
+import 'package:provider/provider.dart';
+
+import '../services/auth_service.dart';
 
 import '../agent/adk_content_generator.dart';
 import '../catalog.dart';
@@ -33,9 +36,9 @@ class _ConversationPageState extends State<ConversationPage>
   final ProjectService _projectService = ProjectService();
   final SessionService _sessionService = SessionService();
 
+
   late AnimationController _typingController;
 
-  bool _showSessionPanel = true;
   StreamSubscription<String>? _sessionSubscription;
 
   @override
@@ -160,131 +163,178 @@ class _ConversationPageState extends State<ConversationPage>
     _conversation.sendRequest(UserMessage.text(text));
   }
 
+  bool _isSidebarOpen = true;
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
-      appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          // Main content with session panel
-          Expanded(
-            child: Row(
-              children: [
-                // Session panel (collapsible)
-                if (_showSessionPanel)
-                  ValueListenableBuilder<String?>(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 900;
+        final showDrawer = isMobile;
+        final showSidebar = !isMobile && _isSidebarOpen;
+
+        return Scaffold(
+          backgroundColor: AppColors.backgroundDark,
+          drawer: showDrawer
+              ? Drawer(
+                  width: 280,
+                  backgroundColor: AppColors.backgroundCard,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.zero,
+                  ),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: ValueListenableBuilder<String?>(
+                          valueListenable: _sessionService.currentSessionId,
+                          builder: (context, currentSessionId, _) {
+                            return SessionPanel(
+                              sessionService: _sessionService,
+                              onNewSession: _startNewSession,
+                              onSessionSelected: (id) {
+                                _loadSession(id);
+                                Navigator.pop(context); // Close drawer
+                              },
+                              currentSessionId: currentSessionId,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : null,
+          appBar: _buildAppBar(isMobile: isMobile),
+          body: Row(
+            children: [
+              // Sidebar for desktop
+              if (showSidebar)
+                SizedBox(
+                  width: 280,
+                  child: ValueListenableBuilder<String?>(
                     valueListenable: _sessionService.currentSessionId,
                     builder: (context, currentSessionId, _) {
                       return SessionPanel(
                         sessionService: _sessionService,
                         onNewSession: _startNewSession,
-                        onSessionSelected: _loadSession,
+                        onSessionSelected: (id) {
+                          _loadSession(id);
+                        },
                         currentSessionId: currentSessionId,
                       );
                     },
                   ),
-                // Main conversation area
-                Expanded(
-                  child: Column(
-                    children: [
-                      Expanded(child: _buildMessageList()),
-                      _buildInputArea(),
-                    ],
-                  ),
                 ),
-              ],
-            ),
+              // Divider
+              if (showSidebar)
+                VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: AppColors.surfaceBorder,
+                ),
+              // Main conversation area
+              Expanded(
+                child: Column(
+                  children: [
+                    Expanded(child: _buildMessageList()),
+                    _buildInputArea(),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(56),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.backgroundCard,
-          border: Border(
-            bottom: BorderSide(
-              color: AppColors.surfaceBorder.withValues(alpha: 0.5),
-              width: 1,
-            ),
-          ),
+  PreferredSizeWidget _buildAppBar({required bool isMobile}) {
+    return AppBar(
+      backgroundColor: AppColors.backgroundCard,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shape: Border(
+        bottom: BorderSide(
+          color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+          width: 1,
         ),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isCompact = constraints.maxWidth < 600;
-              final isMobile = constraints.maxWidth < 400;
-
-              return Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1600),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isCompact ? 12 : 24,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      children: [
-                        // Logo/Icon - clickable to return to home
-                        _buildLogoButton(isMobile: isMobile),
-                        SizedBox(width: isMobile ? 8 : 12),
-                        // Title
-                        Text(
-                          'AutoSRE',
-                          style: TextStyle(
-                            fontSize: isMobile ? 15 : 17,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                        const Spacer(),
-                        // History Toggle
-                        _buildSessionToggle(compact: isMobile),
-                        SizedBox(width: isCompact ? 8 : 12),
-                        // Project Selector - constrained width on mobile
-                        Flexible(
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: isMobile ? 110 : (isCompact ? 160 : 200),
-                            ),
-                            child: _buildProjectSelector(),
-                          ),
-                        ),
-                        SizedBox(width: isCompact ? 8 : 12),
-                        // Status indicator
-                        ValueListenableBuilder<bool>(
-                          valueListenable: _contentGenerator.isConnected,
-                          builder: (context, isConnected, _) {
-                            return ValueListenableBuilder<bool>(
-                              valueListenable: _contentGenerator.isProcessing,
-                              builder: (context, isProcessing, _) {
-                                return _buildStatusIndicator(
-                                  isProcessing,
-                                  isConnected,
-                                  compact: isMobile,
-                                );
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        // Tool Configuration button
-                        _buildToolConfigButton(compact: isMobile),
-                      ],
+      ),
+      leading: Builder(
+        builder: (context) {
+          return IconButton(
+            icon: Icon(
+              isMobile ? Icons.menu : (_isSidebarOpen ? Icons.menu_open : Icons.menu),
+              color: AppColors.textSecondary,
+            ),
+            onPressed: () {
+              if (isMobile) {
+                Scaffold.of(context).openDrawer();
+              } else {
+                setState(() {
+                  _isSidebarOpen = !_isSidebarOpen;
+                });
+              }
+            },
+          );
+        },
+      ),
+      titleSpacing: 0,
+      title: LayoutBuilder(
+        builder: (context, constraints) {
+           final isCompact = constraints.maxWidth < 600;
+           return Row(
+            children: [
+              // Logo/Icon - clickable to return to home
+              _buildLogoButton(),
+              const SizedBox(width: 8),
+              // Title
+              if (!isCompact)
+                InkWell(
+                  onTap: _startNewSession,
+                  child: Text(
+                    'AutoSRE',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ),
-              );
-            },
-          ),
-        ),
+              const SizedBox(width: 24),
+              // Project Selector (Left aligned now)
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 250),
+                 child: _buildProjectSelector(),
+              ),
+            ],
+          );
+        }
       ),
+      actions: [
+         // Status indicator
+        ValueListenableBuilder<bool>(
+          valueListenable: _contentGenerator.isConnected,
+          builder: (context, isConnected, _) {
+            return ValueListenableBuilder<bool>(
+              valueListenable: _contentGenerator.isProcessing,
+              builder: (context, isProcessing, _) {
+                return _buildStatusIndicator(
+                  isProcessing,
+                  isConnected,
+                );
+              },
+            );
+          },
+        ),
+        const SizedBox(width: 12),
+        // Settings / Tool Config
+        _buildSettingsButton(),
+        const SizedBox(width: 8),
+        // User Profile
+        _buildUserProfileButton(),
+        const SizedBox(width: 16),
+      ],
     );
   }
 
@@ -303,7 +353,7 @@ class _ConversationPageState extends State<ConversationPage>
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
-              Icons.terminal,
+              Icons.smart_toy,
               color: AppColors.primaryTeal,
               size: isMobile ? 18 : 20,
             ),
@@ -315,94 +365,79 @@ class _ConversationPageState extends State<ConversationPage>
 
 
 
-  Widget _buildSessionToggle({bool compact = false}) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _showSessionPanel = !_showSessionPanel;
-          });
-        },
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: EdgeInsets.all(compact ? 6 : 8),
-          decoration: BoxDecoration(
-            color: _showSessionPanel
-                ? AppColors.primaryTeal.withValues(alpha: 0.15)
-                : Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: _showSessionPanel
-                  ? AppColors.primaryTeal.withValues(alpha: 0.3)
-                  : Colors.white.withValues(alpha: 0.1),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _showSessionPanel
-                    ? Icons.menu_open
-                    : Icons.history,
-                color: _showSessionPanel
-                    ? AppColors.primaryTeal
-                    : AppColors.textMuted,
-                size: compact ? 16 : 18,
+  Widget _buildSettingsButton() {
+    return Tooltip(
+      message: 'Settings',
+      child: IconButton(
+        icon: const Icon(Icons.settings_outlined, color: AppColors.textSecondary),
+        onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const ToolConfigPage(),
               ),
-              if (!compact) ...[
-                const SizedBox(width: 8),
-                Text(
-                  'History',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _showSessionPanel
-                        ? AppColors.primaryTeal
-                        : AppColors.textMuted,
-                  ),
+            );
+        },
+      ),
+    );
+  }
+
+  Widget _buildUserProfileButton() {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser;
+    final photoUrl = user?.photoUrl;
+
+    return Tooltip(
+      message: user?.displayName ?? 'User Profile',
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            // TODO: Show profile dialog or sign out option
+             showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text(user?.displayName ?? 'Profile'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(user?.email ?? ''),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final navigator = Navigator.of(context);
+                        await authService.signOut();
+                        navigator.pop();
+                      },
+                      child: const Text('Sign Out'),
+                    ),
+                  ],
                 ),
-              ],
-            ],
+              ),
+            );
+          },
+          child: CircleAvatar(
+            backgroundColor: AppColors.primaryTeal,
+            radius: 16,
+            backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+            child: photoUrl == null
+                ? Text(
+                    user?.displayName?.substring(0, 1).toUpperCase() ?? 'U',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  )
+                : null,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildToolConfigButton({bool compact = false}) {
-    return Tooltip(
-      message: 'Tool Configuration',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const ToolConfigPage(),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(6),
-          child: Container(
-            padding: EdgeInsets.all(compact ? 6 : 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: AppColors.surfaceBorder.withValues(alpha: 0.5),
-              ),
-            ),
-            child: Icon(
-              Icons.settings_outlined,
-              size: compact ? 16 : 18,
-              color: AppColors.textMuted,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildStatusIndicator(bool isProcessing, bool isConnected, {bool compact = false}) {
     Color statusColor;
@@ -743,7 +778,7 @@ class _ConversationPageState extends State<ConversationPage>
 
   Widget _buildInputArea() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         border: Border(
@@ -761,67 +796,78 @@ class _ConversationPageState extends State<ConversationPage>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Input row
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.backgroundDark,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
-                            width: 1,
-                          ),
-                        ),
+                // Unified Input Container
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundDark,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.primaryTeal.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
                         child: TextField(
                           controller: _textController,
                           focusNode: _focusNode,
-                          onSubmitted: (_) => _sendMessage(),
-                          maxLines: 4,
+                          onSubmitted: (_) {
+                            // Only submit on enter if shift is not pressed (handled by focusNode mostly, but good backup)
+                             if (!HardwareKeyboard.instance.isShiftPressed) {
+                               _sendMessage();
+                             }
+                          },
+                          maxLines: 8,
                           minLines: 1,
                           style: const TextStyle(
                             color: AppColors.textPrimary,
-                            fontSize: 14,
-                            height: 1.4,
+                            fontSize: 15,
+                            height: 1.5,
                           ),
                           decoration: InputDecoration(
                             hintText: "Ask a question...",
                             hintStyle: TextStyle(
                               color: AppColors.textMuted,
-                              fontSize: 14,
+                              fontSize: 15,
                             ),
                             border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
+                            contentPadding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: _contentGenerator.isProcessing,
-                      builder: (context, isProcessing, _) {
-                        return _SendButton(
-                          isProcessing: isProcessing,
-                          onPressed: _sendMessage,
-                          onCancel: _contentGenerator.cancelRequest,
-                        );
-                      },
-                    ),
-                  ],
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6, bottom: 6),
+                        child: ValueListenableBuilder<bool>(
+                          valueListenable: _contentGenerator.isProcessing,
+                          builder: (context, isProcessing, _) {
+                            return _SendButton(
+                              isProcessing: isProcessing,
+                              onPressed: _sendMessage,
+                              onCancel: _contentGenerator.cancelRequest,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 // Compact keyboard hint
                 Padding(
-                  padding: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     'Enter to send • Shift+Enter for new line',
                     style: TextStyle(
-                      fontSize: 10,
-                      color: AppColors.textMuted.withValues(alpha: 0.5),
+                      fontSize: 11,
+                      color: AppColors.textMuted.withValues(alpha: 0.6),
                     ),
                   ),
                 ),
@@ -912,7 +958,7 @@ class _MessageItemState extends State<_MessageItem>
 
     if (msg is UserMessage) {
       return Align(
-        alignment: Alignment.centerRight,
+        alignment: Alignment.centerLeft,
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1044,19 +1090,19 @@ class _SendButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: isProcessing ? onCancel : onPressed,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(20),
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: isProcessing
                   ? AppColors.error
                   : AppColors.primaryTeal,
-              borderRadius: BorderRadius.circular(8),
+              shape: BoxShape.circle,
             ),
             child: Icon(
               isProcessing ? Icons.stop_rounded : Icons.arrow_upward_rounded,
               color: isProcessing ? Colors.white : AppColors.backgroundDark,
-              size: 20,
+              size: 22,
             ),
           ),
         ),

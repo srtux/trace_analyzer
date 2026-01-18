@@ -63,6 +63,10 @@ def main():
         f"GOOGLE_CLOUD_LOCATION={args.region}",
     ]
 
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if google_client_id:
+        env_vars.append(f"GOOGLE_CLIENT_ID={google_client_id}")
+
     if agent_url:
         env_vars.append(f"SRE_AGENT_URL={agent_url}")
         env_vars.append(f"SRE_AGENT_API_URL={agent_url}")

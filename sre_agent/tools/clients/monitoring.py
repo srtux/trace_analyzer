@@ -14,10 +14,10 @@ import logging
 import time
 from datetime import datetime, timezone
 
-import google.auth
 from google.auth.transport.requests import AuthorizedSession
 from google.cloud import monitoring_v3
 
+from ...auth import get_current_credentials
 from ..common import adk_tool
 from ..common.telemetry import get_tracer
 from .factory import get_monitoring_client
@@ -168,9 +168,10 @@ def _query_promql_sync(
     """Synchronous implementation of query_promql."""
     try:
         # Get credentials
-        credentials, _ = google.auth.default(
-            scopes=["https://www.googleapis.com/auth/cloud-platform"]
-        )
+        # Get credentials
+        credentials, _ = get_current_credentials()
+        # Ensure allowed scopes if not already present (Credentials from token might not allow arbitrary scope injection but AuthorizedSession handles it)
+        # Note: AccessToken credentials don't usually require scopes arg if already scoped.
         session = AuthorizedSession(credentials)  # type: ignore[no-untyped-call]
 
         # Default time range if not provided

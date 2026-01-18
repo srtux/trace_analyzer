@@ -17,11 +17,11 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import google.auth
 import httpx
 from google.adk.tools import ToolContext  # type: ignore[attr-defined]
 from google.adk.tools.api_registry import ApiRegistry
 
+from ...auth import get_current_credentials
 from ...schema import ToolStatus
 from ..common import adk_tool
 from .mock_mcp import MockMcpToolset
@@ -33,7 +33,7 @@ def get_project_id_with_fallback() -> str | None:
     """Get project ID from environment or default credentials."""
     project_id = None
     try:
-        _, project_id = google.auth.default()
+        _, project_id = get_current_credentials()
         project_id = project_id or os.environ.get("GOOGLE_CLOUD_PROJECT")
     except Exception:
         pass

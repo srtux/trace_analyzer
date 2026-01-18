@@ -13,10 +13,10 @@ import json
 import logging
 from typing import Any
 
-import google.auth
 from google.auth.transport.requests import AuthorizedSession
 from google.cloud import monitoring_v3
 
+from ...auth import get_current_credentials
 from ..common import adk_tool
 from ..common.telemetry import get_tracer
 from .factory import get_alert_policy_client
@@ -64,9 +64,7 @@ def _list_alerts_sync(
 
         try:
             # Get credentials
-            credentials, _ = google.auth.default(
-                scopes=["https://www.googleapis.com/auth/cloud-platform"]
-            )
+            credentials, _ = get_current_credentials()
             session = AuthorizedSession(credentials)  # type: ignore[no-untyped-call]
 
             # API Endpoint: projects.alerts.list
@@ -116,9 +114,7 @@ def _get_alert_sync(name: str) -> str:
 
         try:
             # Get credentials
-            credentials, _ = google.auth.default(
-                scopes=["https://www.googleapis.com/auth/cloud-platform"]
-            )
+            credentials, _ = get_current_credentials()
             session = AuthorizedSession(credentials)  # type: ignore[no-untyped-call]
 
             # API Endpoint: projects.alerts.get

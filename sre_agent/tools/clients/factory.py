@@ -6,6 +6,8 @@ from typing import Any, TypeVar, cast
 from google.cloud import monitoring_v3, trace_v1
 from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
 
+from ...auth import get_current_credentials_or_none
+
 T = TypeVar("T")
 
 _clients: dict[str, Any] = {}
@@ -26,6 +28,15 @@ def _get_client(name: str, client_class: type[T]) -> T:
         with _lock:
             if name not in _clients:
                 _clients[name] = client_class()
+
+    # Check for user-specific credentials override
+    user_creds = get_current_credentials_or_none()
+    if user_creds:
+        # Create a new client with these credentials
+        # We don't cache these in the global cache to avoid mixing user sessions.
+        # In a high-throughput scenario, we might want a per-user cache.
+        return client_class(credentials=user_creds)  # type: ignore[call-arg]
+
     return cast(T, _clients[name])
 
 

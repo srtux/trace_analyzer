@@ -18,20 +18,19 @@ import json
 import logging
 from typing import Any
 
-import google.auth
 from google.auth.transport.requests import AuthorizedSession
 from google.cloud import monitoring_v3
 
+from ...auth import get_current_credentials
 from ..common import adk_tool
+from .factory import get_monitoring_client
 
 logger = logging.getLogger(__name__)
 
 
 def _get_authorized_session() -> AuthorizedSession:
     """Get an authorized session for REST API calls."""
-    credentials, _ = google.auth.default(
-        scopes=["https://www.googleapis.com/auth/cloud-platform"]
-    )
+    credentials, _ = get_current_credentials()
     return AuthorizedSession(credentials)  # type: ignore[no-untyped-call]
 
 
@@ -191,7 +190,7 @@ def _analyze_node_conditions_sync(
     """Synchronous implementation of analyze_node_conditions."""
     try:
         # Query Cloud Monitoring for node conditions
-        client = monitoring_v3.MetricServiceClient()
+        client = get_monitoring_client()
         project_name = f"projects/{project_id}"
 
         import time
@@ -384,7 +383,7 @@ def _get_pod_restart_events_sync(
 ) -> str:
     """Synchronous implementation of get_pod_restart_events."""
     try:
-        client = monitoring_v3.MetricServiceClient()
+        client = get_monitoring_client()
         project_name = f"projects/{project_id}"
 
         import time
@@ -526,7 +525,7 @@ def _analyze_hpa_events_sync(
 ) -> str:
     """Synchronous implementation of analyze_hpa_events."""
     try:
-        client = monitoring_v3.MetricServiceClient()
+        client = get_monitoring_client()
         project_name = f"projects/{project_id}"
 
         import time
@@ -711,7 +710,7 @@ def _get_container_oom_events_sync(
             oom_logs = []
 
         # Also query memory usage to find containers near limit
-        client = monitoring_v3.MetricServiceClient()
+        client = get_monitoring_client()
         project_name = f"projects/{project_id}"
 
         import time
